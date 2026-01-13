@@ -3,10 +3,8 @@
 namespace App\Filament\Resources\Leases\Schemas;
 
 use Filament\Schemas\Schema;
-// Layout components using the working namespace
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-// Data display components
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\TextEntry;
 
 class LeaseInfolist
