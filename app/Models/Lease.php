@@ -13,6 +13,7 @@ class Lease extends Model
 
     protected $fillable = [
         'reference_number',
+        'serial_number',
         'source',
         'lease_type',
         'signing_mode',
@@ -37,6 +38,10 @@ class Lease extends Model
         'generated_pdf_path',
         'signed_pdf_path',
         'signed_pdf_hash',
+        'qr_code_data',
+        'qr_code_path',
+        'qr_generated_at',
+        'verification_url',
         'notes',
         'created_by',
     ];
@@ -51,6 +56,7 @@ class Lease extends Model
         'is_periodic' => 'boolean',
         'requires_lawyer' => 'boolean',
         'requires_guarantor' => 'boolean',
+        'qr_generated_at' => 'datetime',
     ];
 
     // Valid workflow transitions
