@@ -4,21 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Unit extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'property_id',
+        'unit_number',
+        'type',
+        'market_rent',
+        'deposit_required',
+        'status',
+    ];
 
-    // --- THIS WAS MISSING ---
-    // This tells the Unit: "You belong to a Property."
-    public function property()
+    protected $casts = [
+        'market_rent' => 'decimal:2',
+        'deposit_required' => 'decimal:2',
+    ];
+
+    public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
     }
 
-    public function leases()
+    public function leases(): HasMany
     {
         return $this->hasMany(Lease::class);
     }
