@@ -5,7 +5,6 @@ namespace App\Filament\Widgets;
 use App\Models\Lease;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Actions\Action;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -78,10 +77,6 @@ class RecentLeasesWidget extends TableWidget
                     ->dateTime('M d, Y')
                     ->sortable(),
             ])
-            ->recordAction(
-                Action::make('view')
-                    ->url(fn (Lease $record): string => route('filament.admin.resources.leases.view', ['record' => $record]))
-            )
             ->paginated(false);
     }
 }
