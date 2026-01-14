@@ -157,9 +157,10 @@ class Lease extends Model
             'action' => 'state_transition',
             'old_state' => $oldState,
             'new_state' => $newState,
-            'performed_by' => auth()->id(),
-            'user_role_at_time' => auth()->user()->role ?? 'unknown',
+            'user_id' => auth()->id(),
+            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'unknown',
             'ip_address' => request()->ip(),
+            'description' => "Transitioned from {$oldState} to {$newState}",
         ]);
 
         return true;
@@ -180,10 +181,11 @@ class Lease extends Model
             'action' => 'printed',
             'old_state' => 'approved',
             'new_state' => 'printed',
-            'performed_by' => auth()->id(),
-            'user_role_at_time' => auth()->user()->role ?? 'unknown',
+            'user_id' => auth()->id(),
+            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'unknown',
             'ip_address' => request()->ip(),
-            'details' => json_encode(['workstation' => gethostname()]),
+            'additional_data' => ['workstation' => gethostname()],
+            'description' => "Lease printed at workstation",
         ]);
     }
 }

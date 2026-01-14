@@ -82,6 +82,64 @@ class LeaseForm
                     ->required(),
 
                 Forms\Components\DatePicker::make('end_date'),
+
+                // --- Guarantor Section ---
+                Forms\Components\Toggle::make('requires_guarantor')
+                    ->label('Requires Guarantor')
+                    ->reactive()
+                    ->default(false),
+
+                Forms\Components\Repeater::make('guarantors')
+                    ->relationship('guarantors')
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->label('Full Name')
+                            ->maxLength(200),
+
+                        Forms\Components\TextInput::make('id_number')
+                            ->required()
+                            ->label('National ID')
+                            ->maxLength(20),
+
+                        Forms\Components\TextInput::make('phone')
+                            ->required()
+                            ->tel()
+                            ->maxLength(20),
+
+                        Forms\Components\TextInput::make('email')
+                            ->email()
+                            ->maxLength(100),
+
+                        Forms\Components\Select::make('relationship')
+                            ->required()
+                            ->options([
+                                'Parent' => 'Parent',
+                                'Spouse' => 'Spouse',
+                                'Sibling' => 'Sibling',
+                                'Employer' => 'Employer',
+                                'Friend' => 'Friend',
+                                'Other' => 'Other',
+                            ]),
+
+                        Forms\Components\TextInput::make('guarantee_amount')
+                            ->numeric()
+                            ->prefix('KES')
+                            ->label('Guarantee Amount (optional - defaults to deposit)'),
+
+                        Forms\Components\Toggle::make('signed')
+                            ->label('Has Signed')
+                            ->default(false),
+
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Additional Notes')
+                            ->rows(2),
+                    ])
+                    ->visible(fn ($get) => $get('requires_guarantor'))
+                    ->collapsible()
+                    ->defaultItems(0)
+                    ->addActionLabel('Add Guarantor')
+                    ->label('Guarantors'),
             ]);
     }
 }
