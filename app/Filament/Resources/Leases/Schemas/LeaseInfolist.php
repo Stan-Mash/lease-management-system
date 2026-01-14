@@ -5,7 +5,7 @@ namespace App\Filament\Resources\Leases\Schemas;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\TextEntry;
+use Filament\Schemas\Components\Text;
 
 class LeaseInfolist
 {
@@ -15,11 +15,11 @@ class LeaseInfolist
             Section::make('Lease Overview')
                 ->schema([
                     Grid::make(3)->schema([
-                        TextEntry::make('reference_number')
+                        Text::make('reference_number')
                             ->label('Reference Number')
                             ->weight('bold'),
 
-                        TextEntry::make('workflow_state')
+                        Text::make('workflow_state')
                             ->label('Status')
                             ->badge()
                             ->color(fn (string $state): string => match (strtolower($state)) {
@@ -32,7 +32,7 @@ class LeaseInfolist
                                 default => 'gray',
                             }),
 
-                        TextEntry::make('lease_type')
+                        Text::make('lease_type')
                             ->label('Type'),
                     ]),
                 ]),
@@ -40,17 +40,17 @@ class LeaseInfolist
             Section::make('Property & Tenant Details')
                 ->schema([
                     Grid::make(2)->schema([
-                        TextEntry::make('tenant.full_name')->label('Tenant Name'),
-                        TextEntry::make('unit.unit_number')->label('Unit Number'),
-                        TextEntry::make('property.name')->label('Property'),
-                        TextEntry::make('landlord.name')->label('Landlord'),
+                        Text::make('tenant.full_name')->label('Tenant Name'),
+                        Text::make('unit.unit_number')->label('Unit Number'),
+                        Text::make('property.name')->label('Property'),
+                        Text::make('landlord.name')->label('Landlord'),
                     ]),
                 ]),
 
             Section::make('Approval Information')
                 ->schema([
                     Grid::make(3)->schema([
-                        TextEntry::make('approvals_status')
+                        Text::make('approvals_status')
                             ->label('Approval Status')
                             ->badge()
                             ->state(function ($record) {
@@ -66,25 +66,25 @@ class LeaseInfolist
                                 return 'gray';
                             }),
 
-                        TextEntry::make('latest_approval.reviewer.name')
+                        Text::make('latest_approval.reviewer.name')
                             ->label('Reviewed By')
                             ->default('—')
                             ->visible(fn ($record) => $record->getLatestApproval() !== null),
 
-                        TextEntry::make('latest_approval.reviewed_at')
+                        Text::make('latest_approval.reviewed_at')
                             ->label('Reviewed On')
                             ->dateTime()
                             ->default('—')
                             ->visible(fn ($record) => $record->getLatestApproval() !== null),
                     ]),
 
-                    TextEntry::make('latest_approval.comments')
+                    Text::make('latest_approval.comments')
                         ->label('Approval Comments')
                         ->default('No comments provided')
                         ->visible(fn ($record) => $record->getLatestApproval()?->comments !== null)
                         ->columnSpanFull(),
 
-                    TextEntry::make('latest_approval.rejection_reason')
+                    Text::make('latest_approval.rejection_reason')
                         ->label('Rejection Reason')
                         ->default('—')
                         ->visible(fn ($record) => $record->getLatestApproval()?->rejection_reason !== null)
@@ -92,7 +92,7 @@ class LeaseInfolist
                         ->weight('bold')
                         ->columnSpanFull(),
 
-                    TextEntry::make('latest_approval.comments')
+                    Text::make('latest_approval.comments')
                         ->label('Additional Comments')
                         ->default('No additional comments')
                         ->visible(fn ($record) =>
