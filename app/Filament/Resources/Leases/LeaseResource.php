@@ -63,11 +63,30 @@ class LeaseResource extends Resource
                     ->badge()
                     ->color(fn (string $state): string => match (strtolower($state)) {
                         'draft' => 'gray',
+                        'pending_landlord_approval' => 'warning',
                         'approved' => 'info',
                         'active' => 'success',
                         'terminated', 'expired' => 'danger',
+                        'cancelled' => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('approval_status')
+                    ->label('Approval')
+                    ->badge()
+                    ->state(function ($record) {
+                        if (!$record->landlord_id) return null;
+                        if ($record->hasBeenApproved()) return 'Approved';
+                        if ($record->hasBeenRejected()) return 'Rejected';
+                        if ($record->hasPendingApproval()) return 'Pending';
+                        return null;
+                    })
+                    ->color(function ($record) {
+                        if ($record->hasBeenApproved()) return 'success';
+                        if ($record->hasBeenRejected()) return 'danger';
+                        if ($record->hasPendingApproval()) return 'warning';
+                        return 'gray';
+                    })
+                    ->visible(fn ($record) => $record !== null && $record->landlord_id !== null),
                 TextColumn::make('monthly_rent')
                     ->money('KES')
                     ->label('Rent'),
