@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'africas_talking' => [
+        'username' => env('AFRICAS_TALKING_USERNAME'),
+        'api_key' => env('AFRICAS_TALKING_API_KEY'),
+        'shortcode' => env('AFRICAS_TALKING_SHORTCODE', 'CHABRIN'),
+    ],
+
 ];
