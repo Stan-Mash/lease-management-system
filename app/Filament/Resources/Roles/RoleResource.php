@@ -25,11 +25,14 @@ class RoleResource extends Resource
 
     protected static ?int $navigationSort = 99;
 
-    protected static ?string $navigationGroup = 'Settings';
-
     public static function getNavigationIcon(): ?string
     {
         return 'heroicon-o-shield-check';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Settings';
     }
 
     public static function getNavigationLabel(): string
