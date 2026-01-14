@@ -143,6 +143,11 @@ class Lease extends Model
         return $this->hasMany(OTPVerification::class);
     }
 
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(LeaseApproval::class);
+    }
+
     // Workflow Methods
     public function canTransitionTo(string $newState): bool
     {
@@ -239,5 +244,168 @@ class Lease extends Model
             'reason' => $reason,
             'document_version' => $this->document_version,
         ]);
+    }
+
+    // Landlord Approval Methods
+
+    /**
+     * Request approval from landlord.
+     *
+     * @return LeaseApproval
+     */
+    public function requestApproval(): LeaseApproval
+    {
+        // Transition to pending_landlord state
+        $this->transitionTo('pending_landlord_approval');
+
+        // Create approval record
+        $approval = $this->approvals()->create([
+            'lease_id' => $this->id,
+            'landlord_id' => $this->landlord_id,
+            'reviewed_by' => null,
+            'decision' => null,
+            'previous_data' => [
+                'workflow_state' => $this->workflow_state,
+                'monthly_rent' => $this->monthly_rent,
+                'security_deposit' => $this->security_deposit ?? $this->deposit_amount,
+                'start_date' => $this->start_date?->toDateString(),
+                'end_date' => $this->end_date?->toDateString(),
+            ],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        // Create audit log
+        $this->auditLogs()->create([
+            'action' => 'approval_requested',
+            'old_state' => 'draft',
+            'new_state' => 'pending_landlord_approval',
+            'user_id' => auth()->id(),
+            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'system',
+            'ip_address' => request()->ip(),
+            'description' => 'Lease submitted for landlord approval',
+        ]);
+
+        return $approval;
+    }
+
+    /**
+     * Approve the lease.
+     *
+     * @param string|null $comments Optional approval comments
+     * @return LeaseApproval
+     */
+    public function approve(?string $comments = null): LeaseApproval
+    {
+        // Get latest approval or create one
+        $approval = $this->approvals()->latest()->first();
+
+        if (!$approval) {
+            $approval = $this->requestApproval();
+        }
+
+        // Update approval decision
+        $approval->update([
+            'decision' => 'approved',
+            'comments' => $comments,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        // Transition lease to approved state
+        $this->transitionTo('approved');
+
+        // Create audit log
+        $this->auditLogs()->create([
+            'action' => 'approved',
+            'old_state' => 'pending_landlord_approval',
+            'new_state' => 'approved',
+            'user_id' => auth()->id(),
+            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'system',
+            'ip_address' => request()->ip(),
+            'additional_data' => ['comments' => $comments],
+            'description' => 'Lease approved by landlord',
+        ]);
+
+        return $approval;
+    }
+
+    /**
+     * Reject the lease.
+     *
+     * @param string $reason Reason for rejection
+     * @param string|null $comments Optional additional comments
+     * @return LeaseApproval
+     */
+    public function reject(string $reason, ?string $comments = null): LeaseApproval
+    {
+        // Get latest approval or create one
+        $approval = $this->approvals()->latest()->first();
+
+        if (!$approval) {
+            $approval = $this->requestApproval();
+        }
+
+        // Update approval decision
+        $approval->update([
+            'decision' => 'rejected',
+            'rejection_reason' => $reason,
+            'comments' => $comments,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        // Transition lease back to draft for revision
+        $this->transitionTo('cancelled');
+
+        // Create audit log
+        $this->auditLogs()->create([
+            'action' => 'rejected',
+            'old_state' => 'pending_landlord_approval',
+            'new_state' => 'cancelled',
+            'user_id' => auth()->id(),
+            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'system',
+            'ip_address' => request()->ip(),
+            'additional_data' => ['rejection_reason' => $reason, 'comments' => $comments],
+            'description' => "Lease rejected by landlord: {$reason}",
+        ]);
+
+        return $approval;
+    }
+
+    /**
+     * Check if lease has pending approval.
+     */
+    public function hasPendingApproval(): bool
+    {
+        return $this->approvals()->pending()->exists();
+    }
+
+    /**
+     * Check if lease has been approved.
+     */
+    public function hasBeenApproved(): bool
+    {
+        return $this->approvals()->approved()->exists();
+    }
+
+    /**
+     * Check if lease has been rejected.
+     */
+    public function hasBeenRejected(): bool
+    {
+        return $this->approvals()->rejected()->exists();
+    }
+
+    /**
+     * Get latest approval decision.
+     */
+    public function getLatestApproval(): ?LeaseApproval
+    {
+        return $this->approvals()->latest()->first();
     }
 }
