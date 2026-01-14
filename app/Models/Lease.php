@@ -188,4 +188,37 @@ class Lease extends Model
             'description' => "Lease printed at workstation",
         ]);
     }
+
+    /**
+     * Record an edit to a landlord lease.
+     *
+     * @param string $editType One of: clause_added, clause_removed, clause_modified, other
+     * @param string|null $sectionAffected Which clause/section was edited
+     * @param string|null $originalText Text before edit (null if new)
+     * @param string|null $newText Text after edit (null if removed)
+     * @param string|null $reason Why the edit was made
+     * @return LeaseEdit
+     */
+    public function recordEdit(
+        string $editType,
+        ?string $sectionAffected = null,
+        ?string $originalText = null,
+        ?string $newText = null,
+        ?string $reason = null
+    ): LeaseEdit {
+        // Increment document version if this is the first edit in a new batch
+        // For simplicity, we increment on each edit. Could be optimized for batch edits.
+        $this->document_version++;
+        $this->save();
+
+        return $this->edits()->create([
+            'edited_by' => auth()->id(),
+            'edit_type' => $editType,
+            'section_affected' => $sectionAffected,
+            'original_text' => $originalText,
+            'new_text' => $newText,
+            'reason' => $reason,
+            'document_version' => $this->document_version,
+        ]);
+    }
 }
