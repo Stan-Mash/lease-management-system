@@ -133,6 +133,16 @@ class Lease extends Model
         return $this->hasMany(LeaseEscalation::class);
     }
 
+    public function digitalSignatures(): HasMany
+    {
+        return $this->hasMany(DigitalSignature::class);
+    }
+
+    public function otpVerifications(): HasMany
+    {
+        return $this->hasMany(OTPVerification::class);
+    }
+
     // Workflow Methods
     public function canTransitionTo(string $newState): bool
     {
@@ -166,10 +176,19 @@ class Lease extends Model
         return true;
     }
 
-    public function sendDigitalSigningLink(): void
+    public function sendDigitalSigningLink(string $method = 'both'): array
     {
-        // Implementation for sending signing link
-        $this->transitionTo('sent_digital');
+        return \App\Services\DigitalSigningService::initiate($this, $method);
+    }
+
+    public function hasDigitalSignature(): bool
+    {
+        return $this->digitalSignatures()->exists();
+    }
+
+    public function getLatestDigitalSignature(): ?DigitalSignature
+    {
+        return $this->digitalSignatures()->orderBy('signed_at', 'desc')->first();
     }
 
     public function markAsPrinted(): void
