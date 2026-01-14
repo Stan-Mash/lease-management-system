@@ -7,6 +7,7 @@ use App\Models\LeaseApproval;
 use App\Notifications\LeaseApprovalRequestedNotification;
 use App\Notifications\LeaseApprovedNotification;
 use App\Notifications\LeaseRejectedNotification;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
@@ -165,8 +166,16 @@ class LandlordApprovalService
                 $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease));
             }
 
-            // TODO: Send SMS if method includes 'sms'
-            // This would use a service like Africa's Talking similar to OTP
+            // Send SMS if method includes 'sms'
+            if (in_array($method, ['sms', 'both']) && $lease->landlord->phone) {
+                self::sendSMS(
+                    $lease->landlord->phone,
+                    "New lease {$lease->reference_number} awaits your approval. " .
+                    "Tenant: {$lease->tenant->name}. " .
+                    "Rent: " . number_format($lease->monthly_rent) . " KES/month. " .
+                    "Login to approve or reject."
+                );
+            }
 
             return true;
         } catch (\Exception $e) {
@@ -176,6 +185,85 @@ class LandlordApprovalService
             ]);
             return false;
         }
+    }
+
+    /**
+     * Send SMS notification via Africa's Talking.
+     *
+     * @param string $phone
+     * @param string $message
+     * @return bool
+     */
+    private static function sendSMS(string $phone, string $message): bool
+    {
+        $apiKey = config('services.africas_talking.api_key');
+        $username = config('services.africas_talking.username');
+
+        if (!$apiKey || !$username) {
+            Log::warning('Africa\'s Talking not configured - SMS not sent', [
+                'phone' => $phone,
+                'message' => $message,
+            ]);
+            return false;
+        }
+
+        try {
+            // Format phone number (ensure it starts with +254 for Kenya)
+            $formattedPhone = self::formatPhoneNumber($phone);
+
+            $response = Http::withHeaders([
+                'apiKey' => $apiKey,
+                'Accept' => 'application/json',
+            ])->asForm()->post('https://api.africastalking.com/version1/messaging', [
+                'username' => $username,
+                'to' => $formattedPhone,
+                'message' => $message,
+                'from' => config('services.africas_talking.shortcode', 'CHABRIN'),
+            ]);
+
+            if ($response->successful()) {
+                Log::info('SMS sent successfully', [
+                    'phone' => $formattedPhone,
+                ]);
+                return true;
+            }
+
+            Log::warning('SMS sending failed', [
+                'phone' => $formattedPhone,
+                'response' => $response->body(),
+            ]);
+            return false;
+        } catch (\Exception $e) {
+            Log::error('SMS sending exception', [
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Format phone number for SMS sending.
+     *
+     * @param string $phone
+     * @return string
+     */
+    private static function formatPhoneNumber(string $phone): string
+    {
+        // Remove all non-numeric characters
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+
+        // If it starts with 0, replace with 254
+        if (substr($phone, 0, 1) === '0') {
+            $phone = '254' . substr($phone, 1);
+        }
+
+        // If it doesn't start with +, add it
+        if (substr($phone, 0, 1) !== '+') {
+            $phone = '+' . $phone;
+        }
+
+        return $phone;
     }
 
     /**
@@ -192,9 +280,18 @@ class LandlordApprovalService
         string $method
     ): bool {
         try {
-            // Notify tenant
+            // Notify tenant via email
             if (in_array($method, ['email', 'both']) && $lease->tenant?->email) {
                 $lease->tenant->notify(new LeaseApprovedNotification($lease, $approval));
+            }
+
+            // Notify tenant via SMS
+            if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
+                self::sendSMS(
+                    $lease->tenant->phone,
+                    "Good news! Your lease {$lease->reference_number} has been APPROVED by the landlord. " .
+                    "You will receive the digital signing link shortly."
+                );
             }
 
             // Mark approval as notified
@@ -224,9 +321,19 @@ class LandlordApprovalService
         string $method
     ): bool {
         try {
-            // Notify tenant
+            // Notify tenant via email
             if (in_array($method, ['email', 'both']) && $lease->tenant?->email) {
                 $lease->tenant->notify(new LeaseRejectedNotification($lease, $approval));
+            }
+
+            // Notify tenant via SMS
+            if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
+                self::sendSMS(
+                    $lease->tenant->phone,
+                    "Your lease {$lease->reference_number} needs revision. " .
+                    "Reason: {$approval->rejection_reason}. " .
+                    "Contact Chabrin support for details."
+                );
             }
 
             // Mark approval as notified
