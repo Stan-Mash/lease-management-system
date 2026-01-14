@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Filament\Pages;
+
+use App\Models\Lease;
+use App\Models\Landlord;
+use Filament\Pages\Page;
+use Illuminate\Support\Collection;
+
+class ApprovalTracking extends Page
+{
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationLabel = 'Approval Tracking';
+    protected static ?string $navigationGroup = 'Field Operations';
+    protected static ?int $navigationSort = 1;
+    protected static string $view = 'filament.pages.approval-tracking';
+
+    protected static ?string $title = 'Landlord Approval Tracking';
+
+    public Collection $pendingByLandlord;
+    public Collection $overdueApprovals;
+    public array $stats;
+
+    public function mount(): void
+    {
+        $this->loadData();
+    }
+
+    protected function loadData(): void
+    {
+        // Get pending approvals grouped by landlord
+        $this->pendingByLandlord = Lease::where('workflow_state', 'pending_landlord_approval')
+            ->whereNotNull('landlord_id')
+            ->with(['landlord', 'tenant', 'approvals' => function ($query) {
+                $query->latest()->limit(1);
+            }])
+            ->get()
+            ->groupBy('landlord_id')
+            ->map(function ($leases) {
+                $landlord = $leases->first()->landlord;
+                return [
+                    'landlord' => $landlord,
+                    'pending_count' => $leases->count(),
+                    'oldest_pending' => $leases->min('created_at'),
+                    'total_rent_value' => $leases->sum('monthly_rent'),
+                    'leases' => $leases,
+                ];
+            })
+            ->sortByDesc('pending_count');
+
+        // Get overdue approvals (>24 hours)
+        $this->overdueApprovals = Lease::where('workflow_state', 'pending_landlord_approval')
+            ->whereNotNull('landlord_id')
+            ->where('created_at', '<', now()->subHours(24))
+            ->with(['landlord', 'tenant', 'approvals'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Calculate statistics
+        $this->stats = [
+            'total_pending' => Lease::where('workflow_state', 'pending_landlord_approval')->count(),
+            'total_overdue' => $this->overdueApprovals->count(),
+            'landlords_with_pending' => $this->pendingByLandlord->count(),
+            'total_value_pending' => $this->pendingByLandlord->sum('total_rent_value'),
+        ];
+    }
+
+    public function refreshData(): void
+    {
+        $this->loadData();
+        $this->notify('success', 'Data refreshed successfully');
+    }
+
+    protected function getViewData(): array
+    {
+        return [
+            'pendingByLandlord' => $this->pendingByLandlord,
+            'overdueApprovals' => $this->overdueApprovals,
+            'stats' => $this->stats,
+        ];
+    }
+}

@@ -5,6 +5,7 @@ use App\Http\Controllers\DownloadLeaseController;
 use App\Http\Controllers\LeaseVerificationController;
 use App\Http\Controllers\TenantSigningController;
 use App\Http\Controllers\LandlordApprovalController;
+use App\Http\Controllers\FieldOfficerController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -44,6 +45,16 @@ Route::prefix('api/landlord/{landlordId}')->name('api.landlord.')->group(functio
     Route::get('/approvals/{leaseId}', [LandlordApprovalController::class, 'apiShow'])->name('approvals.show');
     Route::post('/approvals/{leaseId}/approve', [LandlordApprovalController::class, 'apiApprove'])->name('approvals.approve');
     Route::post('/approvals/{leaseId}/reject', [LandlordApprovalController::class, 'apiReject'])->name('approvals.reject');
+});
+
+// API routes for field officer mobile app
+Route::prefix('api/field-officer')->name('api.field-officer.')->group(function () {
+    Route::get('/dashboard', [FieldOfficerController::class, 'dashboard'])->name('dashboard');
+    Route::get('/pending-approvals', [FieldOfficerController::class, 'pendingApprovals'])->name('pending-approvals');
+    Route::get('/pending-by-landlord', [FieldOfficerController::class, 'pendingByLandlord'])->name('pending-by-landlord');
+    Route::get('/overdue-approvals', [FieldOfficerController::class, 'overdueApprovals'])->name('overdue-approvals');
+    Route::get('/approval-history', [FieldOfficerController::class, 'approvalHistory'])->name('approval-history');
+    Route::get('/lease/{leaseId}/status', [FieldOfficerController::class, 'leaseApprovalStatus'])->name('lease-status');
 });
 
 Route::middleware(['auth'])->group(function () {
