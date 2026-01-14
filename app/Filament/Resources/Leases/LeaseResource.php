@@ -108,6 +108,21 @@ class LeaseResource extends Resource
             ]);
     }
 
+    /**
+     * Apply zone-based filtering for field officers and zone managers.
+     */
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && $user->hasZoneRestriction() && $user->zone_id) {
+            $query->where('zone_id', $user->zone_id);
+        }
+
+        return $query;
+    }
+
     public static function getPages(): array
     {
         return [

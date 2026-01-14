@@ -23,6 +23,8 @@ class Lease extends Model
         'property_id',
         'landlord_id',
         'zone',
+        'zone_id',
+        'assigned_field_officer_id',
         'monthly_rent',
         'deposit_amount',
         'deposit_verified',
@@ -146,6 +148,16 @@ class Lease extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(LeaseApproval::class);
+    }
+
+    public function assignedZone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class, 'zone_id');
+    }
+
+    public function assignedFieldOfficer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_field_officer_id');
     }
 
     // Workflow Methods
@@ -407,5 +419,40 @@ class Lease extends Model
     public function getLatestApproval(): ?LeaseApproval
     {
         return $this->approvals()->latest()->first();
+    }
+
+    /**
+     * Scope: Filter leases by zone.
+     */
+    public function scopeInZone($query, int $zoneId)
+    {
+        return $query->where('zone_id', $zoneId);
+    }
+
+    /**
+     * Scope: Filter leases accessible by the authenticated user based on their zone.
+     */
+    public function scopeAccessibleByUser($query, User $user)
+    {
+        // Super admins and regular admins can see all leases
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        // Zone managers and field officers can only see leases in their zone
+        if ($user->hasZoneRestriction() && $user->zone_id) {
+            return $query->where('zone_id', $user->zone_id);
+        }
+
+        // Default: no leases visible (safety net)
+        return $query->whereRaw('1 = 0');
+    }
+
+    /**
+     * Scope: Filter leases assigned to a specific field officer.
+     */
+    public function scopeAssignedToFieldOfficer($query, int $fieldOfficerId)
+    {
+        return $query->where('assigned_field_officer_id', $fieldOfficerId);
     }
 }
