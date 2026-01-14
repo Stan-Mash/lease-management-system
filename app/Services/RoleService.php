@@ -2,16 +2,37 @@
 
 namespace App\Services;
 
+use App\Models\Role;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 
 class RoleService
 {
     /**
-     * Get all available roles
+     * Get all available roles from database
      */
     public static function getRoles(): array
     {
-        return Config::get('roles.roles', []);
+        return Cache::remember('roles_list', 3600, function () {
+            $dbRoles = Role::active()->ordered()->get();
+
+            // If no roles in database, fall back to config
+            if ($dbRoles->isEmpty()) {
+                return Config::get('roles.roles', []);
+            }
+
+            $roles = [];
+            foreach ($dbRoles as $role) {
+                $roles[$role->key] = [
+                    'name' => $role->name,
+                    'description' => $role->description,
+                    'color' => $role->color,
+                    'permissions' => $role->permissions ?? [],
+                ];
+            }
+
+            return $roles;
+        });
     }
 
     /**
@@ -78,7 +99,22 @@ class RoleService
      */
     public static function getDefaultRole(): string
     {
+        // Try to get first active role from database
+        $firstRole = Role::active()->ordered()->first();
+        if ($firstRole) {
+            return $firstRole->key;
+        }
+
+        // Fall back to config
         return Config::get('roles.default_role', 'staff');
+    }
+
+    /**
+     * Clear role cache
+     */
+    public static function clearCache(): void
+    {
+        Cache::forget('roles_list');
     }
 
     /**
