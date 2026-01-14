@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Lease;
 use App\Models\Role;
+use App\Observers\LeaseObserver;
 use App\Observers\RoleObserver;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,7 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Register Role observer
+        // Register observers
+        Lease::observe(LeaseObserver::class);
         Role::observe(RoleObserver::class);
     }
 }
