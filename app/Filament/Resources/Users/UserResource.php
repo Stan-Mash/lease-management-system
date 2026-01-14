@@ -9,6 +9,7 @@ use App\Filament\Resources\Users\Pages\ViewUser;
 use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Filament\Resources\Users\Schemas\UserInfolist;
 use App\Models\User;
+use App\Services\RoleService;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
@@ -65,20 +66,10 @@ class UserResource extends Resource
                     ->sortable(),
                 TextColumn::make('role')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'super_admin' => 'danger',
-                        'admin' => 'warning',
-                        'manager' => 'info',
-                        'staff' => 'success',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'super_admin' => 'Super Admin',
-                        'admin' => 'Admin',
-                        'manager' => 'Manager',
-                        'staff' => 'Staff',
-                        default => ucfirst($state),
-                    }),
+                    ->color(fn (string $state): string => RoleService::getRoleColor($state))
+                    ->formatStateUsing(fn (string $state): string => RoleService::getRoleName($state))
+                    ->sortable()
+                    ->searchable(),
                 IconColumn::make('is_active')
                     ->boolean()
                     ->label('Active'),

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Services\RoleService;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Components\TextInput;
@@ -38,14 +39,12 @@ class UserForm
                             ->maxLength(255),
 
                         Select::make('role')
-                            ->options([
-                                'super_admin' => 'Super Admin',
-                                'admin' => 'Admin',
-                                'manager' => 'Manager',
-                                'staff' => 'Staff',
-                            ])
+                            ->options(fn () => RoleService::getFilteredRoleOptions())
                             ->required()
-                            ->default('staff'),
+                            ->default(RoleService::getDefaultRole())
+                            ->helperText('Roles are configured in config/roles.php')
+                            ->searchable()
+                            ->native(false),
 
                         TextInput::make('phone')
                             ->tel()

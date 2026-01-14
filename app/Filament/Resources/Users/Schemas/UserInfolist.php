@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Services\RoleService;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\TextEntry;
@@ -26,20 +27,8 @@ class UserInfolist
 
                         TextEntry::make('role')
                             ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                'super_admin' => 'danger',
-                                'admin' => 'warning',
-                                'manager' => 'info',
-                                'staff' => 'success',
-                                default => 'gray',
-                            })
-                            ->formatStateUsing(fn (string $state): string => match ($state) {
-                                'super_admin' => 'Super Admin',
-                                'admin' => 'Admin',
-                                'manager' => 'Manager',
-                                'staff' => 'Staff',
-                                default => ucfirst($state),
-                            }),
+                            ->color(fn (string $state): string => RoleService::getRoleColor($state))
+                            ->formatStateUsing(fn (string $state): string => RoleService::getRoleName($state)),
 
                         TextEntry::make('phone')
                             ->placeholder('-')
