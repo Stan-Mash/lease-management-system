@@ -65,4 +65,8 @@ Route::middleware(['auth'])->group(function () {
     // Print Preview
     Route::get('/leases/{lease}/preview', [DownloadLeaseController::class, 'preview'])
         ->name('lease.preview');
+
+    // PDF Generation (alias for download)
+    Route::get('/leases/{lease}/pdf', DownloadLeaseController::class)
+        ->name('leases.pdf');
 });
