@@ -58,9 +58,14 @@ class LeaseForm
                     ->searchable()
                     ->required()
                     ->reactive()
-                    ->afterStateUpdated(fn ($state, callable $set) =>
-                        $set('monthly_rent', Unit::find($state)?->market_rent ?? 0)
-                    ),
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        $unit = Unit::with('property.landlord')->find($state);
+                        if ($unit) {
+                            $set('monthly_rent', $unit->market_rent ?? 0);
+                            $set('property_id', $unit->property_id);
+                            $set('landlord_id', $unit->property?->landlord_id);
+                        }
+                    }),
 
                 // Hidden fields
                 Forms\Components\Hidden::make('property_id'),
