@@ -46,19 +46,12 @@ if ($envContent -match "AFRICAS_TALKING_USERNAME") {
     Write-Host "Adding new Africa's Talking credentials..." -ForegroundColor Yellow
 
     # Add credentials to end of file
-    $credentials = @"
+    $newLines = "`r`n`r`n# Africa's Talking SMS Configuration`r`nAFRICAS_TALKING_USERNAME=tech@chabrinagencies.co.ke`r`nAFRICAS_TALKING_API_KEY=c9df9f6abe34247ed49e860fc78554fc70ba08fad07ea38df07aff6a2e486c17`r`nAFRICAS_TALKING_SHORTCODE=CHABRIN"
 
-
-# Africa's Talking SMS Configuration
-AFRICAS_TALKING_USERNAME=tech@chabrinagencies.co.ke
-AFRICAS_TALKING_API_KEY=c9df9f6abe34247ed49e860fc78554fc70ba08fad07ea38df07aff6a2e486c17
-AFRICAS_TALKING_SHORTCODE=CHABRIN
-"@
-
-    Add-Content ".\.env" -Value $credentials
+    Add-Content ".\.env" -Value $newLines
 }
 
-Write-Host "✓ Credentials added successfully!" -ForegroundColor Green
+Write-Host "SUCCESS: Credentials added successfully!" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "Step 3: Clearing Laravel configuration cache..." -ForegroundColor Cyan
