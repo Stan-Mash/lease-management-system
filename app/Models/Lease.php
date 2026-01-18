@@ -63,9 +63,9 @@ class Lease extends Model
 
     // Valid workflow transitions
     protected static array $validTransitions = [
-        'draft' => ['approved', 'cancelled'],
+        'draft' => ['pending_landlord_approval', 'approved', 'cancelled'],
         'received' => ['pending_landlord_approval', 'approved', 'cancelled'],
-        'pending_landlord_approval' => ['approved', 'cancelled'],
+        'pending_landlord_approval' => ['approved', 'cancelled', 'draft'],
         'approved' => ['printed', 'sent_digital', 'cancelled'],
         'printed' => ['checked_out', 'cancelled'],
         'checked_out' => ['pending_tenant_signature', 'returned_unsigned'],
