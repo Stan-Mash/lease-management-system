@@ -44,6 +44,16 @@ class LeaseForm
                     ])
                     ->required(),
 
+                Forms\Components\Select::make('signing_mode')
+                    ->label('Signing Method')
+                    ->options([
+                        'digital' => 'Digital Signing (Email/SMS Link)',
+                        'physical' => 'Physical Signing (Field Officer)',
+                    ])
+                    ->default('digital')
+                    ->required()
+                    ->helperText('Digital: Tenant signs online via email link. Physical: Field officer delivers printed document.'),
+
                 // --- Property & Tenant ---
                 Forms\Components\Select::make('tenant_id')
                     ->relationship('tenant', 'full_name')
