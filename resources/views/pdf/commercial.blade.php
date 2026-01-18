@@ -110,9 +110,39 @@
             font-weight: bold;
             margin: 30px 0 20px 0;
         }
+        .qr-code {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 100px;
+            height: 100px;
+            border: 1px solid #ccc;
+            padding: 5px;
+            background: white;
+        }
+        .serial-number {
+            position: fixed;
+            top: 120px;
+            right: 10px;
+            font-size: 9px;
+            color: #666;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
+
+<!-- QR Code and Serial Number (appears on all pages) -->
+@php
+    $qrCode = \App\Services\QRCodeService::generateForLease($lease, false);
+@endphp
+<div class="qr-code">
+    {!! $qrCode['svg'] !!}
+</div>
+<div class="serial-number">
+    Serial: {{ $lease->serial_number }}<br>
+    Ref: {{ $lease->reference_number }}
+</div>
 
 <!-- COVER PAGE -->
 <div class="cover-page">
