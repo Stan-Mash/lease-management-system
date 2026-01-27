@@ -24,6 +24,8 @@ enum LeaseWorkflowState: string
     case PENDING_DEPOSIT = 'pending_deposit';
     case ACTIVE = 'active';
     case RENEWAL_OFFERED = 'renewal_offered';
+    case RENEWAL_ACCEPTED = 'renewal_accepted';
+    case RENEWAL_DECLINED = 'renewal_declined';
     case EXPIRED = 'expired';
     case TERMINATED = 'terminated';
     case CANCELLED = 'cancelled';
@@ -52,7 +54,9 @@ enum LeaseWorkflowState: string
             self::PENDING_UPLOAD => [self::PENDING_DEPOSIT],
             self::PENDING_DEPOSIT => [self::ACTIVE],
             self::ACTIVE => [self::RENEWAL_OFFERED, self::EXPIRED, self::TERMINATED],
-            self::RENEWAL_OFFERED => [self::ACTIVE, self::EXPIRED],
+            self::RENEWAL_OFFERED => [self::RENEWAL_ACCEPTED, self::RENEWAL_DECLINED, self::EXPIRED],
+            self::RENEWAL_ACCEPTED => [self::ACTIVE],
+            self::RENEWAL_DECLINED => [self::EXPIRED],
             self::EXPIRED => [self::ARCHIVED],
             self::TERMINATED => [self::ARCHIVED],
             self::CANCELLED => [self::ARCHIVED],
@@ -95,6 +99,8 @@ enum LeaseWorkflowState: string
             self::PENDING_DEPOSIT => 'Pending Deposit',
             self::ACTIVE => 'Active',
             self::RENEWAL_OFFERED => 'Renewal Offered',
+            self::RENEWAL_ACCEPTED => 'Renewal Accepted',
+            self::RENEWAL_DECLINED => 'Renewal Declined',
             self::EXPIRED => 'Expired',
             self::TERMINATED => 'Terminated',
             self::CANCELLED => 'Cancelled',
@@ -118,6 +124,8 @@ enum LeaseWorkflowState: string
             self::SENT_DIGITAL, self::TENANT_SIGNED, self::WITH_LAWYER => 'info',
             self::ACTIVE => 'success',
             self::RENEWAL_OFFERED => 'primary',
+            self::RENEWAL_ACCEPTED => 'success',
+            self::RENEWAL_DECLINED => 'danger',
             self::RETURNED_UNSIGNED => 'warning',
             self::EXPIRED, self::TERMINATED, self::CANCELLED => 'danger',
             self::ARCHIVED => 'gray',
@@ -148,6 +156,8 @@ enum LeaseWorkflowState: string
             self::PENDING_DEPOSIT => 'heroicon-o-banknotes',
             self::ACTIVE => 'heroicon-o-check',
             self::RENEWAL_OFFERED => 'heroicon-o-arrow-path',
+            self::RENEWAL_ACCEPTED => 'heroicon-o-arrow-path-rounded-square',
+            self::RENEWAL_DECLINED => 'heroicon-o-no-symbol',
             self::EXPIRED => 'heroicon-o-calendar-days',
             self::TERMINATED => 'heroicon-o-x-circle',
             self::CANCELLED => 'heroicon-o-trash',
@@ -165,6 +175,7 @@ enum LeaseWorkflowState: string
         return in_array($this, [
             self::ACTIVE,
             self::RENEWAL_OFFERED,
+            self::RENEWAL_ACCEPTED,
         ], true);
     }
 

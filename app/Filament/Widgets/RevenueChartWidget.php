@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
+use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
 use App\Models\Lease;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
@@ -11,14 +12,12 @@ use Livewire\Attributes\On;
 class RevenueChartWidget extends ChartWidget
 {
     use HasDateFiltering;
+    use HasLeaseQueryFiltering;
 
     protected static ?int $sort = 5;
 
     public ?string $heading = 'Revenue Trend';
     public ?string $maxHeight = '300px';
-
-    public ?int $zoneId = null;
-    public ?int $fieldOfficerId = null;
 
     protected ?string $pollingInterval = null;
 
@@ -114,26 +113,7 @@ class RevenueChartWidget extends ChartWidget
 
     protected function getFilteredQuery()
     {
-        $query = Lease::accessibleByUser(auth()->user());
-
-        // Apply zone filter
-        if ($this->zoneId) {
-            $query->where('zone_id', $this->zoneId);
-        } elseif (auth()->user()->hasZoneRestriction()) {
-            $query->where('zone_id', auth()->user()->zone_id);
-        }
-
-        // Apply field officer filter
-        if ($this->fieldOfficerId) {
-            $query->where('assigned_field_officer_id', $this->fieldOfficerId);
-        } elseif (auth()->user()->isFieldOfficer()) {
-            $query->where('assigned_field_officer_id', auth()->user()->id);
-        }
-
-        // Apply date filter
-        $query = $this->applyDateFilter($query);
-
-        return $query;
+        return $this->getFilteredLeaseQuery();
     }
 
     protected function getGroupingPeriod(): string

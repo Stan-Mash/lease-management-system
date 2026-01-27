@@ -18,7 +18,7 @@ class RecentLeasesWidget extends TableWidget
     {
         return $table
             ->query(
-                Lease::query()
+                Lease::accessibleByUser(auth()->user())
                     ->with(['tenant', 'property', 'unit'])
                     ->latest()
                     ->limit(10)

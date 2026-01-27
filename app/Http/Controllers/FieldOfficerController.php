@@ -11,6 +11,25 @@ use Illuminate\Support\Facades\DB;
 class FieldOfficerController extends Controller
 {
     /**
+     * Scope lease queries to the authenticated field officer's assignments.
+     */
+    private function scopedLeaseQuery()
+    {
+        $user = auth()->user();
+
+        $query = Lease::query();
+
+        // Field officers only see their own assigned leases
+        if ($user->isFieldOfficer()) {
+            $query->where('assigned_field_officer_id', $user->id);
+        } elseif ($user->hasZoneRestriction()) {
+            $query->where('zone_id', $user->zone_id);
+        }
+
+        return $query;
+    }
+
+    /**
      * API: Get approval overview dashboard data.
      *
      * @param Request $request
@@ -19,48 +38,37 @@ class FieldOfficerController extends Controller
     public function dashboard(Request $request)
     {
         try {
-            $totalPending = Lease::where('workflow_state', 'pending_landlord_approval')
-                ->whereNotNull('landlord_id')
-                ->count();
+            $baseLeaseQuery = $this->scopedLeaseQuery()
+                ->where('workflow_state', 'pending_landlord_approval')
+                ->whereNotNull('landlord_id');
 
-            $overdueCount = Lease::where('workflow_state', 'pending_landlord_approval')
-                ->whereNotNull('landlord_id')
+            $totalPending = (clone $baseLeaseQuery)->count();
+
+            $overdueCount = (clone $baseLeaseQuery)
                 ->where('created_at', '<', now()->subHours(24))
                 ->count();
 
-            $approvedToday = LeaseApproval::where('decision', 'approved')
-                ->whereDate('reviewed_at', today())
-                ->count();
-
-            $rejectedToday = LeaseApproval::where('decision', 'rejected')
-                ->whereDate('reviewed_at', today())
-                ->count();
-
-            $approvedLast7Days = LeaseApproval::where('decision', 'approved')
-                ->where('reviewed_at', '>=', now()->subDays(7))
-                ->count();
-
-            $rejectedLast7Days = LeaseApproval::where('decision', 'rejected')
-                ->where('reviewed_at', '>=', now()->subDays(7))
-                ->count();
-
-            // Average approval time in hours
-            $avgApprovalTime = LeaseApproval::where('decision', 'approved')
-                ->whereNotNull('reviewed_at')
-                ->where('created_at', '>=', now()->subDays(30))
-                ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, created_at, reviewed_at)) as avg_hours')
-                ->value('avg_hours');
+            // Consolidate approval stats into a single query
+            $approvalStats = DB::table('lease_approvals')
+                ->selectRaw("
+                    COUNT(CASE WHEN decision = 'approved' AND DATE(reviewed_at) = ? THEN 1 END) as approved_today,
+                    COUNT(CASE WHEN decision = 'rejected' AND DATE(reviewed_at) = ? THEN 1 END) as rejected_today,
+                    COUNT(CASE WHEN decision = 'approved' AND reviewed_at >= ? THEN 1 END) as approved_last_7_days,
+                    COUNT(CASE WHEN decision = 'rejected' AND reviewed_at >= ? THEN 1 END) as rejected_last_7_days,
+                    AVG(CASE WHEN decision = 'approved' AND reviewed_at IS NOT NULL AND created_at >= ? THEN TIMESTAMPDIFF(HOUR, created_at, reviewed_at) END) as avg_hours
+                ", [today(), today(), now()->subDays(7), now()->subDays(7), now()->subDays(30)])
+                ->first();
 
             return response()->json([
                 'success' => true,
                 'stats' => [
                     'total_pending' => $totalPending,
                     'overdue_count' => $overdueCount,
-                    'approved_today' => $approvedToday,
-                    'rejected_today' => $rejectedToday,
-                    'approved_last_7_days' => $approvedLast7Days,
-                    'rejected_last_7_days' => $rejectedLast7Days,
-                    'avg_approval_time_hours' => $avgApprovalTime ? round($avgApprovalTime, 1) : null,
+                    'approved_today' => (int) ($approvalStats->approved_today ?? 0),
+                    'rejected_today' => (int) ($approvalStats->rejected_today ?? 0),
+                    'approved_last_7_days' => (int) ($approvalStats->approved_last_7_days ?? 0),
+                    'rejected_last_7_days' => (int) ($approvalStats->rejected_last_7_days ?? 0),
+                    'avg_approval_time_hours' => $approvalStats->avg_hours ? round($approvalStats->avg_hours, 1) : null,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -80,7 +88,8 @@ class FieldOfficerController extends Controller
     public function pendingApprovals(Request $request)
     {
         try {
-            $pendingLeases = Lease::where('workflow_state', 'pending_landlord_approval')
+            $pendingLeases = $this->scopedLeaseQuery()
+                ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
                 ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email', 'approvals' => function ($query) {
                     $query->latest()->limit(1);
@@ -133,7 +142,8 @@ class FieldOfficerController extends Controller
     public function pendingByLandlord(Request $request)
     {
         try {
-            $leasesByLandlord = Lease::where('workflow_state', 'pending_landlord_approval')
+            $leasesByLandlord = $this->scopedLeaseQuery()
+                ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
                 ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email'])
                 ->get()
@@ -188,7 +198,8 @@ class FieldOfficerController extends Controller
     public function overdueApprovals(Request $request)
     {
         try {
-            $overdueLeases = Lease::where('workflow_state', 'pending_landlord_approval')
+            $overdueLeases = $this->scopedLeaseQuery()
+                ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
                 ->where('created_at', '<', now()->subHours(24))
                 ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email'])
@@ -236,7 +247,8 @@ class FieldOfficerController extends Controller
     public function approvalHistory(Request $request)
     {
         try {
-            $days = $request->get('days', 7); // Default to last 7 days
+            $request->validate(['days' => 'nullable|integer|min:1|max:365']);
+            $days = (int) $request->get('days', 7);
 
             $approvals = LeaseApproval::whereNotNull('decision')
                 ->where('reviewed_at', '>=', now()->subDays($days))
@@ -289,11 +301,12 @@ class FieldOfficerController extends Controller
     public function leaseApprovalStatus(Request $request, int $leaseId)
     {
         try {
-            $lease = Lease::with(['landlord:id,name,phone,email',
-                                  'tenant:id,name,phone,email',
-                                  'approvals' => function ($query) {
-                                      $query->latest();
-                                  }])
+            $lease = $this->scopedLeaseQuery()
+                ->with(['landlord:id,name,phone,email',
+                        'tenant:id,name,phone,email',
+                        'approvals' => function ($query) {
+                            $query->latest();
+                        }])
                 ->findOrFail($leaseId);
 
             $latestApproval = $lease->approvals->first();

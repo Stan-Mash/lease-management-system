@@ -26,7 +26,7 @@ class TenantSigningController extends Controller
         }
 
         // Verify tenant ID matches
-        if ($request->get('tenant') != $lease->tenant_id) {
+        if ((int) $request->get('tenant') !== $lease->tenant_id) {
             abort(403, 'Unauthorized access.');
         }
 

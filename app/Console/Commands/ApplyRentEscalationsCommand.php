@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\RentEscalationLandlordNotice;
+use App\Mail\RentEscalationTenantNotice;
 use App\Models\RentEscalation;
 use App\Services\SMSService;
 use Illuminate\Console\Command;
@@ -115,20 +117,22 @@ class ApplyRentEscalationsCommand extends Command
             }
 
             try {
-                // Notify tenant
+                // Notify tenant by SMS
                 if ($lease->tenant?->phone) {
                     $message = $this->buildTenantSMS($escalation);
                     $smsService->send($lease->tenant->phone, $message);
                 }
 
-                // Notify by email if preferred
+                // Notify tenant by email if preferred
                 if ($lease->tenant?->email && in_array($lease->tenant->notification_preference ?? 'sms', ['email', 'both'])) {
-                    $this->sendTenantEmail($escalation);
+                    Mail::to($lease->tenant->email)
+                        ->send(new RentEscalationTenantNotice($escalation));
                 }
 
-                // Notify landlord
+                // Notify landlord by email
                 if ($lease->landlord?->email) {
-                    $this->sendLandlordEmail($escalation);
+                    Mail::to($lease->landlord->email)
+                        ->send(new RentEscalationLandlordNotice($escalation));
                     $escalation->markLandlordNotified();
                 }
 
@@ -154,72 +158,5 @@ class ApplyRentEscalationsCommand extends Command
         return "Rent Adjustment Notice: From {$effectiveDate}, your rent for {$property} "
             . "will be KES {$escalation->new_rent}/month (was KES {$escalation->previous_rent}). "
             . "Ref: {$lease->reference_number}. Contact Chabrin for questions.";
-    }
-
-    private function sendTenantEmail(RentEscalation $escalation): void
-    {
-        $lease = $escalation->lease;
-        $property = $lease->unit?->property?->name ?? 'your property';
-        $unit = $lease->unit?->unit_number ?? '';
-        $effectiveDate = $escalation->effective_date->format('d M Y');
-
-        $body = <<<EOT
-Dear {$lease->tenant->name},
-
-This is to notify you of an upcoming rent adjustment for your lease.
-
-Property: {$property} {$unit}
-Lease Reference: {$lease->reference_number}
-
-Rent Adjustment Details:
-- Effective Date: {$effectiveDate}
-- Current Rent: KES {$escalation->previous_rent}
-- New Rent: KES {$escalation->new_rent}
-- Increase: {$escalation->formatted_increase}
-
-If you have any questions, please contact Chabrin Agencies.
-
-Best regards,
-Chabrin Agencies
-EOT;
-
-        Mail::raw($body, function ($message) use ($lease, $effectiveDate) {
-            $message->to($lease->tenant->email)
-                ->subject("Rent Adjustment Notice - Effective {$effectiveDate}");
-        });
-    }
-
-    private function sendLandlordEmail(RentEscalation $escalation): void
-    {
-        $lease = $escalation->lease;
-        $property = $lease->unit?->property?->name ?? 'Property';
-        $unit = $lease->unit?->unit_number ?? '';
-        $effectiveDate = $escalation->effective_date->format('d M Y');
-
-        $body = <<<EOT
-Dear {$lease->landlord->name},
-
-This is to confirm the scheduled rent escalation for your property.
-
-Property: {$property} {$unit}
-Tenant: {$lease->tenant?->name}
-Lease Reference: {$lease->reference_number}
-
-Rent Escalation Details:
-- Effective Date: {$effectiveDate}
-- Previous Rent: KES {$escalation->previous_rent}
-- New Rent: KES {$escalation->new_rent}
-- Increase: {$escalation->formatted_increase}
-
-The tenant has been notified.
-
-Best regards,
-Chabrin Agencies
-EOT;
-
-        Mail::raw($body, function ($message) use ($lease, $effectiveDate) {
-            $message->to($lease->landlord->email)
-                ->subject("Rent Escalation Confirmation - Effective {$effectiveDate}");
-        });
     }
 }
