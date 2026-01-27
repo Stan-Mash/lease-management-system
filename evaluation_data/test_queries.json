@@ -1,0 +1,315 @@
+[
+  {
+    "id": "query_001",
+    "category": "business_logic",
+    "scenario": "Valid state transition - draft to approved",
+    "test_type": "lease_workflow",
+    "input": {
+      "lease_id": "lease_test_001",
+      "current_state": "draft",
+      "target_state": "approved",
+      "landlord_id": "landlord_001",
+      "property_id": "property_001"
+    },
+    "expected_outcome": "success"
+  },
+  {
+    "id": "query_002",
+    "category": "business_logic",
+    "scenario": "Invalid state transition - draft to active",
+    "test_type": "lease_workflow",
+    "input": {
+      "lease_id": "lease_test_002",
+      "current_state": "draft",
+      "target_state": "active",
+      "landlord_id": "landlord_001"
+    },
+    "expected_outcome": "error"
+  },
+  {
+    "id": "query_003",
+    "category": "approval_workflow",
+    "scenario": "Landlord approval request for draft lease",
+    "test_type": "approval_request",
+    "input": {
+      "lease_id": "lease_test_003",
+      "workflow_state": "draft",
+      "landlord_id": "landlord_002",
+      "monthly_rent": 50000,
+      "deposit_amount": 100000,
+      "start_date": "2026-02-01",
+      "end_date": "2027-02-01"
+    },
+    "expected_outcome": "success"
+  },
+  {
+    "id": "query_004",
+    "category": "approval_workflow",
+    "scenario": "Approve lease after request",
+    "test_type": "approval_decision",
+    "input": {
+      "lease_id": "lease_test_003",
+      "approval_action": "approve",
+      "reviewed_by": "user_admin_001",
+      "comments": "Approved - terms acceptable"
+    },
+    "expected_outcome": "success"
+  },
+  {
+    "id": "query_005",
+    "category": "approval_workflow",
+    "scenario": "Reject lease with reason",
+    "test_type": "approval_decision",
+    "input": {
+      "lease_id": "lease_test_005",
+      "approval_action": "reject",
+      "reviewed_by": "user_admin_001",
+      "rejection_reason": "Rent amount too high",
+      "comments": "Please adjust rent amount"
+    },
+    "expected_outcome": "success"
+  },
+  {
+    "id": "query_006",
+    "category": "api_validation",
+    "scenario": "Create lease with valid data",
+    "test_type": "api_request",
+    "method": "POST",
+    "endpoint": "/api/leases",
+    "input": {
+      "reference_number": "REF-2026-0001",
+      "lease_type": "commercial",
+      "signing_mode": "digital",
+      "tenant_id": "tenant_001",
+      "property_id": "property_001",
+      "unit_id": "unit_001",
+      "monthly_rent": 50000,
+      "deposit_amount": 100000,
+      "start_date": "2026-02-01",
+      "end_date": "2027-02-01"
+    },
+    "expected_outcome": "success",
+    "expected_status": 201
+  },
+  {
+    "id": "query_007",
+    "category": "api_validation",
+    "scenario": "Create lease with missing required field",
+    "test_type": "api_request",
+    "method": "POST",
+    "endpoint": "/api/leases",
+    "input": {
+      "reference_number": "REF-2026-0002",
+      "lease_type": "commercial",
+      "tenant_id": "tenant_002",
+      "property_id": "property_001"
+    },
+    "expected_outcome": "error",
+    "expected_status": 422
+  },
+  {
+    "id": "query_008",
+    "category": "api_validation",
+    "scenario": "Update lease with invalid state",
+    "test_type": "api_request",
+    "method": "PATCH",
+    "endpoint": "/api/leases/lease_test_008",
+    "input": {
+      "workflow_state": "invalid_state",
+      "monthly_rent": 60000
+    },
+    "expected_outcome": "error",
+    "expected_status": 400
+  },
+  {
+    "id": "query_009",
+    "category": "data_validation",
+    "scenario": "Validate required lease fields",
+    "test_type": "field_validation",
+    "input": {
+      "lease_id": "lease_test_009",
+      "fields_to_validate": [
+        "reference_number",
+        "lease_type",
+        "tenant_id",
+        "property_id",
+        "monthly_rent",
+        "start_date"
+      ]
+    },
+    "expected_outcome": "all_present"
+  },
+  {
+    "id": "query_010",
+    "category": "data_validation",
+    "scenario": "Validate negative rent amount",
+    "test_type": "field_validation",
+    "input": {
+      "lease_id": "lease_test_010",
+      "monthly_rent": -50000,
+      "deposit_amount": 100000
+    },
+    "expected_outcome": "error"
+  },
+  {
+    "id": "query_011",
+    "category": "data_validation",
+    "scenario": "Validate end date before start date",
+    "test_type": "field_validation",
+    "input": {
+      "lease_id": "lease_test_011",
+      "start_date": "2027-02-01",
+      "end_date": "2026-02-01"
+    },
+    "expected_outcome": "error"
+  },
+  {
+    "id": "query_012",
+    "category": "data_consistency",
+    "scenario": "Verify audit log created on state transition",
+    "test_type": "audit_logging",
+    "input": {
+      "lease_id": "lease_test_012",
+      "old_state": "draft",
+      "new_state": "approved",
+      "user_id": "user_001"
+    },
+    "expected_outcome": "audit_log_exists"
+  },
+  {
+    "id": "query_013",
+    "category": "data_consistency",
+    "scenario": "Verify serial number uniqueness",
+    "test_type": "uniqueness_check",
+    "input": {
+      "lease_id": "lease_test_013",
+      "serial_number": "LSE-2026-0001",
+      "duplicate_serial": "LSE-2026-0001"
+    },
+    "expected_outcome": "error"
+  },
+  {
+    "id": "query_014",
+    "category": "data_consistency",
+    "scenario": "Verify approval record matches state transition",
+    "test_type": "record_consistency",
+    "input": {
+      "lease_id": "lease_test_014",
+      "approval_state": "approved",
+      "workflow_state": "approved"
+    },
+    "expected_outcome": "states_match"
+  },
+  {
+    "id": "query_015",
+    "category": "verification",
+    "scenario": "Verify lease with valid serial number",
+    "test_type": "verification",
+    "method": "GET",
+    "endpoint": "/api/leases/verify",
+    "input": {
+      "serial_number": "LSE-2026-0001",
+      "hash": "valid_hash_here"
+    },
+    "expected_outcome": "success",
+    "expected_status": 200
+  },
+  {
+    "id": "query_016",
+    "category": "verification",
+    "scenario": "Verify lease with invalid serial number",
+    "test_type": "verification",
+    "method": "GET",
+    "endpoint": "/api/leases/verify",
+    "input": {
+      "serial_number": "INVALID-2026-9999",
+      "hash": "some_hash"
+    },
+    "expected_outcome": "error",
+    "expected_status": 404
+  },
+  {
+    "id": "query_017",
+    "category": "performance",
+    "scenario": "Retrieve lease list with pagination",
+    "test_type": "performance_measurement",
+    "method": "GET",
+    "endpoint": "/api/leases?page=1&per_page=25",
+    "expected_outcome": "success",
+    "expected_max_response_time_ms": 500
+  },
+  {
+    "id": "query_018",
+    "category": "performance",
+    "scenario": "Create lease and measure response time",
+    "test_type": "performance_measurement",
+    "method": "POST",
+    "endpoint": "/api/leases",
+    "input": {
+      "reference_number": "PERF-TEST-001",
+      "lease_type": "residential_major",
+      "signing_mode": "physical",
+      "tenant_id": "tenant_perf_001",
+      "property_id": "property_001",
+      "unit_id": "unit_001",
+      "monthly_rent": 35000,
+      "deposit_amount": 70000,
+      "start_date": "2026-03-01",
+      "end_date": "2027-03-01"
+    },
+    "expected_outcome": "success",
+    "expected_max_response_time_ms": 1000
+  },
+  {
+    "id": "query_019",
+    "category": "business_logic",
+    "scenario": "Complete lease workflow from draft to active",
+    "test_type": "workflow_sequence",
+    "steps": [
+      {
+        "step": 1,
+        "action": "create_lease",
+        "target_state": "draft"
+      },
+      {
+        "step": 2,
+        "action": "request_approval",
+        "target_state": "pending_landlord_approval"
+      },
+      {
+        "step": 3,
+        "action": "approve_lease",
+        "target_state": "approved"
+      },
+      {
+        "step": 4,
+        "action": "send_digital_link",
+        "target_state": "sent_digital"
+      },
+      {
+        "step": 5,
+        "action": "mark_as_signed",
+        "target_state": "tenant_signed"
+      },
+      {
+        "step": 6,
+        "action": "activate",
+        "target_state": "active"
+      }
+    ],
+    "expected_outcome": "all_steps_succeed"
+  },
+  {
+    "id": "query_020",
+    "category": "data_validation",
+    "scenario": "Validate lease term months calculation",
+    "test_type": "field_validation",
+    "input": {
+      "lease_id": "lease_test_020",
+      "start_date": "2026-02-01",
+      "end_date": "2027-02-01",
+      "expected_lease_term_months": 12
+    },
+    "expected_outcome": "calculation_correct"
+  }
+]

@@ -62,7 +62,8 @@ class ViewLease extends ViewRecord
                     $this->record->workflow_state === 'pending_landlord_approval' ||
                     ($this->record->workflow_state === 'draft' && !$this->record->hasPendingApproval())
                 )
-                ->form([
+                /** @phpstan-ignore-next-line */
+                ->schema([
                     Textarea::make('comments')
                         ->label('Approval Comments (Optional)')
                         ->placeholder('Add any comments about this approval...')
@@ -105,7 +106,8 @@ class ViewLease extends ViewRecord
                     $this->record->workflow_state === 'pending_landlord_approval' ||
                     ($this->record->workflow_state === 'draft' && !$this->record->hasPendingApproval())
                 )
-                ->form([
+                /** @phpstan-ignore-next-line */
+                ->schema([
                     TextInput::make('rejection_reason')
                         ->label('Reason for Rejection')
                         ->placeholder('e.g., Rent amount too high')
@@ -166,11 +168,18 @@ class ViewLease extends ViewRecord
                 )
                 ->action(fn () => $this->record->markAsPrinted()),
 
+            Action::make('previewPdf')
+                ->label('Preview PDF')
+                ->icon('heroicon-o-eye')
+                ->color('info')
+                ->url(fn () => route('lease.preview', $this->record))
+                ->openUrlInNewTab(),
+
             Action::make('generatePdf')
                 ->label('Download PDF')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('gray')
-                ->url(fn () => route('leases.pdf', $this->record))
+                ->url(fn () => route('lease.download', $this->record))
                 ->openUrlInNewTab(),
         ];
     }

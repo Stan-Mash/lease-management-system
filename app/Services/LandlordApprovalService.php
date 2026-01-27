@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
+use App\Exceptions\LeaseApprovalException;
 use App\Models\Lease;
 use App\Models\LeaseApproval;
 use App\Notifications\LeaseApprovalRequestedNotification;
 use App\Notifications\LeaseApprovedNotification;
 use App\Notifications\LeaseRejectedNotification;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 
 class LandlordApprovalService
 {
@@ -19,9 +18,14 @@ class LandlordApprovalService
      * @param Lease $lease
      * @param string $method Notification method: 'email', 'sms', 'both'
      * @return array
+     * @throws LeaseApprovalException
      */
     public static function requestApproval(Lease $lease, string $method = 'email'): array
     {
+        if (!$lease->landlord) {
+            throw LeaseApprovalException::noLandlord($lease->reference_number);
+        }
+
         try {
             // Create approval request
             $approval = $lease->requestApproval();
@@ -42,6 +46,8 @@ class LandlordApprovalService
                 'notification_sent' => $sent,
                 'message' => 'Approval request sent to landlord successfully.',
             ];
+        } catch (LeaseApprovalException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to request landlord approval', [
                 'lease_id' => $lease->id,
@@ -75,7 +81,6 @@ class LandlordApprovalService
             Log::info('Lease approved by landlord', [
                 'lease_id' => $lease->id,
                 'approval_id' => $approval->id,
-                'comments' => $comments,
             ]);
 
             return [
@@ -168,12 +173,11 @@ class LandlordApprovalService
 
             // Send SMS if method includes 'sms'
             if (in_array($method, ['sms', 'both']) && $lease->landlord->phone) {
-                self::sendSMS(
+                SMSService::sendApprovalRequest(
                     $lease->landlord->phone,
-                    "New lease {$lease->reference_number} awaits your approval. " .
-                    "Tenant: {$lease->tenant->name}. " .
-                    "Rent: " . number_format($lease->monthly_rent) . " KES/month. " .
-                    "Login to approve or reject."
+                    $lease->reference_number,
+                    $lease->tenant->name ?? 'Unknown',
+                    (float) $lease->monthly_rent
                 );
             }
 
@@ -185,85 +189,6 @@ class LandlordApprovalService
             ]);
             return false;
         }
-    }
-
-    /**
-     * Send SMS notification via Africa's Talking.
-     *
-     * @param string $phone
-     * @param string $message
-     * @return bool
-     */
-    private static function sendSMS(string $phone, string $message): bool
-    {
-        $apiKey = config('services.africas_talking.api_key');
-        $username = config('services.africas_talking.username');
-
-        if (!$apiKey || !$username) {
-            Log::warning('Africa\'s Talking not configured - SMS not sent', [
-                'phone' => $phone,
-                'message' => $message,
-            ]);
-            return false;
-        }
-
-        try {
-            // Format phone number (ensure it starts with +254 for Kenya)
-            $formattedPhone = self::formatPhoneNumber($phone);
-
-            $response = Http::withHeaders([
-                'apiKey' => $apiKey,
-                'Accept' => 'application/json',
-            ])->asForm()->post('https://api.africastalking.com/version1/messaging', [
-                'username' => $username,
-                'to' => $formattedPhone,
-                'message' => $message,
-                'from' => config('services.africas_talking.shortcode', 'CHABRIN'),
-            ]);
-
-            if ($response->successful()) {
-                Log::info('SMS sent successfully', [
-                    'phone' => $formattedPhone,
-                ]);
-                return true;
-            }
-
-            Log::warning('SMS sending failed', [
-                'phone' => $formattedPhone,
-                'response' => $response->body(),
-            ]);
-            return false;
-        } catch (\Exception $e) {
-            Log::error('SMS sending exception', [
-                'phone' => $phone,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Format phone number for SMS sending.
-     *
-     * @param string $phone
-     * @return string
-     */
-    private static function formatPhoneNumber(string $phone): string
-    {
-        // Remove all non-numeric characters
-        $phone = preg_replace('/[^0-9]/', '', $phone);
-
-        // If it starts with 0, replace with 254
-        if (substr($phone, 0, 1) === '0') {
-            $phone = '254' . substr($phone, 1);
-        }
-
-        // If it doesn't start with +, add it
-        if (substr($phone, 0, 1) !== '+') {
-            $phone = '+' . $phone;
-        }
-
-        return $phone;
     }
 
     /**
@@ -287,10 +212,9 @@ class LandlordApprovalService
 
             // Notify tenant via SMS
             if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
-                self::sendSMS(
+                SMSService::sendApprovalNotification(
                     $lease->tenant->phone,
-                    "Good news! Your lease {$lease->reference_number} has been APPROVED by the landlord. " .
-                    "You will receive the digital signing link shortly."
+                    $lease->reference_number
                 );
             }
 
@@ -328,11 +252,10 @@ class LandlordApprovalService
 
             // Notify tenant via SMS
             if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
-                self::sendSMS(
+                SMSService::sendRejectionNotification(
                     $lease->tenant->phone,
-                    "Your lease {$lease->reference_number} needs revision. " .
-                    "Reason: {$approval->rejection_reason}. " .
-                    "Contact Chabrin support for details."
+                    $lease->reference_number,
+                    $approval->rejection_reason ?? 'Not specified'
                 );
             }
 

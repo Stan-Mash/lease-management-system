@@ -4,6 +4,46 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OTP Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure OTP generation and verification settings.
+    |
+    */
+
+    'otp' => [
+        // OTP code length (6 digits recommended for security)
+        'code_length' => env('LEASE_OTP_LENGTH', 6),
+
+        // OTP expiry time in minutes
+        'expiry_minutes' => env('LEASE_OTP_EXPIRY', 10),
+
+        // Maximum OTP attempts per hour per lease
+        'max_attempts_per_hour' => env('LEASE_OTP_MAX_ATTEMPTS', 3),
+
+        // Maximum verification attempts before OTP is invalidated
+        'max_verification_attempts' => env('LEASE_OTP_MAX_VERIFY_ATTEMPTS', 3),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Digital Signing Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure digital signing link settings.
+    |
+    */
+
+    'signing' => [
+        // Signing link expiry time in hours
+        'link_expiry_hours' => env('LEASE_SIGNING_LINK_EXPIRY', 72),
+
+        // Notification methods: 'email', 'sms', 'both'
+        'default_notification_method' => env('LEASE_SIGNING_NOTIFICATION', 'both'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | QR Code Configuration
     |--------------------------------------------------------------------------
     |
@@ -91,6 +131,43 @@ return [
 
         // Show only basic info (serial, status, validity)
         'show_basic_info' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Renewal Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure lease renewal settings.
+    |
+    */
+
+    'renewal' => [
+        // Default rent escalation rate for renewals (10% = 0.10)
+        'default_escalation_rate' => env('LEASE_RENEWAL_ESCALATION_RATE', 0.10),
+
+        // Days before expiry to generate renewal offer
+        'offer_days_before_expiry' => env('LEASE_RENEWAL_OFFER_DAYS', 60),
+
+        // Expiry alert thresholds (days before expiry)
+        'alert_thresholds' => [90, 60, 30],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lawyer Workflow Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure lawyer review workflow settings.
+    |
+    */
+
+    'lawyer' => [
+        // Expected turnaround time in days
+        'expected_turnaround_days' => env('LEASE_LAWYER_TURNAROUND', 7),
+
+        // Send reminder after this many days
+        'reminder_after_days' => env('LEASE_LAWYER_REMINDER', 5),
     ],
 
 ];

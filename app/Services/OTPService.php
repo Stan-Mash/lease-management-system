@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\OTPRateLimitException;
+use App\Exceptions\OTPSendingException;
 use App\Models\Lease;
 use App\Models\OTPVerification;
-use Illuminate\Support\Facades\Http;
+use App\Support\PhoneFormatter;
 use Illuminate\Support\Facades\Log;
 
 class OTPService
@@ -16,27 +18,30 @@ class OTPService
      * @param string $phone Phone number to send OTP to
      * @param string $purpose Purpose of OTP (default: digital_signing)
      * @return OTPVerification
-     * @throws \Exception If OTP generation or sending fails
+     * @throws OTPRateLimitException If too many OTP requests
+     * @throws OTPSendingException If OTP sending fails
      */
     public static function generateAndSend(
         Lease $lease,
         string $phone,
         string $purpose = 'digital_signing'
     ): OTPVerification {
-        // Check rate limiting (max 3 OTPs per hour per lease)
+        // Check rate limiting (max attempts per hour per lease)
+        $maxAttempts = config('lease.otp.max_attempts_per_hour', 3);
         $recentOTPs = OTPVerification::forLease($lease->id)
             ->recent(1)
             ->count();
 
-        if ($recentOTPs >= 3) {
-            throw new \Exception('Too many OTP requests. Please try again later.');
+        if ($recentOTPs >= $maxAttempts) {
+            throw new OTPRateLimitException($maxAttempts);
         }
 
-        // Generate 4-digit OTP code
+        // Generate cryptographically secure OTP code
         $code = self::generateCode();
 
-        // Set expiry time (10 minutes from now)
-        $expiresAt = now()->addMinutes(10);
+        // Set expiry time from config
+        $expiryMinutes = config('lease.otp.expiry_minutes', 10);
+        $expiresAt = now()->addMinutes($expiryMinutes);
 
         // Create OTP record
         $otp = OTPVerification::create([
@@ -50,11 +55,20 @@ class OTPService
 
         // Send OTP via SMS
         try {
-            self::sendSMS($phone, $code, $lease);
+            $sent = SMSService::sendOTP(
+                $phone,
+                $code,
+                $lease->reference_number,
+                $expiryMinutes
+            );
 
-            Log::info('OTP sent successfully', [
+            if (!$sent && SMSService::isConfigured()) {
+                throw new \Exception('SMS service returned failure');
+            }
+
+            Log::info('OTP generated', [
                 'lease_id' => $lease->id,
-                'phone' => $phone,
+                'phone_masked' => PhoneFormatter::mask($phone),
                 'otp_id' => $otp->id,
             ]);
         } catch (\Exception $e) {
@@ -63,11 +77,11 @@ class OTPService
 
             Log::error('Failed to send OTP', [
                 'lease_id' => $lease->id,
-                'phone' => $phone,
+                'phone_masked' => PhoneFormatter::mask($phone),
                 'error' => $e->getMessage(),
             ]);
 
-            throw new \Exception('Failed to send OTP. Please try again.');
+            throw new OTPSendingException($e->getMessage(), 0, $e);
         }
 
         return $otp;
@@ -92,7 +106,6 @@ class OTPService
         if (!$otp) {
             Log::warning('No valid OTP found for lease', [
                 'lease_id' => $lease->id,
-                'code_attempt' => $code,
             ]);
             return false;
         }
@@ -117,88 +130,16 @@ class OTPService
     }
 
     /**
-     * Generate a 4-digit OTP code.
+     * Generate a cryptographically secure 6-digit OTP code.
      *
      * @return string
      */
     private static function generateCode(): string
     {
-        return str_pad((string) rand(1000, 9999), 4, '0', STR_PAD_LEFT);
-    }
+        $length = config('lease.otp.code_length', 6);
+        $max = (int) str_repeat('9', $length);
 
-    /**
-     * Send OTP via SMS using Africa's Talking.
-     *
-     * @param string $phone
-     * @param string $code
-     * @param Lease $lease
-     * @return void
-     * @throws \Exception
-     */
-    private static function sendSMS(string $phone, string $code, Lease $lease): void
-    {
-        $apiKey = config('services.africas_talking.api_key');
-        $username = config('services.africas_talking.username');
-
-        // If no API key configured, log and return (for testing)
-        if (!$apiKey || !$username) {
-            Log::warning('Africa\'s Talking not configured - OTP would be: ' . $code);
-            return;
-        }
-
-        // Format phone number (ensure it starts with country code)
-        $formattedPhone = self::formatPhoneNumber($phone);
-
-        // Compose SMS message
-        $message = "Your Chabrin Lease verification code is: {$code}. Valid for 10 minutes. Ref: {$lease->reference_number}";
-
-        // Send via Africa's Talking API
-        $response = Http::withHeaders([
-            'apiKey' => $apiKey,
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/x-www-form-urlencoded',
-        ])->asForm()->post('https://api.africastalking.com/version1/messaging', [
-            'username' => $username,
-            'to' => $formattedPhone,
-            'message' => $message,
-            'from' => config('services.africas_talking.shortcode', 'CHABRIN'),
-        ]);
-
-        if (!$response->successful()) {
-            throw new \Exception('SMS sending failed: ' . $response->body());
-        }
-
-        $data = $response->json();
-
-        // Check if SMS was accepted
-        if (isset($data['SMSMessageData']['Recipients'][0]['status']) &&
-            $data['SMSMessageData']['Recipients'][0]['status'] !== 'Success') {
-            throw new \Exception('SMS not accepted: ' . ($data['SMSMessageData']['Recipients'][0]['status'] ?? 'Unknown error'));
-        }
-    }
-
-    /**
-     * Format phone number to international format.
-     *
-     * @param string $phone
-     * @return string
-     */
-    private static function formatPhoneNumber(string $phone): string
-    {
-        // Remove spaces, dashes, and brackets
-        $phone = preg_replace('/[\s\-\(\)]/', '', $phone);
-
-        // If starts with 0, replace with +254 (Kenya)
-        if (substr($phone, 0, 1) === '0') {
-            $phone = '+254' . substr($phone, 1);
-        }
-
-        // If doesn't start with +, add +254 (Kenya)
-        if (substr($phone, 0, 1) !== '+') {
-            $phone = '+254' . $phone;
-        }
-
-        return $phone;
+        return str_pad((string) random_int(0, $max), $length, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -233,7 +174,8 @@ class OTPService
      * @param Lease $lease
      * @param string $phone
      * @return OTPVerification
-     * @throws \Exception
+     * @throws OTPRateLimitException
+     * @throws OTPSendingException
      */
     public static function resend(Lease $lease, string $phone): OTPVerification
     {

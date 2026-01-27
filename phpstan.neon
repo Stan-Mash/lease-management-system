@@ -1,0 +1,32 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+        - database/factories/
+        - database/seeders/
+
+    level: 5
+
+    excludePaths:
+        - app/Console/Commands/TestTemplatesCommand.php
+        - vendor/
+
+    ignoreErrors:
+        # Filament-specific patterns
+        - '#Call to an undefined method Filament\\.*#'
+        - '#Access to an undefined property Filament\\.*#'
+
+        # Dynamic properties on models
+        - '#Access to an undefined property App\\Models\\.*#'
+
+        # Allow mixed types in some contexts
+        - '#Parameter \#1 .* expects .*, mixed given#'
+
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    reportUnmatchedIgnoredErrors: false
+
+    # Treat phpdoc types as assertions
+    treatPhpDocTypesAsCertain: false

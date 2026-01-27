@@ -74,7 +74,6 @@ class LeaseInfolist
                         TextEntry::make('latest_approval.reviewed_at')
                             ->label('Reviewed On')
                             ->dateTime()
-                            ->default('—')
                             ->visible(fn ($record) => $record->getLatestApproval() !== null),
                     ]),
 

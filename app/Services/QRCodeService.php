@@ -39,7 +39,7 @@ class QRCodeService
         ]);
 
         // Generate QR code as SVG (scalable for PDFs)
-        $qrCodeSvg = QrCode::size(300)
+        $qrCodeSvg = QrCode::renderer('gd')->size(300)
             ->style('round')
             ->eye('circle')
             ->margin(2)
@@ -50,7 +50,7 @@ class QRCodeService
 
         // Optionally save as PNG to storage
         if ($saveToStorage) {
-            $qrCodePng = QrCode::format('png')
+            $qrCodePng = QrCode::renderer('gd')->format('png')
                 ->size(512)
                 ->style('round')
                 ->eye('circle')
@@ -134,7 +134,7 @@ class QRCodeService
             'hash' => self::generateVerificationHash($lease),
         ]);
 
-        $qrCodePng = QrCode::format('png')
+        $qrCodePng = QrCode::renderer('gd')->format('png')
             ->size(300)
             ->style('round')
             ->eye('circle')

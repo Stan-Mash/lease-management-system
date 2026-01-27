@@ -2,20 +2,61 @@
 
 namespace App\Models;
 
+use App\Actions\Lease\MarkLeaseAsPrinted;
+use App\Enums\LeaseWorkflowState;
+use App\Models\Concerns\HasApprovalWorkflow;
+use App\Models\Concerns\HasDigitalSigning;
+use App\Models\Concerns\HasLeaseEdits;
+use App\Models\Concerns\HasWorkflowState;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Lease model representing a rental agreement.
+ *
+ * @property int $id
+ * @property string $reference_number
+ * @property string $serial_number
+ * @property string $workflow_state
+ * @property int $tenant_id
+ * @property int|null $landlord_id
+ * @property int|null $property_id
+ * @property int|null $unit_id
+ * @property int|null $zone_id
+ * @property int|null $created_by
+ * @property float $monthly_rent
+ * @property float $deposit_amount
+ * @property \Illuminate\Support\Carbon|null $start_date
+ * @property \Illuminate\Support\Carbon|null $end_date
+ * @property int|null $document_version
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @property-read Tenant|null $tenant
+ * @property-read Landlord|null $landlord
+ * @property-read Property|null $property
+ * @property-read Unit|null $unit
+ * @property-read User|null $createdBy
+ * @property-read Zone|null $assignedZone
+ */
 class Lease extends Model
 {
     use HasFactory;
+    use HasWorkflowState;
+    use HasApprovalWorkflow;
+    use HasDigitalSigning;
+    use HasLeaseEdits;
 
     protected $fillable = [
         'reference_number',
         'serial_number',
         'source',
         'lease_type',
+        'lease_template_id',
+        'template_version_used',
         'signing_mode',
         'workflow_state',
         'tenant_id',
@@ -61,30 +102,12 @@ class Lease extends Model
         'qr_generated_at' => 'datetime',
     ];
 
-    // Valid workflow transitions
-    protected static array $validTransitions = [
-        'draft' => ['pending_landlord_approval', 'approved', 'cancelled'],
-        'received' => ['pending_landlord_approval', 'approved', 'cancelled'],
-        'pending_landlord_approval' => ['approved', 'cancelled', 'draft'],
-        'approved' => ['printed', 'sent_digital', 'cancelled'],
-        'printed' => ['checked_out', 'cancelled'],
-        'checked_out' => ['pending_tenant_signature', 'returned_unsigned'],
-        'sent_digital' => ['pending_otp', 'cancelled'],
-        'pending_otp' => ['tenant_signed', 'sent_digital'],
-        'pending_tenant_signature' => ['tenant_signed', 'returned_unsigned'],
-        'returned_unsigned' => ['checked_out', 'cancelled'],
-        'tenant_signed' => ['with_lawyer', 'pending_upload', 'pending_deposit'],
-        'with_lawyer' => ['pending_upload', 'pending_deposit'],
-        'pending_upload' => ['pending_deposit'],
-        'pending_deposit' => ['active'],
-        'active' => ['renewal_offered', 'expired', 'terminated'],
-        'renewal_offered' => ['active', 'expired'],
-        'expired' => ['archived'],
-        'terminated' => ['archived'],
-        'cancelled' => ['archived'],
-    ];
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
 
-    // Relationships
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
@@ -130,9 +153,44 @@ class Lease extends Model
         return $this->hasMany(Guarantor::class);
     }
 
-    public function escalations(): HasMany
+    public function rentEscalations(): HasMany
     {
-        return $this->hasMany(LeaseEscalation::class);
+        return $this->hasMany(RentEscalation::class);
+    }
+
+    public function lawyerTrackings(): HasMany
+    {
+        return $this->hasMany(LeaseLawyerTracking::class);
+    }
+
+    public function copyDistribution()
+    {
+        return $this->hasOne(LeaseCopyDistribution::class);
+    }
+
+    public function printLogs(): HasMany
+    {
+        return $this->hasMany(LeasePrintLog::class);
+    }
+
+    public function renewalLease()
+    {
+        return $this->hasOne(Lease::class, 'renewal_of_lease_id');
+    }
+
+    public function originalLease(): BelongsTo
+    {
+        return $this->belongsTo(Lease::class, 'renewal_of_lease_id');
+    }
+
+    public function leaseTemplate(): BelongsTo
+    {
+        return $this->belongsTo(LeaseTemplate::class);
+    }
+
+    public function templateAssignments(): HasMany
+    {
+        return $this->hasMany(LeaseTemplateAssignment::class);
     }
 
     public function digitalSignatures(): HasMany
@@ -160,266 +218,27 @@ class Lease extends Model
         return $this->belongsTo(User::class, 'assigned_field_officer_id');
     }
 
-    // Workflow Methods
-    public function canTransitionTo(string $newState): bool
-    {
-        $allowedTransitions = self::$validTransitions[$this->workflow_state] ?? [];
-        return in_array($newState, $allowedTransitions);
-    }
-
-    public function transitionTo(string $newState): bool
-    {
-        if (!$this->canTransitionTo($newState)) {
-            throw new \Exception(
-                "Invalid transition from '{$this->workflow_state}' to '{$newState}'"
-            );
-        }
-
-        $oldState = $this->workflow_state;
-        $this->workflow_state = $newState;
-        $this->save();
-
-        // Log the transition
-        $this->auditLogs()->create([
-            'action' => 'state_transition',
-            'old_state' => $oldState,
-            'new_state' => $newState,
-            'user_id' => auth()->id(),
-            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'unknown',
-            'ip_address' => request()->ip(),
-            'description' => "Transitioned from {$oldState} to {$newState}",
-        ]);
-
-        return true;
-    }
-
-    public function sendDigitalSigningLink(string $method = 'both'): array
-    {
-        return \App\Services\DigitalSigningService::initiate($this, $method);
-    }
-
-    public function hasDigitalSignature(): bool
-    {
-        return $this->digitalSignatures()->exists();
-    }
-
-    public function getLatestDigitalSignature(): ?DigitalSignature
-    {
-        return $this->digitalSignatures()->orderBy('signed_at', 'desc')->first();
-    }
-
-    public function markAsPrinted(): void
-    {
-        $this->transitionTo('printed');
-
-        // Log print event
-        $this->auditLogs()->create([
-            'action' => 'printed',
-            'old_state' => 'approved',
-            'new_state' => 'printed',
-            'user_id' => auth()->id(),
-            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'unknown',
-            'ip_address' => request()->ip(),
-            'additional_data' => ['workstation' => gethostname()],
-            'description' => "Lease printed at workstation",
-        ]);
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | Business Methods
+    |--------------------------------------------------------------------------
+    */
 
     /**
-     * Record an edit to a landlord lease.
+     * Mark the lease as printed.
      *
-     * @param string $editType One of: clause_added, clause_removed, clause_modified, other
-     * @param string|null $sectionAffected Which clause/section was edited
-     * @param string|null $originalText Text before edit (null if new)
-     * @param string|null $newText Text after edit (null if removed)
-     * @param string|null $reason Why the edit was made
-     * @return LeaseEdit
+     * @param string|null $workstation Optional workstation identifier
      */
-    public function recordEdit(
-        string $editType,
-        ?string $sectionAffected = null,
-        ?string $originalText = null,
-        ?string $newText = null,
-        ?string $reason = null
-    ): LeaseEdit {
-        // Increment document version if this is the first edit in a new batch
-        // For simplicity, we increment on each edit. Could be optimized for batch edits.
-        $this->document_version++;
-        $this->save();
-
-        return $this->edits()->create([
-            'edited_by' => auth()->id(),
-            'edit_type' => $editType,
-            'section_affected' => $sectionAffected,
-            'original_text' => $originalText,
-            'new_text' => $newText,
-            'reason' => $reason,
-            'document_version' => $this->document_version,
-        ]);
-    }
-
-    // Landlord Approval Methods
-
-    /**
-     * Request approval from landlord.
-     *
-     * @return LeaseApproval
-     */
-    public function requestApproval(): LeaseApproval
+    public function markAsPrinted(?string $workstation = null): void
     {
-        // Transition to pending_landlord state
-        $this->transitionTo('pending_landlord_approval');
-
-        // Create approval record
-        $approval = $this->approvals()->create([
-            'lease_id' => $this->id,
-            'landlord_id' => $this->landlord_id,
-            'reviewed_by' => null,
-            'decision' => null,
-            'previous_data' => [
-                'workflow_state' => $this->workflow_state,
-                'monthly_rent' => $this->monthly_rent,
-                'security_deposit' => $this->security_deposit ?? $this->deposit_amount,
-                'start_date' => $this->start_date?->toDateString(),
-                'end_date' => $this->end_date?->toDateString(),
-            ],
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-
-        // Create audit log
-        $this->auditLogs()->create([
-            'action' => 'approval_requested',
-            'old_state' => 'draft',
-            'new_state' => 'pending_landlord_approval',
-            'user_id' => auth()->id(),
-            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'system',
-            'ip_address' => request()->ip(),
-            'description' => 'Lease submitted for landlord approval',
-        ]);
-
-        return $approval;
+        app(MarkLeaseAsPrinted::class)->execute($this, $workstation);
     }
 
-    /**
-     * Approve the lease.
-     *
-     * @param string|null $comments Optional approval comments
-     * @return LeaseApproval
-     */
-    public function approve(?string $comments = null): LeaseApproval
-    {
-        // Get latest approval or create one
-        $approval = $this->approvals()->latest()->first();
-
-        if (!$approval) {
-            $approval = $this->requestApproval();
-        }
-
-        // Update approval decision
-        $approval->update([
-            'decision' => 'approved',
-            'comments' => $comments,
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-
-        // Transition lease to approved state
-        $this->transitionTo('approved');
-
-        // Create audit log
-        $this->auditLogs()->create([
-            'action' => 'approved',
-            'old_state' => 'pending_landlord_approval',
-            'new_state' => 'approved',
-            'user_id' => auth()->id(),
-            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'system',
-            'ip_address' => request()->ip(),
-            'additional_data' => ['comments' => $comments],
-            'description' => 'Lease approved by landlord',
-        ]);
-
-        return $approval;
-    }
-
-    /**
-     * Reject the lease.
-     *
-     * @param string $reason Reason for rejection
-     * @param string|null $comments Optional additional comments
-     * @return LeaseApproval
-     */
-    public function reject(string $reason, ?string $comments = null): LeaseApproval
-    {
-        // Get latest approval or create one
-        $approval = $this->approvals()->latest()->first();
-
-        if (!$approval) {
-            $approval = $this->requestApproval();
-        }
-
-        // Update approval decision
-        $approval->update([
-            'decision' => 'rejected',
-            'rejection_reason' => $reason,
-            'comments' => $comments,
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-
-        // Transition lease back to draft for revision
-        $this->transitionTo('cancelled');
-
-        // Create audit log
-        $this->auditLogs()->create([
-            'action' => 'rejected',
-            'old_state' => 'pending_landlord_approval',
-            'new_state' => 'cancelled',
-            'user_id' => auth()->id(),
-            'user_role_at_time' => auth()->user()?->roles?->first()?->name ?? 'system',
-            'ip_address' => request()->ip(),
-            'additional_data' => ['rejection_reason' => $reason, 'comments' => $comments],
-            'description' => "Lease rejected by landlord: {$reason}",
-        ]);
-
-        return $approval;
-    }
-
-    /**
-     * Check if lease has pending approval.
-     */
-    public function hasPendingApproval(): bool
-    {
-        return $this->approvals()->pending()->exists();
-    }
-
-    /**
-     * Check if lease has been approved.
-     */
-    public function hasBeenApproved(): bool
-    {
-        return $this->approvals()->approved()->exists();
-    }
-
-    /**
-     * Check if lease has been rejected.
-     */
-    public function hasBeenRejected(): bool
-    {
-        return $this->approvals()->rejected()->exists();
-    }
-
-    /**
-     * Get latest approval decision.
-     */
-    public function getLatestApproval(): ?LeaseApproval
-    {
-        return $this->approvals()->latest()->first();
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | Query Scopes
+    |--------------------------------------------------------------------------
+    */
 
     /**
      * Scope: Filter leases by zone.
@@ -454,5 +273,73 @@ class Lease extends Model
     public function scopeAssignedToFieldOfficer($query, int $fieldOfficerId)
     {
         return $query->where('assigned_field_officer_id', $fieldOfficerId);
+    }
+
+    /**
+     * Scope: Filter leases by workflow state.
+     */
+    public function scopeInState($query, string|LeaseWorkflowState $state)
+    {
+        $stateValue = $state instanceof LeaseWorkflowState ? $state->value : $state;
+        return $query->where('workflow_state', $stateValue);
+    }
+
+    /**
+     * Scope: Filter active leases.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('workflow_state', LeaseWorkflowState::ACTIVE->value);
+    }
+
+    /**
+     * Scope: Filter leases expiring soon.
+     */
+    public function scopeExpiringSoon($query, int $days = 30)
+    {
+        return $query->where('workflow_state', LeaseWorkflowState::ACTIVE->value)
+            ->where('end_date', '<=', now()->addDays($days));
+    }
+
+    /**
+     * Scope: Filter leases pending approval.
+     */
+    public function scopePendingApproval($query)
+    {
+        return $query->where('workflow_state', LeaseWorkflowState::PENDING_LANDLORD_APPROVAL->value);
+    }
+
+    /**
+     * Scope: Filter leases that are in a pending state.
+     */
+    public function scopePending($query)
+    {
+        $pendingStates = [
+            LeaseWorkflowState::DRAFT,
+            LeaseWorkflowState::RECEIVED,
+            LeaseWorkflowState::PENDING_LANDLORD_APPROVAL,
+            LeaseWorkflowState::PENDING_OTP,
+            LeaseWorkflowState::PENDING_TENANT_SIGNATURE,
+            LeaseWorkflowState::PENDING_UPLOAD,
+            LeaseWorkflowState::PENDING_DEPOSIT,
+        ];
+
+        return $query->whereIn('workflow_state', array_map(fn($state) => $state->value, $pendingStates));
+    }
+
+    /**
+     * Scope: Filter non-terminal leases.
+     */
+    public function scopeNotTerminal($query)
+    {
+        $terminalStates = array_map(
+            fn($state) => $state->value,
+            array_filter(
+                LeaseWorkflowState::cases(),
+                fn($state) => $state->isTerminal()
+            )
+        );
+
+        return $query->whereNotIn('workflow_state', $terminalStates);
     }
 }
