@@ -2,9 +2,9 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\Lease;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\DB;
 
 class PendingApprovalsOverview extends BaseWidget
 {
@@ -12,22 +12,16 @@ class PendingApprovalsOverview extends BaseWidget
 
     protected function getStats(): array
     {
-        $pendingCount = Lease::whereHas('approvals', function ($query) {
-            $query->whereNull('decision');
-        })->count();
-
-        $approvedToday = Lease::whereHas('approvals', function ($query) {
-            $query->where('decision', 'approved')
-                ->whereDate('reviewed_at', today());
-        })->count();
-
-        $rejectedToday = Lease::whereHas('approvals', function ($query) {
-            $query->where('decision', 'rejected')
-                ->whereDate('reviewed_at', today());
-        })->count();
+        $stats = DB::table('lease_approvals')
+            ->selectRaw("
+                COUNT(CASE WHEN decision IS NULL THEN 1 END) as pending,
+                COUNT(CASE WHEN decision = 'approved' AND DATE(reviewed_at) = ? THEN 1 END) as approved_today,
+                COUNT(CASE WHEN decision = 'rejected' AND DATE(reviewed_at) = ? THEN 1 END) as rejected_today
+            ", [today(), today()])
+            ->first();
 
         return [
-            Stat::make('Pending Approvals', $pendingCount)
+            Stat::make('Pending Approvals', (int) ($stats->pending ?? 0))
                 ->description('Leases awaiting landlord approval')
                 ->descriptionIcon('heroicon-m-clock')
                 ->color('warning')
@@ -35,12 +29,12 @@ class PendingApprovalsOverview extends BaseWidget
                     'tableFilters' => ['workflow_state' => 'pending_landlord_approval']
                 ])),
 
-            Stat::make('Approved Today', $approvedToday)
+            Stat::make('Approved Today', (int) ($stats->approved_today ?? 0))
                 ->description('Leases approved in the last 24 hours')
                 ->descriptionIcon('heroicon-m-check-circle')
                 ->color('success'),
 
-            Stat::make('Rejected Today', $rejectedToday)
+            Stat::make('Rejected Today', (int) ($stats->rejected_today ?? 0))
                 ->description('Leases rejected in the last 24 hours')
                 ->descriptionIcon('heroicon-m-x-circle')
                 ->color('danger'),

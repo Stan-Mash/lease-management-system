@@ -149,6 +149,18 @@ return [
         // Days before expiry to generate renewal offer
         'offer_days_before_expiry' => env('LEASE_RENEWAL_OFFER_DAYS', 60),
 
+        // Days the tenant has to accept/decline the renewal offer
+        'acceptance_deadline_days' => env('LEASE_RENEWAL_ACCEPTANCE_DAYS', 30),
+
+        // Default renewal term in months
+        'default_term_months' => env('LEASE_RENEWAL_TERM_MONTHS', 12),
+
+        // Deposit escalation rate (may differ from rent escalation)
+        'deposit_escalation_rate' => env('LEASE_DEPOSIT_ESCALATION_RATE', 0.10),
+
+        // Maximum allowed escalation percentage (safety cap)
+        'max_escalation_percentage' => env('LEASE_MAX_ESCALATION', 20),
+
         // Expiry alert thresholds (days before expiry)
         'alert_thresholds' => [90, 60, 30],
     ],

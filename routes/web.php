@@ -33,7 +33,7 @@ Route::prefix('tenant')->name('tenant.')->group(function () {
 });
 
 // Landlord approval portal routes (for landlord app integration)
-Route::prefix('landlord/{landlordId}/approvals')->name('landlord.approvals.')->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('landlord/{landlordId}/approvals')->name('landlord.approvals.')->group(function () {
     Route::get('/', [LandlordApprovalController::class, 'index'])->name('index');
     Route::get('/{leaseId}', [LandlordApprovalController::class, 'show'])->name('show');
     Route::post('/{leaseId}/approve', [LandlordApprovalController::class, 'approve'])->name('approve');
@@ -41,7 +41,7 @@ Route::prefix('landlord/{landlordId}/approvals')->name('landlord.approvals.')->g
 });
 
 // API routes for landlord mobile app
-Route::prefix('api/landlord/{landlordId}')->name('api.landlord.')->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('api/landlord/{landlordId}')->name('api.landlord.')->group(function () {
     Route::get('/approvals', [LandlordApprovalController::class, 'apiIndex'])->name('approvals.index');
     Route::get('/approvals/{leaseId}', [LandlordApprovalController::class, 'apiShow'])->name('approvals.show');
     Route::post('/approvals/{leaseId}/approve', [LandlordApprovalController::class, 'apiApprove'])->name('approvals.approve');
@@ -49,7 +49,7 @@ Route::prefix('api/landlord/{landlordId}')->name('api.landlord.')->group(functio
 });
 
 // API routes for field officer mobile app
-Route::prefix('api/field-officer')->name('api.field-officer.')->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('api/field-officer')->name('api.field-officer.')->group(function () {
     Route::get('/dashboard', [FieldOfficerController::class, 'dashboard'])->name('dashboard');
     Route::get('/pending-approvals', [FieldOfficerController::class, 'pendingApprovals'])->name('pending-approvals');
     Route::get('/pending-by-landlord', [FieldOfficerController::class, 'pendingByLandlord'])->name('pending-by-landlord');

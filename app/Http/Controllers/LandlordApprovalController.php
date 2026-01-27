@@ -7,9 +7,41 @@ use App\Models\Landlord;
 use App\Services\LandlordApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LandlordApprovalController extends Controller
 {
+    /**
+     * Verify the authenticated user owns the given landlord record.
+     */
+    private function verifyLandlordOwnership(int $landlordId): Landlord
+    {
+        $landlord = $this->verifyLandlordOwnership($landlordId);
+        $user = auth()->user();
+
+        // Super admins and admins can access any landlord
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
+            return $landlord;
+        }
+
+        // Field officers can access landlords in their zone
+        if ($user->isFieldOfficer() && $landlord->zone_id === $user->zone_id) {
+            return $landlord;
+        }
+
+        // Zone managers can access landlords in their zone
+        if ($user->isZoneManager() && $landlord->zone_id === $user->zone_id) {
+            return $landlord;
+        }
+
+        // Check if the user is directly linked to this landlord
+        if ($user->landlord_id === $landlord->id) {
+            return $landlord;
+        }
+
+        throw new AccessDeniedHttpException('You are not authorized to access this landlord\'s data.');
+    }
+
     /**
      * Display pending leases for a landlord.
      * For use in Landlord Mobile/Web App
@@ -20,8 +52,7 @@ class LandlordApprovalController extends Controller
      */
     public function index(Request $request, int $landlordId)
     {
-        // Verify landlord exists
-        $landlord = Landlord::findOrFail($landlordId);
+        $landlord = $this->verifyLandlordOwnership($landlordId);
 
         // Get pending approvals for this landlord
         $pendingLeases = Lease::where('landlord_id', $landlordId)
@@ -73,7 +104,7 @@ class LandlordApprovalController extends Controller
      */
     public function show(Request $request, int $landlordId, int $leaseId)
     {
-        $landlord = Landlord::findOrFail($landlordId);
+        $landlord = $this->verifyLandlordOwnership($landlordId);
         $lease = Lease::where('id', $leaseId)
             ->where('landlord_id', $landlordId)
             ->with(['tenant', 'guarantors', 'approvals'])
@@ -98,7 +129,7 @@ class LandlordApprovalController extends Controller
             'comments' => 'nullable|string|max:1000',
         ]);
 
-        $landlord = Landlord::findOrFail($landlordId);
+        $landlord = $this->verifyLandlordOwnership($landlordId);
         $lease = Lease::where('id', $leaseId)
             ->where('landlord_id', $landlordId)
             ->where('workflow_state', 'pending_landlord_approval')
@@ -134,7 +165,7 @@ class LandlordApprovalController extends Controller
             'comments' => 'nullable|string|max:1000',
         ]);
 
-        $landlord = Landlord::findOrFail($landlordId);
+        $landlord = $this->verifyLandlordOwnership($landlordId);
         $lease = Lease::where('id', $leaseId)
             ->where('landlord_id', $landlordId)
             ->where('workflow_state', 'pending_landlord_approval')
@@ -168,7 +199,7 @@ class LandlordApprovalController extends Controller
     public function apiIndex(Request $request, int $landlordId)
     {
         try {
-            $landlord = Landlord::findOrFail($landlordId);
+            $landlord = $this->verifyLandlordOwnership($landlordId);
 
             $pendingLeases = Lease::where('landlord_id', $landlordId)
                 ->where('workflow_state', 'pending_landlord_approval')

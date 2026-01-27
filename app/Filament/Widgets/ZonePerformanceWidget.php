@@ -10,6 +10,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 
 class ZonePerformanceWidget extends BaseWidget
@@ -105,6 +106,16 @@ class ZonePerformanceWidget extends BaseWidget
     {
         $dateColumn = 'created_at';
 
+        // Use a subquery for occupancy rate via JOINs instead of correlated subqueries
+        $occupancySub = DB::table('zones as z')
+            ->leftJoin('properties as p', 'p.zone_id', '=', 'z.id')
+            ->leftJoin('units as u', 'u.property_id', '=', 'p.id')
+            ->selectRaw('z.id as zone_id,
+                CASE WHEN COUNT(u.id) = 0 THEN 0
+                     ELSE ROUND(SUM(CASE WHEN u.status = ? THEN 1 ELSE 0 END) * 100.0 / COUNT(u.id), 1)
+                END as occupancy_rate', ['occupied'])
+            ->groupBy('z.id');
+
         return Zone::query()
             ->with(['zoneManager', 'fieldOfficers'])
             ->withCount([
@@ -129,16 +140,8 @@ class ZonePerformanceWidget extends BaseWidget
                     $this->applyDateFilter($query, $dateColumn);
                 }
             ], 'monthly_rent')
-            ->selectRaw('zones.*,
-                CASE
-                    WHEN (SELECT COUNT(*) FROM units WHERE units.property_id IN (SELECT id FROM properties WHERE properties.zone_id = zones.id)) = 0
-                    THEN 0
-                    ELSE ROUND(
-                        (SELECT COUNT(*) FROM units WHERE units.status = \'occupied\' AND units.property_id IN (SELECT id FROM properties WHERE properties.zone_id = zones.id)) * 100.0 /
-                        (SELECT COUNT(*) FROM units WHERE units.property_id IN (SELECT id FROM properties WHERE properties.zone_id = zones.id))
-                    , 1)
-                END as occupancy_rate
-            ')
+            ->leftJoinSub($occupancySub, 'occ', 'occ.zone_id', '=', 'zones.id')
+            ->select('zones.*', DB::raw('COALESCE(occ.occupancy_rate, 0) as occupancy_rate'))
             ->where('is_active', true);
     }
 }

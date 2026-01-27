@@ -20,7 +20,7 @@ class UpcomingExpirationsWidget extends BaseWidget
     {
         return $table
             ->query(
-                Lease::query()
+                Lease::accessibleByUser(auth()->user())
                     ->where('workflow_state', 'active')
                     ->whereBetween('end_date', [now(), now()->addDays(90)])
                     ->orderBy('end_date')

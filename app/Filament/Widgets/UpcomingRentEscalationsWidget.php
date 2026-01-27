@@ -22,6 +22,14 @@ class UpcomingRentEscalationsWidget extends BaseWidget
                 RentEscalation::query()
                     ->where('applied', false)
                     ->whereBetween('effective_date', [now(), now()->addDays(30)])
+                    ->whereHas('lease', function ($query) {
+                        $user = auth()->user();
+                        if ($user->isFieldOfficer()) {
+                            $query->where('assigned_field_officer_id', $user->id);
+                        } elseif (method_exists($user, 'hasZoneRestriction') && $user->hasZoneRestriction()) {
+                            $query->where('zone_id', $user->zone_id);
+                        }
+                    })
                     ->orderBy('effective_date')
                     ->with(['lease.tenant', 'lease.unit.property'])
             )

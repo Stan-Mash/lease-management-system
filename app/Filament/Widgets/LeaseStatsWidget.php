@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
+use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Unit;
@@ -14,11 +15,9 @@ use Livewire\Attributes\On;
 class LeaseStatsWidget extends StatsOverviewWidget
 {
     use HasDateFiltering;
+    use HasLeaseQueryFiltering;
 
     protected static ?int $sort = 1;
-
-    public ?int $zoneId = null;
-    public ?int $fieldOfficerId = null;
 
     protected ?string $pollingInterval = null;
 
@@ -124,26 +123,7 @@ class LeaseStatsWidget extends StatsOverviewWidget
 
     protected function getFilteredQuery()
     {
-        $query = Lease::accessibleByUser(auth()->user());
-
-        // Apply zone filter
-        if ($this->zoneId) {
-            $query->where('zone_id', $this->zoneId);
-        } elseif (auth()->user()->hasZoneRestriction()) {
-            $query->where('zone_id', auth()->user()->zone_id);
-        }
-
-        // Apply field officer filter
-        if ($this->fieldOfficerId) {
-            $query->where('assigned_field_officer_id', $this->fieldOfficerId);
-        } elseif (auth()->user()->isFieldOfficer()) {
-            $query->where('assigned_field_officer_id', auth()->user()->id);
-        }
-
-        // Apply date filter
-        $query = $this->applyDateFilter($query);
-
-        return $query;
+        return $this->getFilteredLeaseQuery();
     }
 
     protected function getFilteredUrl(array $additionalFilters = []): string
