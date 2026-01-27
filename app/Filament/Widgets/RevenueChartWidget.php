@@ -2,55 +2,84 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Models\Lease;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 
 class RevenueChartWidget extends ChartWidget
 {
-    protected static ?int $sort = 3;
-    protected int | string | array $columnSpan = 'full';
+    use HasDateFiltering;
 
-    public ?string $heading = 'Monthly Revenue Trend';
+    protected static ?int $sort = 5;
+
+    public ?string $heading = 'Revenue Trend';
+    public ?string $maxHeight = '300px';
+
+    public ?int $zoneId = null;
+    public ?int $fieldOfficerId = null;
+
+    protected ?string $pollingInterval = null;
+
+    public function mount(): void
+    {
+        $this->setDateFilterFromRequest();
+    }
+
+    #[On('dateFilterUpdated')]
+    public function updateDateFilter($dateFilter = null, $startDate = null, $endDate = null): void
+    {
+        $this->dateFilter = $dateFilter;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
+    }
 
     protected function getData(): array
     {
-        // Get revenue data for the last 12 months
-        $months = [];
-        $revenues = [];
+        // Get base query with filters
+        $query = $this->getFilteredQuery();
 
-        for ($i = 11; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $months[] = $month->format('M Y');
+        // Determine grouping based on date filter
+        $groupBy = $this->getGroupingPeriod();
 
-            // Calculate total revenue for leases active in that month
-            $revenue = Lease::where('workflow_state', 'active')
-                ->where('start_date', '<=', $month->endOfMonth())
-                ->where(function ($query) use ($month) {
-                    $query->where('end_date', '>=', $month->startOfMonth())
-                        ->orWhereNull('end_date');
-                })
-                ->sum('monthly_rent');
+        // Get revenue data grouped by period
+        $revenueData = (clone $query)
+            ->where('workflow_state', 'active')
+            ->select(
+                DB::raw($this->getDateSelectExpression($groupBy) . ' as period'),
+                DB::raw('SUM(monthly_rent) as total_revenue')
+            )
+            ->groupBy('period')
+            ->orderBy('period')
+            ->get();
 
-            $revenues[] = round($revenue, 2);
+        $labels = [];
+        $data = [];
+
+        foreach ($revenueData as $item) {
+            $labels[] = $this->formatPeriodLabel($item->period, $groupBy);
+            $data[] = (float) $item->total_revenue;
+        }
+
+        // If no data, show placeholder
+        if (empty($labels)) {
+            $labels = ['No Data'];
+            $data = [0];
         }
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Revenue ($)',
-                    'data' => $revenues,
-                    'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
-                    'borderColor' => '#3b82f6',
-                    'pointBackgroundColor' => '#3b82f6',
-                    'pointBorderColor' => '#fff',
-                    'pointHoverBackgroundColor' => '#fff',
-                    'pointHoverBorderColor' => '#3b82f6',
+                    'label' => 'Revenue (KES)',
+                    'data' => $data,
+                    'borderColor' => '#10b981',
+                    'backgroundColor' => 'rgba(16, 185, 129, 0.1)',
                     'fill' => true,
                     'tension' => 0.4,
                 ],
             ],
-            'labels' => $months,
+            'labels' => $labels,
         ];
     }
 
@@ -62,24 +91,115 @@ class RevenueChartWidget extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'plugins' => [
+                'legend' => [
+                    'display' => true,
+                    'position' => 'bottom',
+                ],
+            ],
             'scales' => [
                 'y' => [
                     'beginAtZero' => true,
                     'ticks' => [
-                        'callback' => 'function(value) { return "$" + value.toLocaleString(); }',
+                        'callback' => 'function(value) { return "KES " + value.toLocaleString(); }',
                     ],
                 ],
             ],
-            'plugins' => [
-                'legend' => [
-                    'display' => true,
-                ],
-                'tooltip' => [
-                    'callbacks' => [
-                        'label' => 'function(context) { return context.dataset.label + ": $" + context.parsed.y.toLocaleString(); }',
-                    ],
-                ],
+            'interaction' => [
+                'intersect' => false,
+                'mode' => 'index',
             ],
         ];
+    }
+
+    protected function getFilteredQuery()
+    {
+        $query = Lease::accessibleByUser(auth()->user());
+
+        // Apply zone filter
+        if ($this->zoneId) {
+            $query->where('zone_id', $this->zoneId);
+        } elseif (auth()->user()->hasZoneRestriction()) {
+            $query->where('zone_id', auth()->user()->zone_id);
+        }
+
+        // Apply field officer filter
+        if ($this->fieldOfficerId) {
+            $query->where('assigned_field_officer_id', $this->fieldOfficerId);
+        } elseif (auth()->user()->isFieldOfficer()) {
+            $query->where('assigned_field_officer_id', auth()->user()->id);
+        }
+
+        // Apply date filter
+        $query = $this->applyDateFilter($query);
+
+        return $query;
+    }
+
+    protected function getGroupingPeriod(): string
+    {
+        // Determine grouping based on selected date filter
+        return match ($this->dateFilter) {
+            'today', 'yesterday' => 'hour',
+            'this_week', 'last_week' => 'day',
+            'this_month', 'last_month' => 'day',
+            'this_quarter', 'last_quarter' => 'week',
+            'this_year', 'last_year' => 'month',
+            'custom' => $this->determineCustomGrouping(),
+            default => 'month', // All time defaults to monthly
+        };
+    }
+
+    protected function determineCustomGrouping(): string
+    {
+        if (!$this->startDate || !$this->endDate) {
+            return 'month';
+        }
+
+        $start = \Carbon\Carbon::parse($this->startDate);
+        $end = \Carbon\Carbon::parse($this->endDate);
+        $daysDiff = $start->diffInDays($end);
+
+        return match (true) {
+            $daysDiff <= 1 => 'hour',
+            $daysDiff <= 31 => 'day',
+            $daysDiff <= 90 => 'week',
+            default => 'month',
+        };
+    }
+
+    protected function getDateSelectExpression(string $groupBy): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return match ($groupBy) {
+                'hour' => "TO_CHAR(created_at, 'YYYY-MM-DD HH24:00:00')",
+                'day' => "DATE(created_at)",
+                'week' => "TO_CHAR(created_at, 'IYYY-IW')",
+                'month' => "TO_CHAR(created_at, 'YYYY-MM')",
+                default => "TO_CHAR(created_at, 'YYYY-MM')",
+            };
+        }
+
+        // MySQL
+        return match ($groupBy) {
+            'hour' => "DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00')",
+            'day' => "DATE(created_at)",
+            'week' => "DATE_FORMAT(created_at, '%Y-%u')",
+            'month' => "DATE_FORMAT(created_at, '%Y-%m')",
+            default => "DATE_FORMAT(created_at, '%Y-%m')",
+        };
+    }
+
+    protected function formatPeriodLabel(string $period, string $groupBy): string
+    {
+        return match ($groupBy) {
+            'hour' => \Carbon\Carbon::parse($period)->format('h A'),
+            'day' => \Carbon\Carbon::parse($period)->format('M d'),
+            'week' => 'Week ' . substr($period, -2),
+            'month' => \Carbon\Carbon::parse($period . '-01')->format('M Y'),
+            default => $period,
+        };
     }
 }

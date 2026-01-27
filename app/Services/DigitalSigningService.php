@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\LeaseWorkflowState;
 use App\Models\Lease;
 use App\Models\DigitalSignature;
 use App\Models\Tenant;
+use App\Support\PhoneFormatter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -15,11 +17,13 @@ class DigitalSigningService
      * Generate a secure signing link for a tenant.
      *
      * @param Lease $lease
-     * @param int $expiresInHours Number of hours until link expires
+     * @param int|null $expiresInHours Number of hours until link expires (default from config)
      * @return string Secure signing URL
      */
-    public static function generateSigningLink(Lease $lease, int $expiresInHours = 72): string
+    public static function generateSigningLink(Lease $lease, ?int $expiresInHours = null): string
     {
+        $expiresInHours = $expiresInHours ?? config('lease.signing.link_expiry_hours', 72);
+
         // Generate a temporary signed URL that expires
         $url = URL::temporarySignedRoute(
             'tenant.sign-lease',
@@ -33,7 +37,7 @@ class DigitalSigningService
         Log::info('Signing link generated', [
             'lease_id' => $lease->id,
             'tenant_id' => $lease->tenant_id,
-            'expires_at' => now()->addHours($expiresInHours),
+            'expires_in_hours' => $expiresInHours,
         ]);
 
         return $url;
@@ -43,11 +47,12 @@ class DigitalSigningService
      * Send signing link to tenant via email or SMS.
      *
      * @param Lease $lease
-     * @param string $method 'email', 'sms', or 'both'
+     * @param string|null $method 'email', 'sms', or 'both' (default from config)
      * @return bool Success status
      */
-    public static function sendSigningLink(Lease $lease, string $method = 'both'): bool
+    public static function sendSigningLink(Lease $lease, ?string $method = null): bool
     {
+        $method = $method ?? config('lease.signing.default_notification_method', 'both');
         $link = self::generateSigningLink($lease);
         $tenant = $lease->tenant;
 
@@ -62,6 +67,7 @@ class DigitalSigningService
 
             Log::info('Signing link sent', [
                 'lease_id' => $lease->id,
+                'lease_reference' => $lease->reference_number,
                 'method' => $method,
             ]);
 
@@ -86,11 +92,10 @@ class DigitalSigningService
      */
     private static function sendEmail(Lease $lease, Tenant $tenant, string $link): void
     {
-        // For now, just log - implement actual email in production
-        Log::info('Email would be sent', [
-            'to' => $tenant->email,
-            'lease' => $lease->reference_number,
-            'link' => $link,
+        // Note: Never log the actual signing link or email content
+        Log::info('Signing email queued', [
+            'tenant_id' => $tenant->id,
+            'lease_reference' => $lease->reference_number,
         ]);
 
         // TODO: Implement actual email sending
@@ -108,23 +113,13 @@ class DigitalSigningService
     private static function sendSMS(Lease $lease, Tenant $tenant, string $link): void
     {
         $shortLink = self::shortenUrl($link);
-        $message = "Please sign your lease ({$lease->reference_number}). Click: {$shortLink}. Link expires in 72 hours. - Chabrin Agencies";
 
-        // Use Africa's Talking if configured
-        $apiKey = config('services.africas_talking.api_key');
-
-        if (!$apiKey) {
-            Log::warning('Africa\'s Talking not configured - SMS would contain: ' . $message);
-            return;
-        }
-
-        // Send via SMS service (simplified - use OTPService pattern)
-        Log::info('SMS would be sent', [
-            'to' => $tenant->phone,
-            'message' => $message,
-        ]);
-
-        // TODO: Implement via Africa's Talking
+        // Use centralized SMS service
+        SMSService::sendSigningLink(
+            $tenant->phone,
+            $lease->reference_number,
+            $shortLink
+        );
     }
 
     /**
@@ -154,7 +149,7 @@ class DigitalSigningService
         $signature = DigitalSignature::createFromData($data);
 
         // Update lease workflow state
-        $lease->transitionTo('tenant_signed');
+        $lease->transitionTo(LeaseWorkflowState::TENANT_SIGNED);
 
         Log::info('Digital signature captured', [
             'lease_id' => $lease->id,
@@ -207,25 +202,25 @@ class DigitalSigningService
      * Initiate digital signing process for a lease.
      *
      * @param Lease $lease
-     * @param string $method 'email', 'sms', or 'both'
-     * @return array Result with link and status
+     * @param string|null $method 'email', 'sms', or 'both' (default from config)
+     * @return array Result with status (link not returned for security)
      */
-    public static function initiate(Lease $lease, string $method = 'both'): array
+    public static function initiate(Lease $lease, ?string $method = null): array
     {
-        // Generate signing link
-        $link = self::generateSigningLink($lease);
+        $method = $method ?? config('lease.signing.default_notification_method', 'both');
+        $expiryHours = config('lease.signing.link_expiry_hours', 72);
 
-        // Send link to tenant
+        // Generate and send signing link
         $sent = self::sendSigningLink($lease, $method);
 
         // Update lease state
-        $lease->transitionTo('sent_digital');
+        $lease->transitionTo(LeaseWorkflowState::SENT_DIGITAL);
 
         return [
             'success' => $sent,
-            'link' => $link,
-            'expires_at' => now()->addHours(72),
+            'expires_at' => now()->addHours($expiryHours),
             'sent_via' => $method,
+            'lease_reference' => $lease->reference_number,
         ];
     }
 
@@ -246,10 +241,10 @@ class DigitalSigningService
      * Resend signing link to tenant.
      *
      * @param Lease $lease
-     * @param string $method
+     * @param string|null $method
      * @return array
      */
-    public static function resendLink(Lease $lease, string $method = 'both'): array
+    public static function resendLink(Lease $lease, ?string $method = null): array
     {
         return self::initiate($lease, $method);
     }

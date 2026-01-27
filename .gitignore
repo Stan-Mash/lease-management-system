@@ -1,30 +1,86 @@
+# Dependencies
 /vendor/
 node_modules/
-npm-debug.log
-yarn-error.log
+
+# Laravel
+.env
+.env.backup
+.env.production
+.env.*.local
+Homestead.yaml
+Homestead.json
+/.vagrant
+.phpunit.result.cache
+storage/*.key
+/public/storage
+/public/hot
+/public/build
+/storage/pail
+/bootstrap/cache/*.php
 
 # Laravel 4 specific
 bootstrap/compiled.php
 app/storage/
 
-# Laravel 5 & Lumen specific
-public/storage
-public/hot
-
-# Laravel 5 & Lumen specific with changed public path
+# Laravel 5 with changed public path
 public_html/storage
 public_html/hot
 
-storage/*.key
-.env
-Homestead.yaml
-Homestead.json
-/.vagrant
-.phpunit.result.cache
+# IDE & Editor
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-workspace
 
-/public/build
-/storage/pail
-.env.backup
-.env.production
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+npm-debug.log
+yarn-error.log
+*.log
+
+# Testing
+.phpunit.result.cache
+coverage/
+.phpunit.cache/
+
+# Build artifacts
+/public/build/
+/public/mix-manifest.json
+
+# Temporary files
+tmpclaude-*/
+*.tmp
+*.temp
+*.bak
+
+# PHP tools
 .phpactor.json
 auth.json
+phpstan.cache/
+.php-cs-fixer.cache
+
+# Excel temp files
+~$*.xlsx
+~$*.xls
+
+# Local scripts (not needed in repo)
+read_staff_excel.php
+read_staff.ps1
+analyze_excel.ps1
+export_clean_staff.ps1

@@ -42,7 +42,34 @@ class LeaseForm
                         'residential_micro' => 'Residential Micro',
                         'commercial' => 'Commercial',
                     ])
-                    ->required(),
+                    ->required()
+                    ->reactive(),
+
+                Forms\Components\Select::make('lease_template_id')
+                    ->label('Template')
+                    ->relationship('leaseTemplate', 'name', function ($query, $get) {
+                        $leaseType = $get('lease_type');
+                        if ($leaseType) {
+                            $query->where('template_type', $leaseType)
+                                  ->where('is_active', true);
+                        }
+                        return $query;
+                    })
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Select a custom template or leave blank to use the default template for this lease type')
+                    ->visible(fn ($get) => !empty($get('lease_type')))
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        if ($state) {
+                            $template = \App\Models\LeaseTemplate::find($state);
+                            if ($template) {
+                                $set('template_version_used', $template->version_number);
+                            }
+                        }
+                    }),
+
+                Forms\Components\Hidden::make('template_version_used'),
 
                 Forms\Components\Select::make('signing_mode')
                     ->label('Signing Method')

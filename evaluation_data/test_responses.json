@@ -1,0 +1,412 @@
+[
+  {
+    "id": "response_001",
+    "query_id": "query_001",
+    "scenario": "Valid state transition - draft to approved",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Lease transitioned successfully",
+      "data": {
+        "lease_id": "lease_test_001",
+        "old_state": "draft",
+        "new_state": "approved",
+        "transitioned_at": "2026-01-18T10:30:00Z"
+      }
+    },
+    "response_time_ms": 145,
+    "audit_log_created": true
+  },
+  {
+    "id": "response_002",
+    "query_id": "query_002",
+    "scenario": "Invalid state transition - draft to active",
+    "status": "error",
+    "response": {
+      "success": false,
+      "error": "InvalidLeaseTransitionException",
+      "message": "Cannot transition from draft to active. Valid transitions: [approved, cancelled]"
+    },
+    "response_time_ms": 82,
+    "error_code": "INVALID_TRANSITION"
+  },
+  {
+    "id": "response_003",
+    "query_id": "query_003",
+    "scenario": "Landlord approval request for draft lease",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Approval requested successfully",
+      "data": {
+        "lease_id": "lease_test_003",
+        "approval_id": "approval_test_003",
+        "workflow_state": "pending_landlord_approval",
+        "requested_at": "2026-01-18T10:35:00Z"
+      }
+    },
+    "response_time_ms": 156,
+    "notification_sent": true
+  },
+  {
+    "id": "response_004",
+    "query_id": "query_004",
+    "scenario": "Approve lease after request",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Lease approved successfully",
+      "data": {
+        "lease_id": "lease_test_003",
+        "approval_id": "approval_test_003",
+        "decision": "approved",
+        "reviewed_by": "user_admin_001",
+        "approved_at": "2026-01-18T11:00:00Z",
+        "new_workflow_state": "approved"
+      }
+    },
+    "response_time_ms": 189,
+    "audit_log_created": true
+  },
+  {
+    "id": "response_005",
+    "query_id": "query_005",
+    "scenario": "Reject lease with reason",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Lease rejected successfully",
+      "data": {
+        "lease_id": "lease_test_005",
+        "approval_id": "approval_test_005",
+        "decision": "rejected",
+        "rejection_reason": "Rent amount too high",
+        "reviewed_by": "user_admin_001",
+        "rejected_at": "2026-01-18T11:15:00Z",
+        "new_workflow_state": "cancelled"
+      }
+    },
+    "response_time_ms": 172,
+    "audit_log_created": true
+  },
+  {
+    "id": "response_006",
+    "query_id": "query_006",
+    "scenario": "Create lease with valid data",
+    "status": "success",
+    "http_status": 201,
+    "response": {
+      "success": true,
+      "message": "Lease created successfully",
+      "data": {
+        "id": 1,
+        "reference_number": "REF-2026-0001",
+        "lease_type": "commercial",
+        "workflow_state": "draft",
+        "tenant_id": 1,
+        "property_id": 1,
+        "unit_id": 1,
+        "monthly_rent": 50000,
+        "deposit_amount": 100000,
+        "created_at": "2026-01-18T12:00:00Z"
+      }
+    },
+    "response_time_ms": 234
+  },
+  {
+    "id": "response_007",
+    "query_id": "query_007",
+    "scenario": "Create lease with missing required field",
+    "status": "error",
+    "http_status": 422,
+    "response": {
+      "message": "The given data was invalid.",
+      "errors": {
+        "monthly_rent": [
+          "The monthly rent field is required."
+        ],
+        "unit_id": [
+          "The unit id field is required."
+        ]
+      }
+    },
+    "response_time_ms": 98
+  },
+  {
+    "id": "response_008",
+    "query_id": "query_008",
+    "scenario": "Update lease with invalid state",
+    "status": "error",
+    "http_status": 400,
+    "response": {
+      "success": false,
+      "error": "ValidationException",
+      "message": "Invalid workflow state. Valid states: draft, approved, printed, checked_out, pending_tenant_signature, tenant_signed, with_lawyer, pending_upload, pending_deposit, active, expired, terminated, archived, cancelled"
+    },
+    "response_time_ms": 76
+  },
+  {
+    "id": "response_009",
+    "query_id": "query_009",
+    "scenario": "Validate required lease fields",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "All required fields present",
+      "data": {
+        "lease_id": "lease_test_009",
+        "all_fields_present": true,
+        "validated_fields": [
+          "reference_number",
+          "lease_type",
+          "tenant_id",
+          "property_id",
+          "monthly_rent",
+          "start_date"
+        ]
+      }
+    },
+    "response_time_ms": 45
+  },
+  {
+    "id": "response_010",
+    "query_id": "query_010",
+    "scenario": "Validate negative rent amount",
+    "status": "error",
+    "response": {
+      "success": false,
+      "error": "ValidationException",
+      "message": "The monthly rent must be a positive amount."
+    },
+    "response_time_ms": 67
+  },
+  {
+    "id": "response_011",
+    "query_id": "query_011",
+    "scenario": "Validate end date before start date",
+    "status": "error",
+    "response": {
+      "success": false,
+      "error": "ValidationException",
+      "message": "The end date must be after the start date."
+    },
+    "response_time_ms": 58
+  },
+  {
+    "id": "response_012",
+    "query_id": "query_012",
+    "scenario": "Verify audit log created on state transition",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Audit log verified",
+      "data": {
+        "lease_id": "lease_test_012",
+        "audit_log_exists": true,
+        "audit_log": {
+          "action": "state_transition",
+          "old_state": "draft",
+          "new_state": "approved",
+          "user_id": "user_001",
+          "created_at": "2026-01-18T10:45:00Z"
+        }
+      }
+    },
+    "response_time_ms": 89
+  },
+  {
+    "id": "response_013",
+    "query_id": "query_013",
+    "scenario": "Verify serial number uniqueness",
+    "status": "error",
+    "response": {
+      "success": false,
+      "error": "DuplicateSerialNumberException",
+      "message": "Serial number LSE-2026-0001 already exists."
+    },
+    "response_time_ms": 103
+  },
+  {
+    "id": "response_014",
+    "query_id": "query_014",
+    "scenario": "Verify approval record matches state transition",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "States match",
+      "data": {
+        "lease_id": "lease_test_014",
+        "approval_state": "approved",
+        "workflow_state": "approved",
+        "states_match": true
+      }
+    },
+    "response_time_ms": 71
+  },
+  {
+    "id": "response_015",
+    "query_id": "query_015",
+    "scenario": "Verify lease with valid serial number",
+    "status": "success",
+    "http_status": 200,
+    "response": {
+      "verified": true,
+      "data": {
+        "lease_id": 1,
+        "serial_number": "LSE-2026-0001",
+        "reference_number": "REF-2026-0001",
+        "tenant_name": "John Doe",
+        "property_name": "Commercial Space A",
+        "monthly_rent": 50000,
+        "start_date": "2026-02-01",
+        "workflow_state": "active",
+        "verified_at": "2026-01-18T14:20:00Z"
+      }
+    },
+    "response_time_ms": 156
+  },
+  {
+    "id": "response_016",
+    "query_id": "query_016",
+    "scenario": "Verify lease with invalid serial number",
+    "status": "error",
+    "http_status": 404,
+    "response": {
+      "verified": false,
+      "message": "Lease not found with the provided serial number."
+    },
+    "response_time_ms": 89
+  },
+  {
+    "id": "response_017",
+    "query_id": "query_017",
+    "scenario": "Retrieve lease list with pagination",
+    "status": "success",
+    "http_status": 200,
+    "response": {
+      "data": [
+        {
+          "id": 1,
+          "reference_number": "REF-2026-0001",
+          "tenant_name": "John Doe",
+          "property_name": "Commercial Space A",
+          "workflow_state": "active",
+          "monthly_rent": 50000
+        },
+        {
+          "id": 2,
+          "reference_number": "REF-2026-0002",
+          "tenant_name": "Jane Smith",
+          "property_name": "Residential Unit B",
+          "workflow_state": "approved",
+          "monthly_rent": 35000
+        }
+      ],
+      "pagination": {
+        "page": 1,
+        "per_page": 25,
+        "total": 47,
+        "last_page": 2
+      }
+    },
+    "response_time_ms": 234
+  },
+  {
+    "id": "response_018",
+    "query_id": "query_018",
+    "scenario": "Create lease and measure response time",
+    "status": "success",
+    "http_status": 201,
+    "response": {
+      "success": true,
+      "message": "Lease created successfully",
+      "data": {
+        "id": 47,
+        "reference_number": "PERF-TEST-001",
+        "lease_type": "residential_major",
+        "workflow_state": "draft",
+        "created_at": "2026-01-18T15:30:00Z"
+      }
+    },
+    "response_time_ms": 567
+  },
+  {
+    "id": "response_019",
+    "query_id": "query_019",
+    "scenario": "Complete lease workflow from draft to active",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Complete workflow executed successfully",
+      "data": {
+        "lease_id": "lease_test_019",
+        "workflow_steps": [
+          {
+            "step": 1,
+            "action": "create_lease",
+            "status": "success",
+            "target_state": "draft",
+            "duration_ms": 234
+          },
+          {
+            "step": 2,
+            "action": "request_approval",
+            "status": "success",
+            "target_state": "pending_landlord_approval",
+            "duration_ms": 156
+          },
+          {
+            "step": 3,
+            "action": "approve_lease",
+            "status": "success",
+            "target_state": "approved",
+            "duration_ms": 189
+          },
+          {
+            "step": 4,
+            "action": "send_digital_link",
+            "status": "success",
+            "target_state": "sent_digital",
+            "duration_ms": 245
+          },
+          {
+            "step": 5,
+            "action": "mark_as_signed",
+            "status": "success",
+            "target_state": "tenant_signed",
+            "duration_ms": 167
+          },
+          {
+            "step": 6,
+            "action": "activate",
+            "status": "success",
+            "target_state": "active",
+            "duration_ms": 198
+          }
+        ],
+        "total_workflow_duration_ms": 1189,
+        "completed_at": "2026-01-18T16:00:00Z"
+      }
+    },
+    "response_time_ms": 1189
+  },
+  {
+    "id": "response_020",
+    "query_id": "query_020",
+    "scenario": "Validate lease term months calculation",
+    "status": "success",
+    "response": {
+      "success": true,
+      "message": "Lease term calculation is correct",
+      "data": {
+        "lease_id": "lease_test_020",
+        "start_date": "2026-02-01",
+        "end_date": "2027-02-01",
+        "calculated_lease_term_months": 12,
+        "expected_lease_term_months": 12,
+        "calculation_correct": true
+      }
+    },
+    "response_time_ms": 52
+  }
+]

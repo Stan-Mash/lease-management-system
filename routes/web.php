@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DownloadLeaseController;
+use App\Http\Controllers\TemplatePreviewController;
 use App\Http\Controllers\LeaseVerificationController;
 use App\Http\Controllers\TenantSigningController;
 use App\Http\Controllers\LandlordApprovalController;
@@ -58,15 +59,21 @@ Route::prefix('api/field-officer')->name('api.field-officer.')->group(function (
 });
 
 Route::middleware(['auth'])->group(function () {
-    // Immediate Download
+    // Lease PDF Generation
     Route::get('/leases/{lease}/download', DownloadLeaseController::class)
         ->name('lease.download');
-
-    // Print Preview
     Route::get('/leases/{lease}/preview', [DownloadLeaseController::class, 'preview'])
         ->name('lease.preview');
-
-    // PDF Generation (alias for download)
     Route::get('/leases/{lease}/pdf', DownloadLeaseController::class)
         ->name('leases.pdf');
+
+    // Template Preview Routes (Admin Only)
+    Route::prefix('templates')->name('templates.')->group(function () {
+        Route::get('/{template}/preview-pdf', [TemplatePreviewController::class, 'previewPdf'])
+            ->name('preview-pdf');
+        Route::get('/{template}/preview-html', [TemplatePreviewController::class, 'previewHtml'])
+            ->name('preview-html');
+        Route::get('/preview-direct', [TemplatePreviewController::class, 'previewDirect'])
+            ->name('preview-direct');
+    });
 });
