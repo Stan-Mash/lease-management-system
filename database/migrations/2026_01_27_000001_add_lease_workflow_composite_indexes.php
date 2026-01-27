@@ -8,28 +8,27 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Additional composite indexes for workflow queries
+        // Only create indexes that don't already exist from earlier migrations
         Schema::table('leases', function (Blueprint $table) {
-            // Covers dashboard widgets filtering by state + end_date (expiring soon queries)
-            $table->index(['workflow_state', 'end_date'], 'lease_state_enddate_idx');
-
-            // Covers zone dashboard queries filtering by zone + state + end_date
-            $table->index(['zone_id', 'workflow_state', 'end_date'], 'lease_zone_state_enddate_idx');
-
-            // Covers field officer scoped queries
-            $table->index(['assigned_field_officer_id', 'workflow_state'], 'lease_fo_state_idx');
-
-            // Covers landlord approval queries
-            $table->index(['landlord_id', 'workflow_state'], 'lease_landlord_state_idx');
+            if (! collect(Schema::getIndexes('leases'))->pluck('name')->contains('lease_state_enddate_idx')) {
+                $table->index(['workflow_state', 'end_date'], 'lease_state_enddate_idx');
+            }
+            if (! collect(Schema::getIndexes('leases'))->pluck('name')->contains('lease_zone_state_enddate_idx')) {
+                $table->index(['zone_id', 'workflow_state', 'end_date'], 'lease_zone_state_enddate_idx');
+            }
         });
 
         Schema::table('lease_approvals', function (Blueprint $table) {
-            // Covers approval stats consolidated query
-            $table->index(['decision', 'reviewed_at'], 'approval_decision_reviewed_idx');
+            if (! collect(Schema::getIndexes('lease_approvals'))->pluck('name')->contains('approval_decision_reviewed_idx')) {
+                $table->index(['decision', 'reviewed_at'], 'approval_decision_reviewed_idx');
+            }
         });
 
         Schema::table('rent_escalations', function (Blueprint $table) {
-            // Covers upcoming escalation queries
-            $table->index(['applied', 'effective_date'], 'escalation_applied_date_idx');
+            if (! collect(Schema::getIndexes('rent_escalations'))->pluck('name')->contains('escalation_applied_date_idx')) {
+                $table->index(['applied', 'effective_date'], 'escalation_applied_date_idx');
+            }
         });
     }
 
@@ -38,8 +37,6 @@ return new class extends Migration
         Schema::table('leases', function (Blueprint $table) {
             $table->dropIndex('lease_state_enddate_idx');
             $table->dropIndex('lease_zone_state_enddate_idx');
-            $table->dropIndex('lease_fo_state_idx');
-            $table->dropIndex('lease_landlord_state_idx');
         });
 
         Schema::table('lease_approvals', function (Blueprint $table) {
