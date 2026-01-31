@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\LeasePrintLog;
+use BackedEnum;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -12,24 +13,26 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use UnitEnum;
 
 class PrintLogReport extends Page implements HasForms, HasTable
 {
     use InteractsWithForms;
     use InteractsWithTable;
 
-    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-printer';
+    public ?string $dateFrom = null;
+
+    public ?string $dateTo = null;
+
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-printer';
 
     protected string $view = 'filament.pages.print-log-report';
 
-    protected static \UnitEnum|string|null $navigationGroup = 'Reports';
+    protected static UnitEnum|string|null $navigationGroup = 'Reports';
 
     protected static ?int $navigationSort = 30;
 
     protected static ?string $title = 'Print Log Report';
-
-    public ?string $dateFrom = null;
-    public ?string $dateTo = null;
 
     public function mount(): void
     {
@@ -45,7 +48,7 @@ class PrintLogReport extends Page implements HasForms, HasTable
                     ->when($this->dateFrom, fn ($q) => $q->whereDate('printed_at', '>=', $this->dateFrom))
                     ->when($this->dateTo, fn ($q) => $q->whereDate('printed_at', '<=', $this->dateTo))
                     ->with(['lease', 'user'])
-                    ->orderByDesc('printed_at')
+                    ->orderByDesc('printed_at'),
             )
             ->columns([
                 Tables\Columns\TextColumn::make('printed_at')

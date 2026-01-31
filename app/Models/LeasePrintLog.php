@@ -43,7 +43,7 @@ class LeasePrintLog extends Model
         ?string $workstation = null,
         ?string $ipAddress = null,
         ?string $reason = null,
-        ?string $notes = null
+        ?string $notes = null,
     ): self {
         return self::create([
             'lease_id' => $leaseId,

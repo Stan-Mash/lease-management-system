@@ -22,7 +22,32 @@ class UnitResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'unit_number';
+
+    // Enable global search
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['unit_number', 'property.name', 'property.property_code'];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return $record->unit_number . ' - ' . ($record->property?->name ?? 'Unknown Property');
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'Property' => $record->property?->name,
+            'Type' => ucfirst($record->unit_type ?? 'N/A'),
+            'Rent' => 'Ksh ' . number_format($record->rent_amount ?? 0),
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with('property');
+    }
 
     public static function form(Schema $schema): Schema
     {

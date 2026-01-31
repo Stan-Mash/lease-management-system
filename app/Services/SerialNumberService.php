@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Lease;
+use Exception;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,7 +17,6 @@ class SerialNumberService
      * Generate a unique serial number for a lease
      *
      * @param string $prefix Default prefix (LSE = Lease)
-     * @return string
      */
     public static function generate(string $prefix = 'LSE'): string
     {
@@ -39,9 +39,6 @@ class SerialNumberService
 
     /**
      * Generate unique serial number with transaction lock to prevent duplicates
-     *
-     * @param string $prefix
-     * @return string
      */
     public static function generateUnique(string $prefix = 'LSE'): string
     {
@@ -56,7 +53,7 @@ class SerialNumberService
             }
 
             if ($attempts >= 10) {
-                throw new \Exception('Failed to generate unique serial number after 10 attempts');
+                throw new Exception('Failed to generate unique serial number after 10 attempts');
             }
 
             return $serialNumber;
@@ -65,9 +62,6 @@ class SerialNumberService
 
     /**
      * Validate serial number format
-     *
-     * @param string $serialNumber
-     * @return bool
      */
     public static function isValid(string $serialNumber): bool
     {
@@ -77,12 +71,11 @@ class SerialNumberService
     /**
      * Parse serial number into components
      *
-     * @param string $serialNumber
      * @return array{prefix: string, year: string, sequence: string}|null
      */
     public static function parse(string $serialNumber): ?array
     {
-        if (!self::isValid($serialNumber)) {
+        if (! self::isValid($serialNumber)) {
             return null;
         }
 

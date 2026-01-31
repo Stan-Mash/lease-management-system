@@ -3,13 +3,18 @@
 namespace App\Filament\Resources\Leases\Pages;
 
 use App\Filament\Resources\Leases\LeaseResource;
+use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
-use Filament\Actions\EditAction;
 use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ViewLease extends ViewRecord
 {
@@ -26,10 +31,10 @@ class ViewLease extends ViewRecord
                 ->label('Request Approval')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
-                ->visible(fn () =>
-                    $this->record->workflow_state === 'draft' &&
-                    !$this->record->hasPendingApproval() &&
-                    $this->record->landlord_id
+                ->visible(
+                    fn () => $this->record->workflow_state === 'draft' &&
+                    ! $this->record->hasPendingApproval() &&
+                    $this->record->landlord_id,
                 )
                 ->requiresConfirmation()
                 ->modalHeading('Request Landlord Approval')
@@ -58,9 +63,9 @@ class ViewLease extends ViewRecord
                 ->label('Approve Lease')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn () =>
-                    $this->record->workflow_state === 'pending_landlord_approval' ||
-                    ($this->record->workflow_state === 'draft' && !$this->record->hasPendingApproval())
+                ->visible(
+                    fn () => $this->record->workflow_state === 'pending_landlord_approval' ||
+                    ($this->record->workflow_state === 'draft' && ! $this->record->hasPendingApproval()),
                 )
                 /** @phpstan-ignore-next-line */
                 ->schema([
@@ -77,7 +82,7 @@ class ViewLease extends ViewRecord
                     $result = LandlordApprovalService::approveLease(
                         $this->record,
                         $data['comments'] ?? null,
-                        'email'
+                        'email',
                     );
 
                     if ($result['success']) {
@@ -102,9 +107,9 @@ class ViewLease extends ViewRecord
                 ->label('Reject Lease')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn () =>
-                    $this->record->workflow_state === 'pending_landlord_approval' ||
-                    ($this->record->workflow_state === 'draft' && !$this->record->hasPendingApproval())
+                ->visible(
+                    fn () => $this->record->workflow_state === 'pending_landlord_approval' ||
+                    ($this->record->workflow_state === 'draft' && ! $this->record->hasPendingApproval()),
                 )
                 /** @phpstan-ignore-next-line */
                 ->schema([
@@ -127,7 +132,7 @@ class ViewLease extends ViewRecord
                         $this->record,
                         $data['rejection_reason'],
                         $data['comments'] ?? null,
-                        'email'
+                        'email',
                     );
 
                     if ($result['success']) {
@@ -151,9 +156,9 @@ class ViewLease extends ViewRecord
                 ->label('Send Digital Link')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('info')
-                ->visible(fn () =>
-                    $this->record->workflow_state === 'approved' &&
-                    $this->record->signing_mode === 'digital'
+                ->visible(
+                    fn () => $this->record->workflow_state === 'approved' &&
+                    $this->record->signing_mode === 'digital',
                 )
                 ->requiresConfirmation()
                 ->action(fn () => $this->record->sendDigitalSigningLink()),
@@ -162,9 +167,9 @@ class ViewLease extends ViewRecord
                 ->label('Print Lease')
                 ->icon('heroicon-o-printer')
                 ->color('gray')
-                ->visible(fn () =>
-                    $this->record->workflow_state === 'approved' &&
-                    $this->record->signing_mode === 'physical'
+                ->visible(
+                    fn () => $this->record->workflow_state === 'approved' &&
+                    $this->record->signing_mode === 'physical',
                 )
                 ->action(fn () => $this->record->markAsPrinted()),
 
@@ -181,6 +186,109 @@ class ViewLease extends ViewRecord
                 ->color('gray')
                 ->url(fn () => route('lease.download', $this->record))
                 ->openUrlInNewTab(),
+
+            // Upload Scanned Physical Lease
+            Action::make('uploadDocument')
+                ->label('Upload Scanned Lease')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('warning')
+                ->form([
+                    Select::make('document_type')
+                        ->label('Document Type')
+                        ->options([
+                            'signed_physical_lease' => 'Signed Physical Lease (Historical)',
+                            'original_signed' => 'Original Signed Lease',
+                            'amendment' => 'Amendment',
+                            'addendum' => 'Addendum',
+                            'notice' => 'Notice',
+                            'id_copy' => 'Tenant ID Copy',
+                            'deposit_receipt' => 'Deposit Receipt',
+                            'other' => 'Other Document',
+                        ])
+                        ->default('signed_physical_lease')
+                        ->required(),
+                    TextInput::make('title')
+                        ->label('Document Title')
+                        ->required()
+                        ->maxLength(255)
+                        ->placeholder('e.g., Signed Lease - John Doe - Unit 314E-01'),
+                    DatePicker::make('document_date')
+                        ->label('Original Document Date')
+                        ->helperText('Date on the physical document')
+                        ->required(),
+                    Textarea::make('description')
+                        ->label('Notes (Optional)')
+                        ->rows(2)
+                        ->maxLength(500)
+                        ->placeholder('e.g., Scanned from file cabinet A, folder 23'),
+                    FileUpload::make('file')
+                        ->label('Scanned File')
+                        ->required()
+                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+                        ->maxSize(10240) // 10MB
+                        ->disk('local')
+                        ->directory('temp-uploads')
+                        ->helperText('PDF or scanned images (max 10MB). Images will be compressed automatically to save storage.'),
+                ])
+                ->modalHeading('Upload Scanned Physical Lease')
+                ->modalDescription('Digitize historical signed leases from physical files for easy retrieval.')
+                ->modalSubmitActionLabel('Upload & Save')
+                ->action(function (array $data) {
+                    $uploadService = new DocumentUploadService();
+
+                    // Get the uploaded file path
+                    $filePath = $data['file'];
+                    $fullPath = storage_path('app/' . $filePath);
+
+                    if (!file_exists($fullPath)) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Upload Failed')
+                            ->body('Could not find uploaded file.')
+                            ->send();
+                        return;
+                    }
+
+                    $file = new \Illuminate\Http\UploadedFile(
+                        $fullPath,
+                        basename($filePath),
+                        mime_content_type($fullPath),
+                        null,
+                        true
+                    );
+
+                    try {
+                        $document = $uploadService->upload(
+                            $file,
+                            $this->record->id,
+                            $data['document_type'],
+                            $data['title'],
+                            $data['description'] ?? null,
+                            $data['document_date'] ?? null
+                        );
+
+                        // Clean up temp file
+                        @unlink($fullPath);
+
+                        $message = "Document uploaded successfully.";
+                        if ($document->is_compressed && $document->compression_ratio) {
+                            $message .= " Compressed by {$document->compression_ratio}%.";
+                        }
+
+                        Notification::make()
+                            ->success()
+                            ->title('Document Uploaded')
+                            ->body($message)
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Upload Failed')
+                            ->body($e->getMessage())
+                            ->send();
+                    }
+                }),
         ];
     }
 }

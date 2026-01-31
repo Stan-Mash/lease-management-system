@@ -7,6 +7,7 @@ use App\Exceptions\OTPSendingException;
 use App\Models\Lease;
 use App\Models\OTPVerification;
 use App\Support\PhoneFormatter;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class OTPService
@@ -17,14 +18,14 @@ class OTPService
      * @param Lease $lease The lease requiring signature
      * @param string $phone Phone number to send OTP to
      * @param string $purpose Purpose of OTP (default: digital_signing)
-     * @return OTPVerification
+     *
      * @throws OTPRateLimitException If too many OTP requests
      * @throws OTPSendingException If OTP sending fails
      */
     public static function generateAndSend(
         Lease $lease,
         string $phone,
-        string $purpose = 'digital_signing'
+        string $purpose = 'digital_signing',
     ): OTPVerification {
         // Check rate limiting (max attempts per hour per lease)
         $maxAttempts = config('lease.otp.max_attempts_per_hour', 3);
@@ -59,11 +60,11 @@ class OTPService
                 $phone,
                 $code,
                 $lease->reference_number,
-                $expiryMinutes
+                $expiryMinutes,
             );
 
-            if (!$sent && SMSService::isConfigured()) {
-                throw new \Exception('SMS service returned failure');
+            if (! $sent && SMSService::isConfigured()) {
+                throw new Exception('SMS service returned failure');
             }
 
             Log::info('OTP generated', [
@@ -71,7 +72,7 @@ class OTPService
                 'phone_masked' => PhoneFormatter::mask($phone),
                 'otp_id' => $otp->id,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Mark OTP as expired if sending failed
             $otp->markAsExpired();
 
@@ -89,11 +90,6 @@ class OTPService
 
     /**
      * Verify OTP code for a lease.
-     *
-     * @param Lease $lease
-     * @param string $code
-     * @param string|null $ipAddress
-     * @return bool
      */
     public static function verify(Lease $lease, string $code, ?string $ipAddress = null): bool
     {
@@ -103,10 +99,11 @@ class OTPService
             ->orderBy('sent_at', 'desc')
             ->first();
 
-        if (!$otp) {
+        if (! $otp) {
             Log::warning('No valid OTP found for lease', [
                 'lease_id' => $lease->id,
             ]);
+
             return false;
         }
 
@@ -130,23 +127,7 @@ class OTPService
     }
 
     /**
-     * Generate a cryptographically secure 6-digit OTP code.
-     *
-     * @return string
-     */
-    private static function generateCode(): string
-    {
-        $length = config('lease.otp.code_length', 6);
-        $max = (int) str_repeat('9', $length);
-
-        return str_pad((string) random_int(0, $max), $length, '0', STR_PAD_LEFT);
-    }
-
-    /**
      * Check if a lease has a verified OTP.
-     *
-     * @param Lease $lease
-     * @return bool
      */
     public static function hasVerifiedOTP(Lease $lease): bool
     {
@@ -157,9 +138,6 @@ class OTPService
 
     /**
      * Get the latest OTP for a lease.
-     *
-     * @param Lease $lease
-     * @return OTPVerification|null
      */
     public static function getLatestOTP(Lease $lease): ?OTPVerification
     {
@@ -171,9 +149,6 @@ class OTPService
     /**
      * Resend OTP (generates a new one).
      *
-     * @param Lease $lease
-     * @param string $phone
-     * @return OTPVerification
      * @throws OTPRateLimitException
      * @throws OTPSendingException
      */
@@ -192,11 +167,23 @@ class OTPService
      * Clean up expired OTPs (can be run via scheduled task).
      *
      * @param int $daysOld Number of days old to delete
+     *
      * @return int Number of OTPs deleted
      */
     public static function cleanup(int $daysOld = 30): int
     {
         return OTPVerification::where('created_at', '<', now()->subDays($daysOld))
             ->delete();
+    }
+
+    /**
+     * Generate a cryptographically secure 6-digit OTP code.
+     */
+    private static function generateCode(): string
+    {
+        $length = config('lease.otp.code_length', 6);
+        $max = (int) str_repeat('9', $length);
+
+        return str_pad((string) random_int(0, $max), $length, '0', STR_PAD_LEFT);
     }
 }

@@ -4,7 +4,6 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
-use App\Models\Lease;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
@@ -14,10 +13,11 @@ class LeaseStatusChartWidget extends ChartWidget
     use HasDateFiltering;
     use HasLeaseQueryFiltering;
 
-    protected static ?int $sort = 2;
-
     public ?string $heading = 'Lease Status Distribution';
+
     public ?string $maxHeight = '300px';
+
+    protected static ?int $sort = 2;
 
     protected ?string $pollingInterval = null;
 

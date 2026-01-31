@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Tenant extends Model
 {
     use HasFactory;
-    
+
     protected $fillable = [
         'full_name',
         'id_number',

@@ -8,6 +8,7 @@ use Illuminate\Http\Response;
 class LeaseApprovalException extends Exception
 {
     protected string $leaseReference;
+
     protected string $errorType;
 
     public function __construct(string $leaseReference, string $errorType, string $message)

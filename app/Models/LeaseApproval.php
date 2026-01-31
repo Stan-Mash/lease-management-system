@@ -94,14 +94,14 @@ class LeaseApproval extends Model
         $reviewer = $this->reviewer ? $this->reviewer->name : 'Unknown';
 
         if ($this->isApproved()) {
-            return "{$reviewer} approved the lease" . ($this->comments ? " with comments" : "");
+            return "{$reviewer} approved the lease" . ($this->comments ? ' with comments' : '');
         }
 
         if ($this->isRejected()) {
             return "{$reviewer} rejected the lease: {$this->rejection_reason}";
         }
 
-        return "Pending landlord approval";
+        return 'Pending landlord approval';
     }
 
     /**

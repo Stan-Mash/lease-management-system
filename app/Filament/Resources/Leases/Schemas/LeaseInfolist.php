@@ -2,10 +2,11 @@
 
 namespace App\Filament\Resources\Leases\Schemas;
 
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Grid;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 
 class LeaseInfolist
 {
@@ -54,15 +55,29 @@ class LeaseInfolist
                             ->label('Approval Status')
                             ->badge()
                             ->state(function ($record) {
-                                if ($record->hasBeenApproved()) return 'Approved';
-                                if ($record->hasBeenRejected()) return 'Rejected';
-                                if ($record->hasPendingApproval()) return 'Pending';
+                                if ($record->hasBeenApproved()) {
+                                    return 'Approved';
+                                }
+                                if ($record->hasBeenRejected()) {
+                                    return 'Rejected';
+                                }
+                                if ($record->hasPendingApproval()) {
+                                    return 'Pending';
+                                }
+
                                 return 'Not Requested';
                             })
                             ->color(function ($record) {
-                                if ($record->hasBeenApproved()) return 'success';
-                                if ($record->hasBeenRejected()) return 'danger';
-                                if ($record->hasPendingApproval()) return 'warning';
+                                if ($record->hasBeenApproved()) {
+                                    return 'success';
+                                }
+                                if ($record->hasBeenRejected()) {
+                                    return 'danger';
+                                }
+                                if ($record->hasPendingApproval()) {
+                                    return 'warning';
+                                }
+
                                 return 'gray';
                             }),
 
@@ -94,13 +109,51 @@ class LeaseInfolist
                     TextEntry::make('latest_approval.comments')
                         ->label('Additional Comments')
                         ->default('No additional comments')
-                        ->visible(fn ($record) =>
-                            $record->getLatestApproval()?->isRejected() &&
-                            $record->getLatestApproval()?->comments !== null
+                        ->visible(
+                            fn ($record) => $record->getLatestApproval()?->isRejected() &&
+                            $record->getLatestApproval()?->comments !== null,
                         )
                         ->columnSpanFull(),
                 ])
                 ->visible(fn ($record) => $record->landlord_id !== null)
+                ->collapsible(),
+
+            Section::make('Scanned Physical Leases & Documents')
+                ->description('Historical signed leases and supporting documents uploaded for retrieval')
+                ->schema([
+                    RepeatableEntry::make('documents')
+                        ->schema([
+                            Grid::make(5)->schema([
+                                TextEntry::make('title')
+                                    ->label('Title')
+                                    ->weight('bold'),
+                                TextEntry::make('document_type')
+                                    ->label('Type')
+                                    ->badge()
+                                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                                        'signed_physical_lease' => 'Signed Lease',
+                                        'original_signed' => 'Original Signed',
+                                        'amendment' => 'Amendment',
+                                        'addendum' => 'Addendum',
+                                        'notice' => 'Notice',
+                                        'id_copy' => 'ID Copy',
+                                        'deposit_receipt' => 'Deposit Receipt',
+                                        'other' => 'Other',
+                                        default => $state,
+                                    }),
+                                TextEntry::make('document_date')
+                                    ->label('Doc Date')
+                                    ->date('d/m/Y'),
+                                TextEntry::make('file_size_for_humans')
+                                    ->label('Size'),
+                                TextEntry::make('created_at')
+                                    ->label('Uploaded')
+                                    ->dateTime('d/m/Y'),
+                            ]),
+                        ])
+                        ->contained(false),
+                ])
+                ->visible(fn ($record) => $record->documents->count() > 0)
                 ->collapsible(),
         ]);
     }

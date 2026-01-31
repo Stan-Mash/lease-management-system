@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\Lease;
-use App\Models\Tenant;
 use App\Models\Landlord;
+use App\Models\Lease;
 use App\Models\Property;
+use App\Models\Tenant;
 use App\Models\Unit;
 use Illuminate\Support\Carbon;
+use stdClass;
 
 /**
  * Generates sample/mock lease data for template previewing
@@ -18,7 +19,6 @@ class SampleLeaseDataService
      * Generate complete sample lease data for template preview
      *
      * @param string $leaseType residential_major|residential_micro|commercial
-     * @return array
      */
     public static function generate(string $leaseType = 'residential_major'): array
     {
@@ -32,8 +32,8 @@ class SampleLeaseDataService
             'qrCode' => self::generateSampleQrCode(),
             'qr_code' => self::generateSampleQrCode(),
             // Helper functions
-            'formatMoney' => fn($amount) => 'KES ' . number_format($amount, 2),
-            'formatDate' => fn($date, $format = 'd/m/Y') => $date instanceof Carbon ? $date->format($format) : $date,
+            'formatMoney' => fn ($amount) => 'Ksh ' . number_format($amount, 2),
+            'formatDate' => fn ($date, $format = 'd/m/Y') => $date instanceof Carbon ? $date->format($format) : $date,
         ];
     }
 
@@ -56,7 +56,7 @@ class SampleLeaseDataService
             default => 12,
         };
 
-        $lease = new \stdClass();
+        $lease = new stdClass;
         $lease->id = 999;
         $lease->reference_number = 'SAMPLE-' . strtoupper($leaseType) . '-2026-001';
         $lease->lease_type = $leaseType;
@@ -81,7 +81,7 @@ class SampleLeaseDataService
      */
     protected static function createSampleTenant(string $leaseType): object
     {
-        $tenant = new \stdClass();
+        $tenant = new stdClass;
 
         if ($leaseType === 'commercial') {
             // Business tenant
@@ -125,7 +125,7 @@ class SampleLeaseDataService
      */
     protected static function createSampleLandlord(): object
     {
-        $landlord = new \stdClass();
+        $landlord = new stdClass;
         $landlord->id = 997;
         $landlord->name = 'SKYLINE PROPERTIES LIMITED';
         $landlord->contact_person = 'Peter Omondi';
@@ -144,7 +144,7 @@ class SampleLeaseDataService
      */
     protected static function createSampleProperty(string $leaseType): object
     {
-        $property = new \stdClass();
+        $property = new stdClass;
         $property->id = 996;
 
         if ($leaseType === 'commercial') {
@@ -172,7 +172,7 @@ class SampleLeaseDataService
      */
     protected static function createSampleUnit(string $leaseType): object
     {
-        $unit = new \stdClass();
+        $unit = new stdClass;
         $unit->id = 995;
 
         if ($leaseType === 'commercial') {

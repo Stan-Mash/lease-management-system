@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\LeaseTemplate;
 use App\Services\TemplateExtractionService;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -31,8 +32,9 @@ class ImportLeaseTemplatesCommand extends Command
         // Get path from option or use default
         $path = $this->option('path') ?? storage_path('app/templates/leases');
 
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             $this->error("Directory not found: {$path}");
+
             return 1;
         }
 
@@ -41,6 +43,7 @@ class ImportLeaseTemplatesCommand extends Command
 
         if (empty($pdfFiles)) {
             $this->warn('No PDF files found in the directory.');
+
             return 0;
         }
 
@@ -58,14 +61,14 @@ class ImportLeaseTemplatesCommand extends Command
                 // Check if template already exists
                 $existing = LeaseTemplate::where('name', $templateName)->first();
 
-                if ($existing && !$this->option('force')) {
+                if ($existing && ! $this->option('force')) {
                     $this->warn("  Template '{$templateName}' already exists. Use --force to replace.");
                     continue;
                 }
 
                 // If forcing, delete existing
                 if ($existing && $this->option('force')) {
-                    $this->warn("  Replacing existing template...");
+                    $this->warn('  Replacing existing template...');
                     $existing->delete();
                 }
 
@@ -89,7 +92,7 @@ class ImportLeaseTemplatesCommand extends Command
                     ->where('id', '!=', $template->id)
                     ->exists();
 
-                if (!$hasDefault) {
+                if (! $hasDefault) {
                     $template->update(['is_default' => true]);
                 }
 
@@ -97,11 +100,11 @@ class ImportLeaseTemplatesCommand extends Command
 
                 $this->info("  ✓ Created template: {$templateName} (ID: {$template->id})");
                 $this->info("    Type: {$templateType}");
-                $this->info("    Variables found: " . count($template->available_variables));
+                $this->info('    Variables found: ' . count($template->available_variables));
 
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->error("  ✗ Failed to process {$filename}");
-                $this->error("    Error: " . $e->getMessage());
+                $this->error('    Error: ' . $e->getMessage());
                 if ($this->option('verbose')) {
                     $this->error($e->getTraceAsString());
                 }

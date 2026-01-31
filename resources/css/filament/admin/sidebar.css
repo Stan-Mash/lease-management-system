@@ -1,0 +1,82 @@
+/*
+|--------------------------------------------------------------------------
+| Sidebar Toggle — Smooth Transition & Modern Styling
+|--------------------------------------------------------------------------
+|
+| Adds a polished slide transition to the Filament sidebar collapse/expand
+| and styles the toggle buttons for a clean, modern look.
+|
+*/
+
+/* ── Sidebar slide transition ─────────────────────────────────────────── */
+.fi-sidebar {
+    transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: width, transform;
+}
+
+/* Fade sidebar nav labels and group headers when collapsing */
+.fi-sidebar-nav .fi-sidebar-group-label,
+.fi-sidebar-nav .fi-sidebar-item-label,
+.fi-sidebar-nav .fi-sidebar-item-badge {
+    transition: opacity 150ms ease;
+}
+
+/* When collapsed — hide labels instantly so icons stay centered */
+.fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav .fi-sidebar-group-label,
+.fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav .fi-sidebar-item-label,
+.fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav .fi-sidebar-item-badge {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Main content area slide transition ───────────────────────────────── */
+.fi-main-ctn {
+    transition: padding-inline-start 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: padding-inline-start;
+}
+
+/* ── Toggle button styling ────────────────────────────────────────────── */
+.fi-topbar-open-collapse-sidebar-btn,
+.fi-topbar-close-collapse-sidebar-btn {
+    position: relative;
+    border-radius: 0.5rem;
+    transition: background-color 150ms ease,
+                transform 150ms ease;
+}
+
+.fi-topbar-open-collapse-sidebar-btn:hover,
+.fi-topbar-close-collapse-sidebar-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: scale(1.05);
+}
+
+.fi-topbar-open-collapse-sidebar-btn:active,
+.fi-topbar-close-collapse-sidebar-btn:active {
+    transform: scale(0.95);
+}
+
+/* Dark mode hover */
+.dark .fi-topbar-open-collapse-sidebar-btn:hover,
+.dark .fi-topbar-close-collapse-sidebar-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Sidebar header logo smooth fade ──────────────────────────────────── */
+.fi-sidebar-header-logo-ctn {
+    transition: opacity 150ms ease;
+}
+
+/* ── Collapsed sidebar icon centering polish ──────────────────────────── */
+.fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-item {
+    justify-content: center;
+}
+
+.fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-item-icon {
+    margin-inline-end: 0;
+}
+
+/* ── Tooltip for collapsed sidebar items ──────────────────────────────── */
+.fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-item {
+    position: relative;
+}

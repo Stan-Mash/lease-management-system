@@ -10,11 +10,13 @@ use Filament\Pages\Dashboard as BaseDashboard;
 
 class FieldOfficerDashboard extends BaseDashboard
 {
-    protected static string $routePath = 'field-officer-dashboard';
-    protected static bool $shouldRegisterNavigation = false;
-
     public ?int $fieldOfficerId = null;
+
     public ?User $fieldOfficer = null;
+
+    protected static string $routePath = 'field-officer-dashboard';
+
+    protected static bool $shouldRegisterNavigation = false;
 
     public function mount(): void
     {
@@ -24,7 +26,7 @@ class FieldOfficerDashboard extends BaseDashboard
         if ($this->fieldOfficerId) {
             $this->fieldOfficer = User::find($this->fieldOfficerId);
 
-            if (!$this->fieldOfficer) {
+            if (! $this->fieldOfficer) {
                 abort(404, 'Field officer not found.');
             }
 
@@ -56,6 +58,7 @@ class FieldOfficerDashboard extends BaseDashboard
     public static function canAccess(): bool
     {
         $user = auth()->user();
+
         return $user->isSuperAdmin()
             || $user->isAdmin()
             || $user->isZoneManager()
@@ -68,8 +71,10 @@ class FieldOfficerDashboard extends BaseDashboard
             if (auth()->user()->id === $this->fieldOfficer->id) {
                 return 'My Assigned Leases';
             }
+
             return $this->fieldOfficer->name . ' - Assigned Leases';
         }
+
         return 'Field Officer Dashboard';
     }
 
@@ -87,7 +92,7 @@ class FieldOfficerDashboard extends BaseDashboard
         ];
     }
 
-    public function getColumns(): int | array
+    public function getColumns(): int|array
     {
         return 2;
     }

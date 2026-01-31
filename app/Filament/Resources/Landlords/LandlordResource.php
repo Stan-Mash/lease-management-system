@@ -24,6 +24,31 @@ class LandlordResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    // Enable global search
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'email', 'phone', 'id_number'];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return $record->name;
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'Phone' => $record->phone ?? 'N/A',
+            'Email' => $record->email ?? 'N/A',
+            'Properties' => $record->properties_count ?? $record->properties()->count(),
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->withCount('properties');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return LandlordForm::configure($schema);

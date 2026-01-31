@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('leases', function (Blueprint $table) {
             $table->foreignId('lease_template_id')
-                  ->nullable()
-                  ->after('lease_type')
-                  ->constrained('lease_templates')
-                  ->nullOnDelete();
+                ->nullable()
+                ->after('lease_type')
+                ->constrained('lease_templates')
+                ->nullOnDelete();
 
             $table->integer('template_version_used')->nullable()->after('lease_template_id');
 

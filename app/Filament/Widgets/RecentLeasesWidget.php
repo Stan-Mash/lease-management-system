@@ -3,15 +3,16 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Lease;
-use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
-use Illuminate\Database\Eloquent\Builder;
 
 class RecentLeasesWidget extends TableWidget
 {
     protected static ?int $sort = 4;
-    protected int | string | array $columnSpan = 'full';
+
+    protected int|string|array $columnSpan = 'full';
+
     protected static ?string $heading = 'Recent Lease Activity';
 
     public function table(Table $table): Table
@@ -21,7 +22,7 @@ class RecentLeasesWidget extends TableWidget
                 Lease::accessibleByUser(auth()->user())
                     ->with(['tenant', 'property', 'unit'])
                     ->latest()
-                    ->limit(10)
+                    ->limit(10),
             )
             ->columns([
                 TextColumn::make('serial_number')

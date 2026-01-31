@@ -51,14 +51,15 @@ class LeaseForm
                         $leaseType = $get('lease_type');
                         if ($leaseType) {
                             $query->where('template_type', $leaseType)
-                                  ->where('is_active', true);
+                                ->where('is_active', true);
                         }
+
                         return $query;
                     })
                     ->searchable()
                     ->preload()
                     ->helperText('Select a custom template or leave blank to use the default template for this lease type')
-                    ->visible(fn ($get) => !empty($get('lease_type')))
+                    ->visible(fn ($get) => ! empty($get('lease_type')))
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set) {
                         if ($state) {
@@ -112,12 +113,12 @@ class LeaseForm
                 // --- Financials ---
                 Forms\Components\TextInput::make('monthly_rent')
                     ->numeric()
-                    ->prefix('KES')
+                    ->prefix('Ksh')
                     ->required(),
 
                 Forms\Components\TextInput::make('deposit_amount')
                     ->numeric()
-                    ->prefix('KES')
+                    ->prefix('Ksh')
                     ->required(),
 
                 Forms\Components\DatePicker::make('start_date')
@@ -166,7 +167,7 @@ class LeaseForm
 
                         Forms\Components\TextInput::make('guarantee_amount')
                             ->numeric()
-                            ->prefix('KES')
+                            ->prefix('Ksh')
                             ->label('Guarantee Amount (optional - defaults to deposit)'),
 
                         Forms\Components\Toggle::make('signed')

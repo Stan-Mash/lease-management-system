@@ -233,7 +233,7 @@ class TemplateVariableSeeder extends Seeder
         foreach ($variables as $variable) {
             TemplateVariableDefinition::updateOrCreate(
                 ['variable_name' => $variable['variable_name']],
-                $variable
+                $variable,
             );
         }
 

@@ -1,12 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DownloadLeaseController;
-use App\Http\Controllers\TemplatePreviewController;
-use App\Http\Controllers\LeaseVerificationController;
-use App\Http\Controllers\TenantSigningController;
-use App\Http\Controllers\LandlordApprovalController;
 use App\Http\Controllers\FieldOfficerController;
+use App\Http\Controllers\LandlordApprovalController;
+use App\Http\Controllers\LeaseVerificationController;
+use App\Http\Controllers\TemplatePreviewController;
+use App\Http\Controllers\TenantSigningController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
@@ -66,6 +66,15 @@ Route::middleware(['auth'])->group(function () {
         ->name('lease.preview');
     Route::get('/leases/{lease}/pdf', DownloadLeaseController::class)
         ->name('leases.pdf');
+
+    // Scanned Document Download
+    Route::get('/documents/{document}/download', function (\App\Models\LeaseDocument $document) {
+        $path = storage_path('app/' . $document->file_path);
+        if (!file_exists($path)) {
+            abort(404, 'Document not found');
+        }
+        return response()->download($path, $document->original_filename);
+    })->name('document.download');
 
     // Template Preview Routes (Admin Only)
     Route::prefix('templates')->name('templates.')->group(function () {

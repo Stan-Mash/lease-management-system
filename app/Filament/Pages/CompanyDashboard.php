@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Widgets\DateRangeFilterWidget;
-use App\Filament\Widgets\FieldOfficerPerformanceWidget;
 use App\Filament\Widgets\LeaseStatsWidget;
 use App\Filament\Widgets\LeaseStatusChartWidget;
 use App\Filament\Widgets\RevenueChartWidget;
@@ -27,6 +26,7 @@ class CompanyDashboard extends BaseDashboard
     public static function canAccess(): bool
     {
         $user = auth()->user();
+
         return $user->isSuperAdmin() || $user->isAdmin();
     }
 
@@ -41,7 +41,7 @@ class CompanyDashboard extends BaseDashboard
         ];
     }
 
-    public function getColumns(): int | array
+    public function getColumns(): int|array
     {
         return 2;
     }

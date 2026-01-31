@@ -127,13 +127,13 @@ class LeaseCopyDistribution extends Model
         }
 
         $pending = [];
-        if (!$this->tenant_copy_sent_at) {
+        if (! $this->tenant_copy_sent_at) {
             $pending[] = 'tenant';
         }
-        if (!$this->landlord_copy_sent_at) {
+        if (! $this->landlord_copy_sent_at) {
             $pending[] = 'landlord';
         }
-        if (!$this->office_copy_filed) {
+        if (! $this->office_copy_filed) {
             $pending[] = 'office';
         }
 

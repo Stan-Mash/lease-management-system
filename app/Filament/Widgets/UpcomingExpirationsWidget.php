@@ -6,7 +6,6 @@ use App\Models\Lease;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
-use Illuminate\Database\Eloquent\Builder;
 
 class UpcomingExpirationsWidget extends BaseWidget
 {
@@ -24,7 +23,7 @@ class UpcomingExpirationsWidget extends BaseWidget
                     ->where('workflow_state', 'active')
                     ->whereBetween('end_date', [now(), now()->addDays(90)])
                     ->orderBy('end_date')
-                    ->with(['tenant', 'unit.property', 'assignedZone'])
+                    ->with(['tenant', 'unit.property', 'assignedZone']),
             )
             ->columns([
                 Tables\Columns\TextColumn::make('reference_number')

@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Zone extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -80,7 +81,7 @@ class Zone extends Model
      */
     public function hasManager(): bool
     {
-        return !is_null($this->zone_manager_id);
+        return ! is_null($this->zone_manager_id);
     }
 
     /**

@@ -42,13 +42,15 @@ class ImportChabrinDataCommand extends Command
 
         if (empty($filePaths)) {
             $this->error('No Excel files provided. Use --default-paths or specify individual file paths.');
+
             return 1;
         }
 
         // Validate files exist
         foreach ($filePaths as $type => $path) {
-            if (!file_exists($path)) {
+            if (! file_exists($path)) {
                 $this->error("File not found: {$path}");
+
                 return 1;
             }
             $this->info("✓ Found {$type}: " . basename($path));
@@ -57,9 +59,10 @@ class ImportChabrinDataCommand extends Command
         $this->newLine();
 
         // Confirm clean import
-        if ($this->option('clean') && !$this->option('dry-run')) {
-            if (!$this->confirm('This will DELETE all existing landlords, properties, units, tenants, and leases. Continue?', false)) {
+        if ($this->option('clean') && ! $this->option('dry-run')) {
+            if (! $this->confirm('This will DELETE all existing landlords, properties, units, tenants, and leases. Continue?', false)) {
                 $this->info('Import cancelled.');
+
                 return 0;
             }
         }
@@ -148,7 +151,7 @@ class ImportChabrinDataCommand extends Command
                 ['Tenants', $result['stats']['tenants']['imported'], $result['stats']['tenants']['failed']],
                 ['Leases', $result['stats']['leases']['imported'], $result['stats']['leases']['failed']],
                 ['Staff', $result['stats']['staff']['imported'], $result['stats']['staff']['failed']],
-            ]
+            ],
         );
 
         $this->newLine();
@@ -157,7 +160,7 @@ class ImportChabrinDataCommand extends Command
         $this->info("Duration: {$result['duration']}");
 
         // Display errors if any
-        if (!empty($result['errors'])) {
+        if (! empty($result['errors'])) {
             $this->newLine();
             $this->warn('=== ERRORS ENCOUNTERED ===');
             $this->newLine();
@@ -171,12 +174,12 @@ class ImportChabrinDataCommand extends Command
                 $errorCount = count($errors);
                 $this->error("{$type} ({$errorCount} errors):");
                 foreach (array_slice($errors, 0, 10) as $error) { // Show first 10 errors per type
-                    $rowInfo = isset($error['row']) ? "Row {$error['row']}" : "General";
+                    $rowInfo = isset($error['row']) ? "Row {$error['row']}" : 'General';
                     $message = is_array($error['message']) ? json_encode($error['message']) : $error['message'];
                     $this->line("  {$rowInfo}: {$message}");
                 }
                 if ($errorCount > 10) {
-                    $this->line("  ... and " . ($errorCount - 10) . " more errors");
+                    $this->line('  ... and ' . ($errorCount - 10) . ' more errors');
                 }
                 $this->newLine();
             }

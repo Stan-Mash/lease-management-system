@@ -111,7 +111,7 @@ class LeaseLawyerTracking extends Model
 
     public function isOverdue(int $expectedDays = 7): bool
     {
-        if ($this->status !== 'sent' || !$this->sent_at) {
+        if ($this->status !== 'sent' || ! $this->sent_at) {
             return false;
         }
 

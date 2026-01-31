@@ -64,7 +64,6 @@ coverage/
 /public/mix-manifest.json
 
 # Temporary files
-tmpclaude-*
 *.tmp
 *.temp
 *.bak

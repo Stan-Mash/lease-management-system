@@ -2,12 +2,12 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\LandlordsImport;
 use App\Imports\PropertiesImport;
-use App\Imports\UnitsImport;
 use App\Imports\TenantsImport;
+use App\Imports\UnitsImport;
+use Illuminate\Database\Seeder;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DatabaseSeeder extends Seeder
 {

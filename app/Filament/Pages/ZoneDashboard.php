@@ -9,15 +9,16 @@ use App\Filament\Widgets\LeaseStatusChartWidget;
 use App\Filament\Widgets\RevenueChartWidget;
 use App\Models\Zone;
 use Filament\Pages\Dashboard as BaseDashboard;
-use Illuminate\Support\Facades\Route;
 
 class ZoneDashboard extends BaseDashboard
 {
-    protected static string $routePath = 'zone-dashboard';
-    protected static bool $shouldRegisterNavigation = false;
-
     public ?int $zoneId = null;
+
     public ?Zone $zone = null;
+
+    protected static string $routePath = 'zone-dashboard';
+
+    protected static bool $shouldRegisterNavigation = false;
 
     public function mount(): void
     {
@@ -29,13 +30,13 @@ class ZoneDashboard extends BaseDashboard
         if ($this->zoneId) {
             $this->zone = Zone::find($this->zoneId);
 
-            if (!$this->zone) {
+            if (! $this->zone) {
                 abort(404, 'Zone not found.');
             }
 
             // Check if user can access this zone
-            if (!$user->isSuperAdmin() && !$user->isAdmin()) {
-                if (!$user->canAccessZone($this->zoneId)) {
+            if (! $user->isSuperAdmin() && ! $user->isAdmin()) {
+                if (! $user->canAccessZone($this->zoneId)) {
                     abort(403, 'You do not have access to this zone.');
                 }
             }
@@ -50,6 +51,7 @@ class ZoneDashboard extends BaseDashboard
     public static function canAccess(): bool
     {
         $user = auth()->user();
+
         return $user->isSuperAdmin() || $user->isAdmin() || $user->isZoneManager();
     }
 
@@ -58,6 +60,7 @@ class ZoneDashboard extends BaseDashboard
         if ($this->zone) {
             return $this->zone->name . ' Performance';
         }
+
         return 'Zone Dashboard';
     }
 
@@ -77,7 +80,7 @@ class ZoneDashboard extends BaseDashboard
         ];
     }
 
-    public function getColumns(): int | array
+    public function getColumns(): int|array
     {
         return 2;
     }

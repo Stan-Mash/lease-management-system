@@ -15,16 +15,15 @@ use Illuminate\Support\Facades\DB;
 class RejectLease
 {
     public function __construct(
-        protected TransitionLeaseState $transitionAction
+        protected TransitionLeaseState $transitionAction,
     ) {}
 
     /**
      * Execute the rejection.
      *
-     * @param Lease $lease
      * @param string $reason Reason for rejection
      * @param string|null $comments Optional additional comments
-     * @return LeaseApproval
+     *
      * @throws LeaseApprovalException
      */
     public function execute(Lease $lease, string $reason, ?string $comments = null): LeaseApproval
@@ -37,7 +36,7 @@ class RejectLease
             // Get or create approval record
             $approval = $lease->approvals()->whereNull('decision')->latest()->first();
 
-            if (!$approval) {
+            if (! $approval) {
                 $approval = $lease->approvals()->create([
                     'lease_id' => $lease->id,
                     'landlord_id' => $lease->landlord_id,

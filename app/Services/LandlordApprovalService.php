@@ -8,6 +8,7 @@ use App\Models\LeaseApproval;
 use App\Notifications\LeaseApprovalRequestedNotification;
 use App\Notifications\LeaseApprovedNotification;
 use App\Notifications\LeaseRejectedNotification;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class LandlordApprovalService
@@ -15,14 +16,13 @@ class LandlordApprovalService
     /**
      * Request approval from landlord for a lease.
      *
-     * @param Lease $lease
      * @param string $method Notification method: 'email', 'sms', 'both'
-     * @return array
+     *
      * @throws LeaseApprovalException
      */
     public static function requestApproval(Lease $lease, string $method = 'email'): array
     {
-        if (!$lease->landlord) {
+        if (! $lease->landlord) {
             throw LeaseApprovalException::noLandlord($lease->reference_number);
         }
 
@@ -48,7 +48,7 @@ class LandlordApprovalService
             ];
         } catch (LeaseApprovalException $e) {
             throw $e;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to request landlord approval', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
@@ -64,10 +64,8 @@ class LandlordApprovalService
     /**
      * Approve a lease.
      *
-     * @param Lease $lease
      * @param string|null $comments Optional approval comments
      * @param string $method Notification method
-     * @return array
      */
     public static function approveLease(Lease $lease, ?string $comments = null, string $method = 'both'): array
     {
@@ -89,7 +87,7 @@ class LandlordApprovalService
                 'notification_sent' => $sent,
                 'message' => 'Lease approved successfully.',
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to approve lease', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
@@ -105,17 +103,15 @@ class LandlordApprovalService
     /**
      * Reject a lease.
      *
-     * @param Lease $lease
      * @param string $reason Reason for rejection
      * @param string|null $comments Optional additional comments
      * @param string $method Notification method
-     * @return array
      */
     public static function rejectLease(
         Lease $lease,
         string $reason,
         ?string $comments = null,
-        string $method = 'both'
+        string $method = 'both',
     ): array {
         try {
             // Reject the lease
@@ -136,7 +132,7 @@ class LandlordApprovalService
                 'notification_sent' => $sent,
                 'message' => 'Lease rejected successfully.',
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to reject lease', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
@@ -150,18 +146,34 @@ class LandlordApprovalService
     }
 
     /**
+     * Get approval status for a lease.
+     */
+    public static function getApprovalStatus(Lease $lease): array
+    {
+        $latestApproval = $lease->getLatestApproval();
+
+        return [
+            'has_approval' => $latestApproval !== null,
+            'is_pending' => $lease->hasPendingApproval(),
+            'is_approved' => $lease->hasBeenApproved(),
+            'is_rejected' => $lease->hasBeenRejected(),
+            'latest_approval' => $latestApproval,
+            'can_request_approval' => ! $lease->hasPendingApproval() && $lease->workflow_state === 'draft',
+            'can_approve' => $lease->hasPendingApproval(),
+            'can_reject' => $lease->hasPendingApproval(),
+        ];
+    }
+
+    /**
      * Send approval request notification to landlord.
-     *
-     * @param Lease $lease
-     * @param string $method
-     * @return bool
      */
     private static function sendApprovalRequest(Lease $lease, string $method): bool
     {
-        if (!$lease->landlord) {
+        if (! $lease->landlord) {
             Log::warning('Cannot send approval request - no landlord associated', [
                 'lease_id' => $lease->id,
             ]);
+
             return false;
         }
 
@@ -177,32 +189,28 @@ class LandlordApprovalService
                     $lease->landlord->phone,
                     $lease->reference_number,
                     $lease->tenant->name ?? 'Unknown',
-                    (float) $lease->monthly_rent
+                    (float) $lease->monthly_rent,
                 );
             }
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to send approval request notification', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
 
     /**
      * Send approval notification.
-     *
-     * @param Lease $lease
-     * @param LeaseApproval $approval
-     * @param string $method
-     * @return bool
      */
     private static function sendApprovalNotification(
         Lease $lease,
         LeaseApproval $approval,
-        string $method
+        string $method,
     ): bool {
         try {
             // Notify tenant via email
@@ -214,7 +222,7 @@ class LandlordApprovalService
             if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
                 SMSService::sendApprovalNotification(
                     $lease->tenant->phone,
-                    $lease->reference_number
+                    $lease->reference_number,
                 );
             }
 
@@ -222,27 +230,23 @@ class LandlordApprovalService
             $approval->markAsNotified();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to send approval notification', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
 
     /**
      * Send rejection notification.
-     *
-     * @param Lease $lease
-     * @param LeaseApproval $approval
-     * @param string $method
-     * @return bool
      */
     private static function sendRejectionNotification(
         Lease $lease,
         LeaseApproval $approval,
-        string $method
+        string $method,
     ): bool {
         try {
             // Notify tenant via email
@@ -255,7 +259,7 @@ class LandlordApprovalService
                 SMSService::sendRejectionNotification(
                     $lease->tenant->phone,
                     $lease->reference_number,
-                    $approval->rejection_reason ?? 'Not specified'
+                    $approval->rejection_reason ?? 'Not specified',
                 );
             }
 
@@ -263,34 +267,13 @@ class LandlordApprovalService
             $approval->markAsNotified();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to send rejection notification', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
-    }
-
-    /**
-     * Get approval status for a lease.
-     *
-     * @param Lease $lease
-     * @return array
-     */
-    public static function getApprovalStatus(Lease $lease): array
-    {
-        $latestApproval = $lease->getLatestApproval();
-
-        return [
-            'has_approval' => $latestApproval !== null,
-            'is_pending' => $lease->hasPendingApproval(),
-            'is_approved' => $lease->hasBeenApproved(),
-            'is_rejected' => $lease->hasBeenRejected(),
-            'latest_approval' => $latestApproval,
-            'can_request_approval' => !$lease->hasPendingApproval() && $lease->workflow_state === 'draft',
-            'can_approve' => $lease->hasPendingApproval(),
-            'can_reject' => $lease->hasPendingApproval(),
-        ];
     }
 }

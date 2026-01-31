@@ -21,15 +21,12 @@ trait HasWorkflowState
 
     /**
      * Check if transition to a new state is valid.
-     *
-     * @param string|LeaseWorkflowState $newState
-     * @return bool
      */
     public function canTransitionTo(string|LeaseWorkflowState $newState): bool
     {
         if (is_string($newState)) {
             $newState = LeaseWorkflowState::tryFrom($newState);
-            if (!$newState) {
+            if (! $newState) {
                 return false;
             }
         }
@@ -40,8 +37,6 @@ trait HasWorkflowState
     /**
      * Transition to a new workflow state.
      *
-     * @param string|LeaseWorkflowState $newState
-     * @return bool
      * @throws InvalidLeaseTransitionException
      */
     public function transitionTo(string|LeaseWorkflowState $newState): bool

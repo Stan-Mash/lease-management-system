@@ -7,6 +7,7 @@ use App\Models\Lease;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class LeaseRenewalService
 {
@@ -23,9 +24,9 @@ class LeaseRenewalService
 
             $renewalLease = Lease::create($this->buildRenewalAttributes($lease, $config));
 
-            // Update original lease status
+            // Update original lease workflow state
             $lease->update([
-                'status' => LeaseWorkflowState::RENEWAL_OFFERED->value,
+                'workflow_state' => LeaseWorkflowState::RENEWAL_OFFERED->value,
             ]);
 
             // Log the action
@@ -50,48 +51,52 @@ class LeaseRenewalService
     public function calculateRenewalRent(Lease $lease, ?float $customRate = null): float
     {
         $rate = $customRate ?? config('lease.renewal.default_escalation_rate', 0.10);
+
         return round($lease->monthly_rent * (1 + $rate), 2);
     }
 
     /**
      * Validate that a lease is eligible for renewal.
      *
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function validateEligibility(Lease $lease): void
     {
-        if (!$lease->tenant || !$lease->landlord) {
-            throw new \InvalidArgumentException(
-                'Lease must have both a tenant and landlord to be eligible for renewal.'
+        if (! $lease->tenant || ! $lease->landlord) {
+            throw new InvalidArgumentException(
+                'Lease must have both a tenant and landlord to be eligible for renewal.',
             );
         }
 
-        if ($lease->renewalLease && $lease->renewalLease()->exists()) {
-            throw new \InvalidArgumentException(
-                'A renewal offer already exists for this lease.'
+        if ($lease->renewalLease()->exists()) {
+            throw new InvalidArgumentException(
+                'A renewal offer already exists for this lease.',
             );
         }
 
-        if (!in_array($lease->status, ['active', LeaseWorkflowState::ACTIVE->value])) {
-            throw new \InvalidArgumentException(
-                'Only active leases can be renewed. Current status: ' . $lease->status
+        if ($lease->workflow_state !== LeaseWorkflowState::ACTIVE->value) {
+            throw new InvalidArgumentException(
+                'Only active leases can be renewed. Current state: ' . $lease->workflow_state,
             );
         }
     }
 
     /**
      * Get eligible leases for renewal offers.
+     *
+     * Returns leases that are active, have no existing renewal, and expire
+     * within the given number of days from now.
      */
-    public function getEligibleLeases(int $daysBeforeExpiry = null): \Illuminate\Database\Eloquent\Collection
+    public function getEligibleLeases(?int $daysBeforeExpiry = null): \Illuminate\Database\Eloquent\Collection
     {
         $days = $daysBeforeExpiry ?? config('lease.renewal.offer_days_before_expiry', 60);
-        $targetDate = now()->addDays($days)->format('Y-m-d');
 
         return Lease::query()
-            ->where('status', 'active')
-            ->whereDate('end_date', $targetDate)
+            ->where('workflow_state', LeaseWorkflowState::ACTIVE->value)
+            ->whereDate('end_date', '>=', now()->toDateString())
+            ->whereDate('end_date', '<=', now()->addDays($days)->toDateString())
             ->whereDoesntHave('renewalLease')
-            ->with(['tenant', 'landlord', 'unit.property', 'zone'])
+            ->with(['tenant', 'landlord', 'unit.property', 'assignedZone'])
             ->get();
     }
 
@@ -103,12 +108,15 @@ class LeaseRenewalService
         $escalationRate = config('lease.renewal.default_escalation_rate', 0.10);
         $termMonths = config('lease.renewal.default_term_months', 12);
 
+        // Use copy() to prevent Carbon mutation on the original lease dates
+        $newStartDate = $lease->end_date->copy()->addDay();
+
         return [
             'escalation_rate' => $escalationRate,
             'term_months' => $termMonths,
             'new_rent' => $this->calculateRenewalRent($lease, $escalationRate),
-            'new_start_date' => $lease->end_date->addDay(),
-            'new_end_date' => $lease->end_date->addDay()->addMonths($termMonths)->subDay(),
+            'new_start_date' => $newStartDate,
+            'new_end_date' => $newStartDate->copy()->addMonths($termMonths)->subDay(),
         ];
     }
 
@@ -122,7 +130,7 @@ class LeaseRenewalService
             'landlord_id' => $lease->landlord_id,
             'unit_id' => $lease->unit_id,
             'zone_id' => $lease->zone_id,
-            'template_id' => $lease->template_id,
+            'lease_template_id' => $lease->lease_template_id,
             'lease_type' => $lease->lease_type,
             'source' => $lease->source,
             'signing_mode' => $lease->signing_mode,
@@ -130,9 +138,10 @@ class LeaseRenewalService
             'end_date' => $config['new_end_date'],
             'monthly_rent' => $config['new_rent'],
             'deposit_amount' => $lease->deposit_amount,
+            'lease_term_months' => $config['term_months'],
             'requires_guarantor' => $lease->requires_guarantor,
             'requires_lawyer' => $lease->requires_lawyer,
-            'status' => LeaseWorkflowState::RENEWAL_OFFERED->value,
+            'workflow_state' => LeaseWorkflowState::RENEWAL_OFFERED->value,
             'renewal_of_lease_id' => $lease->id,
             'created_by' => null,
         ];

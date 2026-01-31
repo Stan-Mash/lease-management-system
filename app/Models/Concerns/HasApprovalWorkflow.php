@@ -14,8 +14,6 @@ trait HasApprovalWorkflow
 {
     /**
      * Request approval from landlord.
-     *
-     * @return LeaseApproval
      */
     public function requestApproval(): LeaseApproval
     {
@@ -26,7 +24,6 @@ trait HasApprovalWorkflow
      * Approve the lease.
      *
      * @param string|null $comments Optional approval comments
-     * @return LeaseApproval
      */
     public function approve(?string $comments = null): LeaseApproval
     {
@@ -38,7 +35,6 @@ trait HasApprovalWorkflow
      *
      * @param string $reason Reason for rejection
      * @param string|null $comments Optional additional comments
-     * @return LeaseApproval
      */
     public function reject(string $reason, ?string $comments = null): LeaseApproval
     {

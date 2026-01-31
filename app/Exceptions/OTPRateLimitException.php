@@ -13,7 +13,7 @@ class OTPRateLimitException extends Exception
     {
         $this->maxAttempts = $maxAttempts;
         parent::__construct(
-            "Too many OTP requests. Maximum {$maxAttempts} attempts per hour allowed. Please try again later."
+            "Too many OTP requests. Maximum {$maxAttempts} attempts per hour allowed. Please try again later.",
         );
     }
 

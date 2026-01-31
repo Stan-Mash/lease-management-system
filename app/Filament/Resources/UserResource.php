@@ -2,21 +2,20 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\Users\Pages as Pages;
+use App\Filament\Resources\Users\Pages;
 use App\Models\User;
-use Filament\Forms\Components\TextInput; // Components are still here
-use Filament\Schemas\Schema; // UPDATED: Replaces Filament\Forms\Form
+use BackedEnum; // Components are still here
+use Filament\Forms\Components\TextInput; // UPDATED: Replaces Filament\Forms\Form
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-users';
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-users';
 
     protected static ?string $navigationLabel = 'Users';
 

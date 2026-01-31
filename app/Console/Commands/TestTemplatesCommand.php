@@ -6,8 +6,8 @@ use App\Models\LeaseTemplate;
 use App\Services\SampleLeaseDataService;
 use App\Services\TemplateRenderService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 class TestTemplatesCommand extends Command
 {
@@ -32,7 +32,7 @@ class TestTemplatesCommand extends Command
         $outputDir = $this->option('output');
 
         // Ensure output directory exists
-        if (!is_dir($outputDir)) {
+        if (! is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
 
@@ -43,6 +43,7 @@ class TestTemplatesCommand extends Command
 
         if ($templates->isEmpty()) {
             $this->error('❌ No templates found to test!');
+
             return self::FAILURE;
         }
 
@@ -53,7 +54,7 @@ class TestTemplatesCommand extends Command
         $failureCount = 0;
 
         foreach ($templates as $template) {
-            $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            $this->line('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             $this->info("Testing: {$template->name}");
             $this->line("Type: {$template->template_type} | Version: v{$template->version_number}");
             $this->newLine();
@@ -71,7 +72,7 @@ class TestTemplatesCommand extends Command
                 $html = $this->templateRenderer->render($template, $mockLease);
 
                 if (empty(trim($html))) {
-                    throw new \Exception('Template rendered empty HTML');
+                    throw new Exception('Template rendered empty HTML');
                 }
 
                 $this->line('  ✓ HTML rendered successfully (' . strlen($html) . ' characters)');
@@ -82,7 +83,7 @@ class TestTemplatesCommand extends Command
                 $pdfOutput = $pdf->output();
 
                 // Save PDF to file
-                $filename = "{$template->slug}-test-" . now()->format('Y-m-d-His') . ".pdf";
+                $filename = "{$template->slug}-test-" . now()->format('Y-m-d-His') . '.pdf';
                 $filepath = $outputDir . '/' . $filename;
                 file_put_contents($filepath, $pdfOutput);
 
@@ -91,7 +92,7 @@ class TestTemplatesCommand extends Command
 
                 // Show detected variables
                 $this->line('  → Variables detected: ' . count($template->available_variables ?? []));
-                if (!empty($template->available_variables)) {
+                if (! empty($template->available_variables)) {
                     $this->line('     ' . implode(', ', array_slice($template->available_variables, 0, 5)));
                     if (count($template->available_variables) > 5) {
                         $this->line('     ... and ' . (count($template->available_variables) - 5) . ' more');
@@ -102,7 +103,7 @@ class TestTemplatesCommand extends Command
                 $this->info('✅ SUCCESS: Template test passed!');
                 $successCount++;
 
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->newLine();
                 $this->error('❌ FAILED: ' . $e->getMessage());
                 $this->line('  Error: ' . $e->getFile() . ':' . $e->getLine());
@@ -113,9 +114,9 @@ class TestTemplatesCommand extends Command
         }
 
         // Summary
-        $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->line('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         $this->info('📊 TEST SUMMARY');
-        $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->line('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         $this->line("Total Templates Tested: {$templates->count()}");
         $this->line("✅ Successful: {$successCount}");
         $this->line("❌ Failed: {$failureCount}");
@@ -124,9 +125,11 @@ class TestTemplatesCommand extends Command
 
         if ($failureCount === 0) {
             $this->info('🎉 All templates passed! PDFs have been generated successfully.');
+
             return self::SUCCESS;
         } else {
-            $this->warn("⚠️  Some templates failed. Please review the errors above.");
+            $this->warn('⚠️  Some templates failed. Please review the errors above.');
+
             return self::FAILURE;
         }
     }

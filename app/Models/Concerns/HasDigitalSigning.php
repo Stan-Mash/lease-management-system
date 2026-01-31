@@ -14,7 +14,6 @@ trait HasDigitalSigning
      * Send digital signing link to tenant.
      *
      * @param string $method 'email', 'sms', or 'both'
-     * @return array
      */
     public function sendDigitalSigningLink(string $method = 'both'): array
     {

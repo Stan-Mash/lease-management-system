@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Roles\Schemas;
 
-use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\Grid;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\IconEntry;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
 class RoleInfolist
@@ -54,10 +54,10 @@ class RoleInfolist
                         ->listWithLineBreaks()
                         ->bulleted()
                         ->placeholder('No permissions defined')
-                        ->formatStateUsing(fn (?array $state): ?string =>
-                            $state && count($state) > 0
+                        ->formatStateUsing(
+                            fn (?array $state): ?string => $state && count($state) > 0
                                 ? implode("\n", array_column($state, 'permission'))
-                                : null
+                                : null,
                         ),
                 ]),
 

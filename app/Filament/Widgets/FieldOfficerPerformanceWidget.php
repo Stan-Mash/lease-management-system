@@ -3,7 +3,6 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
-use App\Models\Lease;
 use App\Models\User;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -15,13 +14,15 @@ class FieldOfficerPerformanceWidget extends BaseWidget
 {
     use HasDateFiltering;
 
+    public ?int $zoneId = null;
+
     protected static ?int $sort = 4;
-    protected int | string | array $columnSpan = 'full';
+
+    protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Field Officer Performance';
-    protected ?string $pollingInterval = null;
 
-    public ?int $zoneId = null;
+    protected ?string $pollingInterval = null;
 
     public function mount(): void
     {
@@ -39,6 +40,7 @@ class FieldOfficerPerformanceWidget extends BaseWidget
     public static function canView(): bool
     {
         $user = auth()->user();
+
         return $user->isSuperAdmin() || $user->isAdmin() || $user->isZoneManager();
     }
 
@@ -140,11 +142,11 @@ class FieldOfficerPerformanceWidget extends BaseWidget
                 $this->applyDateFilter($query, $dateColumn);
             },
         ])
-        ->withSum([
-            'assignedLeases as total_revenue' => function ($query) use ($dateColumn) {
-                $query->where('workflow_state', 'active');
-                $this->applyDateFilter($query, $dateColumn);
-            }
-        ], 'monthly_rent');
+            ->withSum([
+                'assignedLeases as total_revenue' => function ($query) use ($dateColumn) {
+                    $query->where('workflow_state', 'active');
+                    $this->applyDateFilter($query, $dateColumn);
+                },
+            ], 'monthly_rent');
     }
 }

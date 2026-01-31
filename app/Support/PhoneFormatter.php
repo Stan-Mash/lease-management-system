@@ -18,6 +18,7 @@ class PhoneFormatter
      *
      * @param string $phone The phone number to format
      * @param string $countryCode The country code to use (default: Kenya +254)
+     *
      * @return string The formatted phone number with + prefix
      */
     public static function toInternational(string $phone, string $countryCode = self::DEFAULT_COUNTRY_CODE): string
@@ -39,7 +40,7 @@ class PhoneFormatter
         }
 
         // If doesn't start with country code, prepend it
-        if (!str_starts_with($phone, $countryCode)) {
+        if (! str_starts_with($phone, $countryCode)) {
             $phone = $countryCode . $phone;
         }
 
@@ -50,6 +51,7 @@ class PhoneFormatter
      * Format phone number for display (with spaces).
      *
      * @param string $phone The phone number
+     *
      * @return string Formatted for display (e.g., +254 712 345 678)
      */
     public static function forDisplay(string $phone): string
@@ -71,6 +73,7 @@ class PhoneFormatter
      * Mask a phone number for privacy (e.g., in logs).
      *
      * @param string $phone The phone number
+     *
      * @return string Masked phone (e.g., +254****678)
      */
     public static function mask(string $phone): string
@@ -88,6 +91,7 @@ class PhoneFormatter
      * Validate if a phone number looks valid.
      *
      * @param string $phone The phone number to validate
+     *
      * @return bool True if the phone number appears valid
      */
     public static function isValid(string $phone): bool
@@ -104,6 +108,7 @@ class PhoneFormatter
      * Extract country code from a phone number.
      *
      * @param string $phone The phone number
+     *
      * @return string|null The country code or null if not found
      */
     public static function extractCountryCode(string $phone): ?string

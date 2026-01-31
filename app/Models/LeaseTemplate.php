@@ -73,27 +73,6 @@ class LeaseTemplate extends Model
         return $this->hasMany(LeaseTemplateAssignment::class);
     }
 
-    // Auto-generate slug
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($template) {
-            if (empty($template->slug)) {
-                $template->slug = Str::slug($template->name);
-            }
-        });
-
-        // Create version snapshot on update
-        static::updated(function ($template) {
-            // Only create version if blade_content or css_styles changed (not version_number)
-            if (($template->wasChanged('blade_content') || $template->wasChanged('css_styles'))
-                && !$template->wasChanged('version_number')) {
-                $template->createVersionSnapshot('Template updated');
-            }
-        });
-    }
-
     // Create version snapshot
     public function createVersionSnapshot(?string $changeSummary = null): LeaseTemplateVersion
     {
@@ -118,7 +97,7 @@ class LeaseTemplate extends Model
     {
         $version = $this->versions()->where('version_number', $versionNumber)->first();
 
-        if (!$version) {
+        if (! $version) {
             return false;
         }
 
@@ -138,6 +117,7 @@ class LeaseTemplate extends Model
     public function extractVariables(): array
     {
         preg_match_all('/\{\{\s*\$([a-zA-Z0-9_>-]+)\s*\}\}/', $this->blade_content, $matches);
+
         return array_unique($matches[1] ?? []);
     }
 
@@ -148,7 +128,7 @@ class LeaseTemplate extends Model
         $required = $this->required_variables ?? [];
 
         foreach ($required as $requiredVar) {
-            if (!in_array($requiredVar, $available)) {
+            if (! in_array($requiredVar, $available)) {
                 return false;
             }
         }
@@ -170,5 +150,26 @@ class LeaseTemplate extends Model
     public function scopeDefault($query)
     {
         return $query->where('is_default', true);
+    }
+
+    // Auto-generate slug
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($template) {
+            if (empty($template->slug)) {
+                $template->slug = Str::slug($template->name);
+            }
+        });
+
+        // Create version snapshot on update
+        static::updated(function ($template) {
+            // Only create version if blade_content or css_styles changed (not version_number)
+            if (($template->wasChanged('blade_content') || $template->wasChanged('css_styles'))
+                && ! $template->wasChanged('version_number')) {
+                $template->createVersionSnapshot('Template updated');
+            }
+        });
     }
 }

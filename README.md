@@ -161,9 +161,8 @@ Detailed documentation is available in the `/docs` directory:
 - [SRS.md](docs/SRS.md) - Software Requirements Specification
 
 ### Features
-- [FEATURES_ADDED.md](docs/FEATURES_ADDED.md) - Complete feature list
 - [DIGITAL_SIGNING_TESTING_GUIDE.md](docs/DIGITAL_SIGNING_TESTING_GUIDE.md) - Digital signing guide
-- [LEASE_TEMPLATE_GUIDE.md](docs/LEASE_TEMPLATE_GUIDE.md) - Template management
+- [TEMPLATE_VERSIONING_GUIDE.md](docs/TEMPLATE_VERSIONING_GUIDE.md) - Template management
 - [RBAC_IMPLEMENTATION.md](docs/RBAC_IMPLEMENTATION.md) - Role-based access control
 
 ### Administration

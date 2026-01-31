@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Lease;
-use App\Services\QRCodeService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 
-class LeaseApiController
+class LeaseApiController extends Controller
 {
     /**
      * Display a listing of leases.
+     *
+     * Scoped to leases accessible by the authenticated user's role/zone.
      */
     public function index(): JsonResponse
     {
-        $leases = Lease::with(['tenant', 'property', 'landlord', 'unit'])
+        $leases = Lease::accessibleByUser(auth()->user())
+            ->with(['tenant', 'property', 'landlord', 'unit'])
             ->paginate(15);
 
         return response()->json($leases);
@@ -24,6 +28,8 @@ class LeaseApiController
      */
     public function show(Lease $lease): JsonResponse
     {
+        $this->authorize('view', $lease);
+
         $lease->load(['tenant', 'property', 'landlord', 'unit']);
 
         return response()->json($lease);
@@ -70,7 +76,7 @@ class LeaseApiController
                     'workflow_state' => $lease->workflow_state,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),
             ], 422);

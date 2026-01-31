@@ -4,28 +4,29 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LeaseTemplateResource\Pages;
 use App\Models\LeaseTemplate;
+use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Tabs;
+use UnitEnum;
 
 class LeaseTemplateResource extends Resource
 {
     protected static ?string $model = LeaseTemplate::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-document-duplicate';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-duplicate';
 
     protected static ?string $navigationLabel = 'Lease Templates';
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
+    protected static string|UnitEnum|null $navigationGroup = 'Settings';
 
     protected static ?int $navigationSort = 10;
 
@@ -42,8 +43,8 @@ class LeaseTemplateResource extends Resource
                                     ->required()
                                     ->maxLength(100)
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn ($state, callable $set) =>
-                                        $set('slug', \Illuminate\Support\Str::slug($state))
+                                    ->afterStateUpdated(
+                                        fn ($state, callable $set) => $set('slug', \Illuminate\Support\Str::slug($state)),
                                     )
                                     ->columnSpanFull(),
 
@@ -193,7 +194,7 @@ class LeaseTemplateResource extends Resource
                         'warning' => 'commercial',
                         'secondary' => 'custom',
                     ])
-                    ->formatStateUsing(fn ($state) => match($state) {
+                    ->formatStateUsing(fn ($state) => match ($state) {
                         'residential_major' => 'Residential Major',
                         'residential_micro' => 'Residential Micro',
                         'commercial' => 'Commercial',
@@ -207,7 +208,7 @@ class LeaseTemplateResource extends Resource
                         'success' => 'custom_blade',
                         'secondary' => 'system_default',
                     ])
-                    ->formatStateUsing(fn ($state) => match($state) {
+                    ->formatStateUsing(fn ($state) => match ($state) {
                         'uploaded_pdf' => 'PDF Upload',
                         'custom_blade' => 'Custom',
                         'system_default' => 'System',

@@ -31,7 +31,7 @@ class UpcomingRentEscalationsWidget extends BaseWidget
                         }
                     })
                     ->orderBy('effective_date')
-                    ->with(['lease.tenant', 'lease.unit.property'])
+                    ->with(['lease.tenant', 'lease.unit.property']),
             )
             ->columns([
                 Tables\Columns\TextColumn::make('lease.reference_number')
@@ -73,7 +73,7 @@ class UpcomingRentEscalationsWidget extends BaseWidget
                     ->label('Send Notification')
                     ->icon('heroicon-o-bell')
                     ->requiresConfirmation()
-                    ->visible(fn (RentEscalation $record) => !$record->tenant_notified)
+                    ->visible(fn (RentEscalation $record) => ! $record->tenant_notified)
                     ->action(function (RentEscalation $record) {
                         $record->markTenantNotified();
                     }),

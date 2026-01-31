@@ -2,12 +2,13 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Lease;
-use App\Models\Tenant;
-use App\Models\OTPVerification;
 use App\Models\DigitalSignature;
-use App\Services\OTPService;
+use App\Models\Lease;
+use App\Models\OTPVerification;
+use App\Models\Tenant;
 use App\Services\DigitalSigningService;
+use App\Services\OTPService;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -31,7 +32,9 @@ class TestSigningFlow extends Command
     protected $description = 'Test the complete digital signing workflow end-to-end';
 
     private int $passedTests = 0;
+
     private int $failedTests = 0;
+
     private array $errors = [];
 
     /**
@@ -44,8 +47,9 @@ class TestSigningFlow extends Command
 
         // Get or create lease
         $lease = $this->getTestLease();
-        if (!$lease) {
+        if (! $lease) {
             $this->error('❌ No lease available for testing');
+
             return Command::FAILURE;
         }
 
@@ -89,8 +93,9 @@ class TestSigningFlow extends Command
             ->whereDoesntHave('digitalSignatures')
             ->first();
 
-        if (!$lease) {
+        if (! $lease) {
             $this->warn('No suitable lease found. Creating new test lease...');
+
             return $this->createTestLease();
         }
 
@@ -102,7 +107,7 @@ class TestSigningFlow extends Command
         $this->info('Creating test lease...');
 
         $tenant = Tenant::first();
-        if (!$tenant) {
+        if (! $tenant) {
             $tenant = Tenant::create([
                 'name' => 'Test Tenant',
                 'id_number' => '99999999',
@@ -128,6 +133,7 @@ class TestSigningFlow extends Command
         ]);
 
         $this->info("✅ Created test lease: {$lease->reference_number}");
+
         return $lease;
     }
 
@@ -139,8 +145,8 @@ class TestSigningFlow extends Command
                 $lease = Lease::first();
                 $pattern = '/^LSE-(COM|RES)-[A-G]-\d{5}-\d{4}$/';
 
-                if (!preg_match($pattern, $lease->reference_number)) {
-                    throw new \Exception("Invalid reference format: {$lease->reference_number}");
+                if (! preg_match($pattern, $lease->reference_number)) {
+                    throw new Exception("Invalid reference format: {$lease->reference_number}");
                 }
 
                 // Test uniqueness
@@ -151,14 +157,16 @@ class TestSigningFlow extends Command
                     ->count();
 
                 if ($duplicates > 0) {
-                    throw new \Exception("Found {$duplicates} duplicate reference numbers");
+                    throw new Exception("Found {$duplicates} duplicate reference numbers");
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Reference Generation: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -171,18 +179,20 @@ class TestSigningFlow extends Command
                 $otp = OTPService::generateAndSend($lease, $lease->tenant->phone);
 
                 if (strlen($otp->code) !== 4) {
-                    throw new \Exception("Invalid OTP length: {$otp->code}");
+                    throw new Exception("Invalid OTP length: {$otp->code}");
                 }
 
-                if (!$otp->isValid()) {
-                    throw new \Exception("Generated OTP is not valid");
+                if (! $otp->isValid()) {
+                    throw new Exception('Generated OTP is not valid');
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "OTP Generation: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -195,29 +205,31 @@ class TestSigningFlow extends Command
                 // Get latest OTP
                 $otp = OTPVerification::forLease($lease->id)->valid()->first();
 
-                if (!$otp) {
-                    throw new \Exception("No valid OTP found for lease");
+                if (! $otp) {
+                    throw new Exception('No valid OTP found for lease');
                 }
 
                 // Test correct verification
                 $verified = OTPService::verify($lease, $otp->code, '127.0.0.1');
 
-                if (!$verified) {
-                    throw new \Exception("OTP verification failed with correct code");
+                if (! $verified) {
+                    throw new Exception('OTP verification failed with correct code');
                 }
 
                 // Test incorrect code
                 $verified = OTPService::verify($lease, '0000', '127.0.0.1');
 
                 if ($verified) {
-                    throw new \Exception("OTP verification succeeded with wrong code");
+                    throw new Exception('OTP verification succeeded with wrong code');
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "OTP Verification: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -229,23 +241,25 @@ class TestSigningFlow extends Command
             try {
                 $link = DigitalSigningService::generateSigningLink($lease);
 
-                if (!filter_var($link, FILTER_VALIDATE_URL)) {
-                    throw new \Exception("Invalid URL generated: {$link}");
+                if (! filter_var($link, FILTER_VALIDATE_URL)) {
+                    throw new Exception("Invalid URL generated: {$link}");
                 }
 
-                if (!str_contains($link, 'signature=')) {
-                    throw new \Exception("Signing URL missing signature parameter");
+                if (! str_contains($link, 'signature=')) {
+                    throw new Exception('Signing URL missing signature parameter');
                 }
 
-                if (!str_contains($link, 'expires=')) {
-                    throw new \Exception("Signing URL missing expiry parameter");
+                if (! str_contains($link, 'expires=')) {
+                    throw new Exception('Signing URL missing expiry parameter');
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Signing Link: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -265,23 +279,25 @@ class TestSigningFlow extends Command
                     'longitude' => 36.817223,
                 ]);
 
-                if (!$signature->verification_hash) {
-                    throw new \Exception("Signature hash not generated");
+                if (! $signature->verification_hash) {
+                    throw new Exception('Signature hash not generated');
                 }
 
-                if (!$signature->verifyHash()) {
-                    throw new \Exception("Signature hash verification failed");
+                if (! $signature->verifyHash()) {
+                    throw new Exception('Signature hash verification failed');
                 }
 
                 if ($lease->workflow_state !== 'tenant_signed') {
-                    throw new \Exception("Workflow state not updated after signing");
+                    throw new Exception('Workflow state not updated after signing');
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Signature Capture: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -294,20 +310,22 @@ class TestSigningFlow extends Command
                 $auditCount = $lease->auditLogs()->count();
 
                 if ($auditCount === 0) {
-                    throw new \Exception("No audit logs created for lease");
+                    throw new Exception('No audit logs created for lease');
                 }
 
                 $latestLog = $lease->auditLogs()->latest()->first();
 
-                if (!$latestLog->formatted_description) {
-                    throw new \Exception("Audit log missing formatted description");
+                if (! $latestLog->formatted_description) {
+                    throw new Exception('Audit log missing formatted description');
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Audit Logging: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -325,15 +343,17 @@ class TestSigningFlow extends Command
                 ];
 
                 // Check if current state has valid transitions
-                if (!isset($transitions[$lease->workflow_state]) && $lease->workflow_state !== 'tenant_signed') {
+                if (! isset($transitions[$lease->workflow_state]) && $lease->workflow_state !== 'tenant_signed') {
                     $this->warn("Lease in terminal state: {$lease->workflow_state}");
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Workflow Transitions: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -352,9 +372,9 @@ class TestSigningFlow extends Command
                     try {
                         OTPService::generateAndSend($lease, $lease->tenant->phone);
                         $generated++;
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         if ($i < 3) {
-                            throw new \Exception("Rate limiting triggered too early at attempt {$i}");
+                            throw new Exception("Rate limiting triggered too early at attempt {$i}");
                         }
                         // Expected to fail on 4th attempt
                         break;
@@ -362,14 +382,16 @@ class TestSigningFlow extends Command
                 }
 
                 if ($generated >= 4) {
-                    throw new \Exception("Rate limiting not working - generated {$generated} OTPs");
+                    throw new Exception("Rate limiting not working - generated {$generated} OTPs");
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Rate Limiting: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -377,20 +399,22 @@ class TestSigningFlow extends Command
 
     private function testSecurityValidations(Lease $lease): void
     {
-        $this->task('Security Validations', function () use ($lease) {
+        $this->task('Security Validations', function () {
             try {
                 // Test signature capture without OTP
                 $leaseWithoutOTP = Lease::whereDoesntHave('otpVerifications')->first();
 
                 if ($leaseWithoutOTP && DigitalSigningService::canSign($leaseWithoutOTP)) {
-                    throw new \Exception("Security breach: Can sign without OTP verification");
+                    throw new Exception('Security breach: Can sign without OTP verification');
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Security: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -403,16 +427,18 @@ class TestSigningFlow extends Command
                 $signatures = DigitalSignature::limit(10)->get();
 
                 foreach ($signatures as $signature) {
-                    if (!$signature->verifyHash()) {
-                        throw new \Exception("Hash verification failed for signature {$signature->id}");
+                    if (! $signature->verifyHash()) {
+                        throw new Exception("Hash verification failed for signature {$signature->id}");
                     }
                 }
 
                 $this->passedTests++;
+
                 return true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->failedTests++;
                 $this->errors[] = "Hash Verification: {$e->getMessage()}";
+
                 return false;
             }
         });
@@ -434,10 +460,10 @@ class TestSigningFlow extends Command
                 ['Passed', "<fg=green>{$this->passedTests}</>"],
                 ['Failed', $this->failedTests > 0 ? "<fg=red>{$this->failedTests}</>" : '0'],
                 ['Success Rate', "{$percentage}%"],
-            ]
+            ],
         );
 
-        if (!empty($this->errors)) {
+        if (! empty($this->errors)) {
             $this->newLine();
             $this->error('❌ Failed Tests:');
             foreach ($this->errors as $error) {

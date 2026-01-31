@@ -3,23 +3,25 @@
 namespace App\Services;
 
 use App\Models\Landlord;
-use App\Models\Property;
-use App\Models\Unit;
-use App\Models\Tenant;
 use App\Models\Lease;
+use App\Models\Property;
+use App\Models\Tenant;
+use App\Models\Unit;
 use App\Models\User;
+use Exception;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ChabrinExcelImportService
 {
     protected array $errors = [];
+
     protected array $stats = [
         'landlords' => ['imported' => 0, 'failed' => 0],
         'properties' => ['imported' => 0, 'failed' => 0],
@@ -46,7 +48,7 @@ class ChabrinExcelImportService
         $startTime = now();
 
         try {
-            if ($cleanImport && !$this->dryRun) {
+            if ($cleanImport && ! $this->dryRun) {
                 $this->cleanDatabase();
             }
 
@@ -71,7 +73,7 @@ class ChabrinExcelImportService
                 $this->importTenants($filePaths['tenants']);
             }
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->addErrorPublic('GENERAL', 0, 'Fatal error: ' . $e->getMessage());
         }
 
@@ -86,6 +88,112 @@ class ChabrinExcelImportService
         ];
     }
 
+    // Public helper methods for anonymous classes
+    public function isDryRun(): bool
+    {
+        return $this->dryRun;
+    }
+
+    public function incrementStat(string $type, string $key): void
+    {
+        $this->stats[$type][$key]++;
+    }
+
+    public function addErrorPublic(string $type, int $row, string $message): void
+    {
+        $this->errors[] = ['type' => $type, 'row' => $row, 'message' => $message];
+    }
+
+    public function formatPhonePublic(?string $phone): ?string
+    {
+        if (! $phone) {
+            return null;
+        }
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+        if (strlen($phone) === 9 && substr($phone, 0, 1) === '7') {
+            return '0' . $phone;
+        }
+
+        return $phone;
+    }
+
+    public function generatePlaceholderPhonePublic(string $seed): string
+    {
+        $hash = crc32($seed);
+
+        return '0700' . str_pad(substr((string) abs($hash), 0, 6), 6, '0', STR_PAD_LEFT);
+    }
+
+    public function determinLeaseTypePublic(float $rent): string
+    {
+        if ($rent >= 100000) {
+            return 'commercial';
+        } elseif ($rent >= 30000) {
+            return 'residential_standard';
+        } else {
+            return 'residential_micro';
+        }
+    }
+
+    public function mapPositionToRolePublic(?string $position): string
+    {
+        if (! $position) {
+            return 'agent';
+        }
+        $position = strtolower(trim($position));
+
+        // Exact matches first
+        $roleMap = [
+            'director' => 'super_admin',
+            'zone manager' => 'zone_manager',
+            'property manager' => 'manager',
+            'assistant property manager' => 'manager',
+            'senior field officer' => 'field_officer',
+            'field officer' => 'field_officer',
+            'chief accountant' => 'admin',
+            'hr & op manager' => 'admin',
+            'quality control and assurance manager' => 'admin',
+            'internal auditor' => 'viewer',
+            'it support' => 'admin',
+            'office administrator' => 'admin',
+            'office administrator assistant' => 'agent',
+            'office assistant' => 'agent',
+            'records staff' => 'viewer',
+        ];
+
+        if (isset($roleMap[$position])) {
+            return $roleMap[$position];
+        }
+
+        // Fallback pattern matching
+        if (str_contains($position, 'director')) {
+            return 'super_admin';
+        }
+        if (str_contains($position, 'zone') && str_contains($position, 'manager')) {
+            return 'zone_manager';
+        }
+        if (str_contains($position, 'manager')) {
+            return 'manager';
+        }
+        if (str_contains($position, 'field') && str_contains($position, 'officer')) {
+            return 'field_officer';
+        }
+        if (str_contains($position, 'senior')) {
+            return 'manager';
+        }
+        if (str_contains($position, 'admin')) {
+            return 'admin';
+        }
+        if (str_contains($position, 'accountant')) {
+            return 'admin';
+        }
+        if (str_contains($position, 'auditor')) {
+            return 'viewer';
+        }
+
+        return 'agent';
+    }
+
     /**
      * Import landlords from Excel
      */
@@ -93,8 +201,10 @@ class ChabrinExcelImportService
     {
         $rowNumber = 1;
 
-        Excel::import(new class($this, $rowNumber) implements ToCollection, WithHeadingRow, WithChunkReading {
+        Excel::import(new class($this, $rowNumber) implements ToCollection, WithChunkReading, WithHeadingRow
+        {
             protected $service;
+
             protected $rowNumber;
 
             public function __construct($service, &$rowNumber)
@@ -125,7 +235,7 @@ class ChabrinExcelImportService
                         }
 
                         if (empty($lanid) || empty($name)) {
-                            throw new \Exception('Missing LANID or Name');
+                            throw new Exception('Missing LANID or Name');
                         }
 
                         // Skip if already exists
@@ -133,11 +243,11 @@ class ChabrinExcelImportService
                             continue;
                         }
 
-                        if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        if ($email && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                             $email = null;
                         }
 
-                        if (!$this->service->isDryRun()) {
+                        if (! $this->service->isDryRun()) {
                             Landlord::create([
                                 'landlord_code' => $lanid,
                                 'name' => $name,
@@ -149,7 +259,7 @@ class ChabrinExcelImportService
 
                         $this->service->incrementStat('landlords', 'imported');
 
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $this->service->addErrorPublic('LANDLORDS', $this->rowNumber, $e->getMessage());
                         $this->service->incrementStat('landlords', 'failed');
                     }
@@ -170,8 +280,10 @@ class ChabrinExcelImportService
     {
         $rowNumber = 1;
 
-        Excel::import(new class($this, $rowNumber) implements ToCollection, WithHeadingRow, WithChunkReading {
+        Excel::import(new class($this, $rowNumber) implements ToCollection, WithChunkReading, WithHeadingRow
+        {
             protected $service;
+
             protected $rowNumber;
 
             public function __construct($service, &$rowNumber)
@@ -202,7 +314,7 @@ class ChabrinExcelImportService
                         }
 
                         if (empty($blockId) || empty($blockDesc)) {
-                            throw new \Exception('Missing BLOCKID or BLOCKDESC');
+                            throw new Exception('Missing BLOCKID or BLOCKDESC');
                         }
 
                         // Skip if already exists
@@ -212,23 +324,23 @@ class ChabrinExcelImportService
 
                         // Try to find landlord by exact match or without prefix
                         $landlord = Landlord::where('landlord_code', $llordId)->first();
-                        if (!$landlord && str_starts_with($llordId, 'LAN-')) {
+                        if (! $landlord && str_starts_with($llordId, 'LAN-')) {
                             // Try without LAN- prefix
                             $landlord = Landlord::where('landlord_code', substr($llordId, 4))->first();
                         }
-                        if (!$landlord) {
+                        if (! $landlord) {
                             // Try adding LAN- prefix
                             $landlord = Landlord::where('landlord_code', 'LAN-' . $llordId)->first();
                         }
-                        if (!$landlord) {
-                            throw new \Exception("Landlord '{$llordId}' not found");
+                        if (! $landlord) {
+                            throw new Exception("Landlord '{$llordId}' not found");
                         }
 
-                        if ($zone && !in_array(strtoupper($zone), ['A', 'B', 'C', 'D', 'E', 'F', 'G'])) {
+                        if ($zone && ! in_array(strtoupper($zone), ['A', 'B', 'C', 'D', 'E', 'F', 'G'])) {
                             $zone = 'A';
                         }
 
-                        if (!$this->service->isDryRun()) {
+                        if (! $this->service->isDryRun()) {
                             Property::create([
                                 'property_code' => $blockId,
                                 'name' => $blockDesc,
@@ -240,7 +352,7 @@ class ChabrinExcelImportService
 
                         $this->service->incrementStat('properties', 'imported');
 
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $this->service->addErrorPublic('PROPERTIES', $this->rowNumber, $e->getMessage());
                         $this->service->incrementStat('properties', 'failed');
                     }
@@ -264,9 +376,12 @@ class ChabrinExcelImportService
         // Pre-cache properties for faster lookup
         $propertyCache = Property::pluck('id', 'property_code')->toArray();
 
-        Excel::import(new class($this, $rowNumber, $propertyCache) implements ToCollection, WithHeadingRow, WithChunkReading {
+        Excel::import(new class($this, $rowNumber, $propertyCache) implements ToCollection, WithChunkReading, WithHeadingRow
+        {
             protected $service;
+
             protected $rowNumber;
+
             protected $propertyCache;
 
             public function __construct($service, &$rowNumber, $propertyCache)
@@ -298,11 +413,11 @@ class ChabrinExcelImportService
                         }
 
                         if (empty($unitNo) || empty($blockId)) {
-                            throw new \Exception('Missing UNITNO or BLOCKID');
+                            throw new Exception('Missing UNITNO or BLOCKID');
                         }
 
-                        if (!isset($this->propertyCache[$blockId])) {
-                            throw new \Exception("Property '{$blockId}' not found");
+                        if (! isset($this->propertyCache[$blockId])) {
+                            throw new Exception("Property '{$blockId}' not found");
                         }
 
                         $propertyId = $this->propertyCache[$blockId];
@@ -317,7 +432,7 @@ class ChabrinExcelImportService
                             $rentAmt = 5000; // Default rent if invalid
                         }
 
-                        if (!$this->service->isDryRun()) {
+                        if (! $this->service->isDryRun()) {
                             Unit::create([
                                 'property_id' => $propertyId,
                                 'unit_number' => $unitNo,
@@ -330,7 +445,7 @@ class ChabrinExcelImportService
 
                         $this->service->incrementStat('units', 'imported');
 
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $this->service->addErrorPublic('UNITS', $this->rowNumber, $e->getMessage());
                         $this->service->incrementStat('units', 'failed');
                     }
@@ -365,11 +480,16 @@ class ChabrinExcelImportService
             $unitCache[$key] = $unit;
         }
 
-        Excel::import(new class($this, $rowNumber, $tenantCache, $propertyCache, $unitCache) implements ToCollection, WithHeadingRow, WithChunkReading {
+        Excel::import(new class($this, $rowNumber, $tenantCache, $propertyCache, $unitCache) implements ToCollection, WithChunkReading, WithHeadingRow
+        {
             protected $service;
+
             protected $rowNumber;
+
             protected $tenantCache;
+
             protected $propertyCache;
+
             protected $unitCache;
 
             public function __construct($service, &$rowNumber, &$tenantCache, &$propertyCache, &$unitCache)
@@ -404,7 +524,7 @@ class ChabrinExcelImportService
                         }
 
                         if (empty($tenantName)) {
-                            throw new \Exception('Missing tenant name');
+                            throw new Exception('Missing tenant name');
                         }
 
                         // Use actual phone if available, otherwise generate placeholder
@@ -415,15 +535,15 @@ class ChabrinExcelImportService
                                 : $this->service->generatePlaceholderPhonePublic($tenantName));
 
                         $tenantKey = strtolower(trim($tenantName));
-                        if (!isset($this->tenantCache[$tenantKey])) {
-                            if (!$this->service->isDryRun()) {
+                        if (! isset($this->tenantCache[$tenantKey])) {
+                            if (! $this->service->isDryRun()) {
                                 $tenant = Tenant::firstOrCreate(
                                     ['phone_number' => $phoneNumber],
                                     [
                                         'full_name' => $tenantName,
                                         'id_number' => $tenantId,
                                         'notification_preference' => 'SMS',
-                                    ]
+                                    ],
                                 );
                                 $this->tenantCache[$tenantKey] = $tenant->id;
                             } else {
@@ -434,15 +554,15 @@ class ChabrinExcelImportService
 
                         // Create lease using cached data
                         if ($blockId && $unitNo) {
-                            if (!isset($this->propertyCache[$blockId])) {
-                                throw new \Exception("Property '{$blockId}' not found");
+                            if (! isset($this->propertyCache[$blockId])) {
+                                throw new Exception("Property '{$blockId}' not found");
                             }
 
                             $property = $this->propertyCache[$blockId];
                             $unitKey = $blockId . '-' . $unitNo;
 
-                            if (!isset($this->unitCache[$unitKey])) {
-                                throw new \Exception("Unit '{$unitNo}' not found in '{$blockId}'");
+                            if (! isset($this->unitCache[$unitKey])) {
+                                throw new Exception("Unit '{$unitNo}' not found in '{$blockId}'");
                             }
 
                             $unit = $this->unitCache[$unitKey];
@@ -452,7 +572,7 @@ class ChabrinExcelImportService
                                 continue; // Skip - unit already has an active lease
                             }
 
-                            if (!$this->service->isDryRun()) {
+                            if (! $this->service->isDryRun()) {
                                 $referenceNumber = 'CL-' . date('Y') . '-' . strtoupper(Str::random(8));
 
                                 Lease::create([
@@ -477,7 +597,7 @@ class ChabrinExcelImportService
                             $this->service->incrementStat('leases', 'imported');
                         }
 
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $this->service->addErrorPublic('TENANTS', $this->rowNumber, $e->getMessage());
                         $this->service->incrementStat('tenants', 'failed');
                     }
@@ -498,8 +618,10 @@ class ChabrinExcelImportService
     {
         $rowNumber = 1;
 
-        Excel::import(new class($this, $rowNumber) implements ToCollection, WithHeadingRow, WithChunkReading {
+        Excel::import(new class($this, $rowNumber) implements ToCollection, WithChunkReading, WithHeadingRow
+        {
             protected $service;
+
             protected $rowNumber;
 
             public function __construct($service, &$rowNumber)
@@ -532,11 +654,11 @@ class ChabrinExcelImportService
                         }
 
                         if (empty($fullName)) {
-                            throw new \Exception('Missing Name');
+                            throw new Exception('Missing Name');
                         }
 
                         // Skip rows without valid email (but don't fail, just skip)
-                        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        if (empty($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                             // Generate a placeholder email if name exists but no email
                             $email = strtolower(str_replace(' ', '.', $fullName)) . '@chabrin.placeholder.local';
                         }
@@ -548,7 +670,7 @@ class ChabrinExcelImportService
 
                         $role = $this->service->mapPositionToRolePublic($position);
 
-                        if (!$this->service->isDryRun()) {
+                        if (! $this->service->isDryRun()) {
                             User::create([
                                 'name' => $fullName,
                                 'email' => $email,
@@ -563,7 +685,7 @@ class ChabrinExcelImportService
 
                         $this->service->incrementStat('staff', 'imported');
 
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $this->service->addErrorPublic('STAFF', $this->rowNumber, $e->getMessage());
                         $this->service->incrementStat('staff', 'failed');
                     }
@@ -588,85 +710,5 @@ class ChabrinExcelImportService
         DB::statement('TRUNCATE TABLE properties CASCADE');
         DB::statement('TRUNCATE TABLE landlords CASCADE');
         DB::statement('TRUNCATE TABLE tenants CASCADE');
-    }
-
-    // Public helper methods for anonymous classes
-    public function isDryRun(): bool
-    {
-        return $this->dryRun;
-    }
-
-    public function incrementStat(string $type, string $key): void
-    {
-        $this->stats[$type][$key]++;
-    }
-
-    public function addErrorPublic(string $type, int $row, string $message): void
-    {
-        $this->errors[] = ['type' => $type, 'row' => $row, 'message' => $message];
-    }
-
-    public function formatPhonePublic(?string $phone): ?string
-    {
-        if (!$phone) return null;
-        $phone = preg_replace('/[^0-9]/', '', $phone);
-        if (strlen($phone) === 9 && substr($phone, 0, 1) === '7') {
-            return '0' . $phone;
-        }
-        return $phone;
-    }
-
-    public function generatePlaceholderPhonePublic(string $seed): string
-    {
-        $hash = crc32($seed);
-        return '0700' . str_pad(substr((string) abs($hash), 0, 6), 6, '0', STR_PAD_LEFT);
-    }
-
-    public function determinLeaseTypePublic(float $rent): string
-    {
-        if ($rent >= 100000) return 'commercial';
-        elseif ($rent >= 30000) return 'residential_standard';
-        else return 'residential_micro';
-    }
-
-    public function mapPositionToRolePublic(?string $position): string
-    {
-        if (!$position) return 'agent';
-        $position = strtolower(trim($position));
-
-        // Exact matches first
-        $roleMap = [
-            'director' => 'super_admin',
-            'zone manager' => 'zone_manager',
-            'property manager' => 'manager',
-            'assistant property manager' => 'manager',
-            'senior field officer' => 'field_officer',
-            'field officer' => 'field_officer',
-            'chief accountant' => 'admin',
-            'hr & op manager' => 'admin',
-            'quality control and assurance manager' => 'admin',
-            'internal auditor' => 'viewer',
-            'it support' => 'admin',
-            'office administrator' => 'admin',
-            'office administrator assistant' => 'agent',
-            'office assistant' => 'agent',
-            'records staff' => 'viewer',
-        ];
-
-        if (isset($roleMap[$position])) {
-            return $roleMap[$position];
-        }
-
-        // Fallback pattern matching
-        if (str_contains($position, 'director')) return 'super_admin';
-        if (str_contains($position, 'zone') && str_contains($position, 'manager')) return 'zone_manager';
-        if (str_contains($position, 'manager')) return 'manager';
-        if (str_contains($position, 'field') && str_contains($position, 'officer')) return 'field_officer';
-        if (str_contains($position, 'senior')) return 'manager';
-        if (str_contains($position, 'admin')) return 'admin';
-        if (str_contains($position, 'accountant')) return 'admin';
-        if (str_contains($position, 'auditor')) return 'viewer';
-
-        return 'agent';
     }
 }

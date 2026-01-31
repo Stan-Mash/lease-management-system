@@ -190,11 +190,12 @@ class LeaseHandover extends Model
      */
     public function getDurationInDays(): ?float
     {
-        if (!$this->checked_out_at) {
+        if (! $this->checked_out_at) {
             return null;
         }
 
         $endDate = $this->returned_at ?? now();
+
         return $this->checked_out_at->diffInDays($endDate);
     }
 }

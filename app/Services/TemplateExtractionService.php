@@ -3,9 +3,7 @@
 namespace App\Services;
 
 use App\Models\LeaseTemplate;
-use Illuminate\Support\Facades\Storage;
 use Smalot\PdfParser\Parser as PdfParser;
-use Illuminate\Support\Str;
 
 /**
  * Extracts content from uploaded PDF files and converts to editable Blade templates
@@ -16,7 +14,7 @@ class TemplateExtractionService
 
     public function __construct()
     {
-        $this->pdfParser = new PdfParser();
+        $this->pdfParser = new PdfParser;
     }
 
     /**
@@ -24,7 +22,6 @@ class TemplateExtractionService
      *
      * @param string $pdfPath Path to uploaded PDF
      * @param array $metadata Template metadata (name, type, etc.)
-     * @return LeaseTemplate
      */
     public function extractFromPdf(string $pdfPath, array $metadata): LeaseTemplate
     {
