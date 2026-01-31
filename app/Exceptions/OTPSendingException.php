@@ -4,15 +4,16 @@ namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Http\Response;
+use Throwable;
 
 class OTPSendingException extends Exception
 {
-    public function __construct(string $reason = 'Unknown error', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $reason = 'Unknown error', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct(
             "Failed to send OTP: {$reason}",
             $code,
-            $previous
+            $previous,
         );
     }
 

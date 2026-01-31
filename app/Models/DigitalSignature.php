@@ -80,11 +80,12 @@ class DigitalSignature extends Model
      */
     public function verifyHash(): bool
     {
-        if (!$this->verification_hash) {
+        if (! $this->verification_hash) {
             return false;
         }
 
         $computedHash = self::generateHash($this->signature_data);
+
         return hash_equals($this->verification_hash, $computedHash);
     }
 
@@ -115,7 +116,7 @@ class DigitalSignature extends Model
      */
     public function getLocationAttribute(): ?string
     {
-        if (!$this->hasLocation()) {
+        if (! $this->hasLocation()) {
             return null;
         }
 
@@ -156,9 +157,6 @@ class DigitalSignature extends Model
 
     /**
      * Create signature from base64 data with automatic hash generation.
-     *
-     * @param array $data
-     * @return static
      */
     public static function createFromData(array $data): static
     {

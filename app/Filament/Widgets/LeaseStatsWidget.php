@@ -5,7 +5,6 @@ namespace App\Filament\Widgets;
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
 use App\Models\Lease;
-use App\Models\Property;
 use App\Models\Unit;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -39,50 +38,54 @@ class LeaseStatsWidget extends StatsOverviewWidget
         // Base query with zone/FO/date filtering
         $baseQuery = $this->getFilteredQuery();
 
-        // Total Active Leases
-        $activeLeases = (clone $baseQuery)->where('workflow_state', 'active')->count();
-        $lastMonthActive = (clone $baseQuery)
-            ->where('workflow_state', 'active')
-            ->where('created_at', '<', now()->subMonth())
-            ->count();
+        // Consolidate 6 separate lease queries into a single aggregation query.
+        // This reduces dashboard DB roundtrips from ~8 to ~2.
+        $oneMonthAgo = now()->subMonth();
+        $todayStr = now()->toDateString();
+        $thirtyDaysFromNow = now()->addDays(30)->toDateString();
+
+        $leaseStats = (clone $baseQuery)
+            ->selectRaw("
+                COUNT(CASE WHEN workflow_state = 'active' THEN 1 END) as active_count,
+                COUNT(CASE WHEN workflow_state = 'active' AND created_at < ? THEN 1 END) as last_month_active,
+                COALESCE(SUM(CASE WHEN workflow_state = 'active' THEN monthly_rent END), 0) as total_revenue,
+                COALESCE(SUM(CASE WHEN workflow_state = 'active' AND updated_at < ? THEN monthly_rent END), 0) as last_month_revenue,
+                COUNT(CASE WHEN workflow_state IN ('draft','pending_landlord_approval','pending_tenant_signature','pending_deposit') THEN 1 END) as pending_count,
+                COUNT(CASE WHEN workflow_state = 'active' AND end_date >= ? AND end_date <= ? THEN 1 END) as expiring_soon
+            ", [$oneMonthAgo, $oneMonthAgo, $todayStr, $thirtyDaysFromNow])
+            ->first();
+
+        $activeLeases = (int) $leaseStats->active_count;
+        $lastMonthActive = (int) $leaseStats->last_month_active;
         $activeChange = $lastMonthActive > 0
             ? round((($activeLeases - $lastMonthActive) / $lastMonthActive) * 100, 1)
             : 0;
 
-        // Total Revenue (from active leases)
-        $totalRevenue = (clone $baseQuery)->where('workflow_state', 'active')->sum('monthly_rent');
-        $lastMonthRevenue = (clone $baseQuery)
-            ->where('workflow_state', 'active')
-            ->where('updated_at', '<', now()->subMonth())
-            ->sum('monthly_rent');
+        $totalRevenue = (float) $leaseStats->total_revenue;
+        $lastMonthRevenue = (float) $leaseStats->last_month_revenue;
         $revenueChange = $lastMonthRevenue > 0
             ? round((($totalRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
             : 0;
 
-        // Occupancy Rate (zone-specific if zoneId is set)
+        $pendingLeases = (int) $leaseStats->pending_count;
+        $expiringSoon = (int) $leaseStats->expiring_soon;
+
+        // Occupancy Rate — consolidated 2 unit queries into 1 (zone-specific if zoneId is set)
         $unitQuery = Unit::query();
         if ($this->zoneId) {
-            $unitQuery->whereHas('property', fn($q) => $q->where('zone_id', $this->zoneId));
+            $unitQuery->whereHas('property', fn ($q) => $q->where('zone_id', $this->zoneId));
         }
-        $totalUnits = (clone $unitQuery)->count();
-        $occupiedUnits = (clone $unitQuery)->where('status', 'occupied')->count();
+        $unitStats = (clone $unitQuery)
+            ->selectRaw("
+                COUNT(*) as total_units,
+                SUM(CASE WHEN status = 'occupied' THEN 1 ELSE 0 END) as occupied_units
+            ")
+            ->first();
+        $totalUnits = (int) $unitStats->total_units;
+        $occupiedUnits = (int) $unitStats->occupied_units;
         $occupancyRate = $totalUnits > 0
             ? round(($occupiedUnits / $totalUnits) * 100, 1)
             : 0;
-
-        // Pending Actions
-        $pendingLeases = (clone $baseQuery)->whereIn('workflow_state', [
-            'draft',
-            'pending_landlord_approval',
-            'pending_tenant_signature',
-            'pending_deposit',
-        ])->count();
-
-        // Expiring Soon (next 30 days)
-        $expiringSoon = (clone $baseQuery)
-            ->where('workflow_state', 'active')
-            ->whereBetween('end_date', [now(), now()->addDays(30)])
-            ->count();
 
         return [
             Stat::make('Active Leases', $activeLeases)
@@ -110,7 +113,7 @@ class LeaseStatsWidget extends StatsOverviewWidget
                 ->descriptionIcon('heroicon-m-clock')
                 ->color($pendingLeases > 10 ? 'warning' : 'gray')
                 ->url($this->getFilteredUrl([
-                    'workflow_state' => ['draft', 'pending_landlord_approval', 'pending_tenant_signature', 'pending_deposit']
+                    'workflow_state' => ['draft', 'pending_landlord_approval', 'pending_tenant_signature', 'pending_deposit'],
                 ])),
 
             Stat::make('Expiring Soon', $expiringSoon)

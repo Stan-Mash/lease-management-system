@@ -71,14 +71,16 @@ class DefaultLeaseTemplateSeeder extends Seeder
 
         if ($existing) {
             $this->command->warn("  → Template '{$data['slug']}' already exists. Skipping...");
+
             return;
         }
 
         // Load blade content from file
         $bladePath = base_path($data['blade_file']);
 
-        if (!File::exists($bladePath)) {
+        if (! File::exists($bladePath)) {
             $this->command->error("  ✗ Blade file not found: {$data['blade_file']}");
+
             return;
         }
 
@@ -117,7 +119,7 @@ class DefaultLeaseTemplateSeeder extends Seeder
             ],
         ]);
 
-        $this->command->info("  ✓ Created successfully with " . count($availableVariables) . " variables detected");
+        $this->command->info('  ✓ Created successfully with ' . count($availableVariables) . ' variables detected');
     }
 
     /**

@@ -3,8 +3,6 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
-use App\Models\Lease;
-use App\Models\User;
 use App\Models\Zone;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -18,9 +16,11 @@ class ZonePerformanceWidget extends BaseWidget
     use HasDateFiltering;
 
     protected static ?int $sort = 3;
-    protected int | string | array $columnSpan = 'full';
+
+    protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Zone Performance';
+
     protected ?string $pollingInterval = null;
 
     public function mount(): void
@@ -87,9 +87,9 @@ class ZonePerformanceWidget extends BaseWidget
                     ->sortable()
                     ->alignCenter()
                     ->suffix('%')
-                    ->color(fn (string $state): string =>
-                        ((float) $state >= 90) ? 'success' :
-                        (((float) $state >= 70) ? 'warning' : 'danger')
+                    ->color(
+                        fn (string $state): string => ((float) $state >= 90) ? 'success' :
+                        (((float) $state >= 70) ? 'warning' : 'danger'),
                     ),
 
                 TextColumn::make('zone_manager.name')
@@ -138,10 +138,10 @@ class ZonePerformanceWidget extends BaseWidget
                 'leases as total_revenue' => function ($query) use ($dateColumn) {
                     $query->where('workflow_state', 'active');
                     $this->applyDateFilter($query, $dateColumn);
-                }
+                },
             ], 'monthly_rent')
             ->leftJoinSub($occupancySub, 'occ', 'occ.zone_id', '=', 'zones.id')
-            ->select('zones.*', DB::raw('COALESCE(occ.occupancy_rate, 0) as occupancy_rate'))
+            ->addSelect(DB::raw('COALESCE(occ.occupancy_rate, 0) as occupancy_rate'))
             ->where('is_active', true);
     }
 }

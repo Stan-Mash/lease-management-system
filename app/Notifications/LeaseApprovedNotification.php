@@ -14,6 +14,7 @@ class LeaseApprovedNotification extends Notification implements ShouldQueue
     use Queueable;
 
     public Lease $lease;
+
     public LeaseApproval $approval;
 
     /**
@@ -78,7 +79,7 @@ class LeaseApprovedNotification extends Notification implements ShouldQueue
             'reference_number' => $this->lease->reference_number,
             'approval_id' => $this->approval->id,
             'monthly_rent' => $this->lease->monthly_rent,
-            'has_comments' => !empty($this->approval->comments),
+            'has_comments' => ! empty($this->approval->comments),
             'action' => 'lease_approved',
         ];
     }

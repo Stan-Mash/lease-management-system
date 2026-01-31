@@ -2,11 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use App\Models\Tenant;
+use App\Models\Guarantor;
 use App\Models\Landlord;
 use App\Models\Lease;
-use App\Models\Guarantor;
+use App\Models\Tenant;
+use App\Models\User;
+use Exception;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -36,7 +37,7 @@ class DevelopmentSeeder extends Seeder
                 'name' => 'System Administrator',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-            ]
+            ],
         );
         $this->command->info("✅ Admin created: {$admin->email} / password");
 
@@ -71,7 +72,7 @@ class DevelopmentSeeder extends Seeder
                 ['Landlords', $landlords->count(), 'Diverse property owners'],
                 ['Leases', $leases->count(), 'Various states and types'],
                 ['Guarantors', $guarantorsCount, 'Attached to selected leases'],
-            ]
+            ],
         );
 
         $this->command->newLine();
@@ -108,7 +109,7 @@ class DevelopmentSeeder extends Seeder
         foreach ($tenantData as $data) {
             $tenant = Tenant::firstOrCreate(
                 ['email' => $data['email']],
-                $data
+                $data,
             );
             $tenants->push($tenant);
         }
@@ -130,7 +131,7 @@ class DevelopmentSeeder extends Seeder
         foreach ($landlordData as $data) {
             $landlord = Landlord::firstOrCreate(
                 ['email' => $data['email']],
-                $data
+                $data,
             );
             $landlords->push($landlord);
         }
@@ -191,7 +192,7 @@ class DevelopmentSeeder extends Seeder
 
                     $leases->push($lease);
                     $leaseCount++;
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Skip if reference generation fails (unlikely with our implementation)
                     $this->command->warn("Skipped lease creation: {$e->getMessage()}");
                 }

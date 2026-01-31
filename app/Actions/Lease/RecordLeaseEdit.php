@@ -15,13 +15,11 @@ class RecordLeaseEdit
     /**
      * Execute the edit recording.
      *
-     * @param Lease $lease
      * @param string $editType One of: clause_added, clause_removed, clause_modified, other
      * @param string|null $sectionAffected Which clause/section was edited
      * @param string|null $originalText Text before edit (null if new)
      * @param string|null $newText Text after edit (null if removed)
      * @param string|null $reason Why the edit was made
-     * @return LeaseEdit
      */
     public function execute(
         Lease $lease,
@@ -29,7 +27,7 @@ class RecordLeaseEdit
         ?string $sectionAffected = null,
         ?string $originalText = null,
         ?string $newText = null,
-        ?string $reason = null
+        ?string $reason = null,
     ): LeaseEdit {
         return DB::transaction(function () use ($lease, $editType, $sectionAffected, $originalText, $newText, $reason) {
             // Increment document version
@@ -51,8 +49,8 @@ class RecordLeaseEdit
     /**
      * Record multiple edits in a batch (single version increment).
      *
-     * @param Lease $lease
      * @param array $edits Array of edit data
+     *
      * @return array<LeaseEdit>
      */
     public function executeBatch(Lease $lease, array $edits): array

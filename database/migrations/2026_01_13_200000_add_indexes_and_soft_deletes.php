@@ -13,35 +13,35 @@ return new class extends Migration
     {
         // Add soft deletes to leases
         Schema::table('leases', function (Blueprint $table) {
-            if (!Schema::hasColumn('leases', 'deleted_at')) {
+            if (! Schema::hasColumn('leases', 'deleted_at')) {
                 $table->softDeletes();
             }
         });
 
         // Add soft deletes to tenants
         Schema::table('tenants', function (Blueprint $table) {
-            if (!Schema::hasColumn('tenants', 'deleted_at')) {
+            if (! Schema::hasColumn('tenants', 'deleted_at')) {
                 $table->softDeletes();
             }
         });
 
         // Add soft deletes to landlords
         Schema::table('landlords', function (Blueprint $table) {
-            if (!Schema::hasColumn('landlords', 'deleted_at')) {
+            if (! Schema::hasColumn('landlords', 'deleted_at')) {
                 $table->softDeletes();
             }
         });
 
         // Add soft deletes to properties
         Schema::table('properties', function (Blueprint $table) {
-            if (!Schema::hasColumn('properties', 'deleted_at')) {
+            if (! Schema::hasColumn('properties', 'deleted_at')) {
                 $table->softDeletes();
             }
         });
 
         // Add soft deletes to units
         Schema::table('units', function (Blueprint $table) {
-            if (!Schema::hasColumn('units', 'deleted_at')) {
+            if (! Schema::hasColumn('units', 'deleted_at')) {
                 $table->softDeletes();
             }
         });

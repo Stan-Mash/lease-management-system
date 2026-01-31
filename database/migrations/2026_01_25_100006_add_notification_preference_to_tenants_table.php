@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
-            if (!Schema::hasColumn('tenants', 'notification_preference')) {
+            if (! Schema::hasColumn('tenants', 'notification_preference')) {
                 $table->enum('notification_preference', ['email', 'sms', 'both'])->default('sms')->after('email');
             }
         });

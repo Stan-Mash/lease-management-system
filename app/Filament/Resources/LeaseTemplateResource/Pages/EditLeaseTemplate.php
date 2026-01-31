@@ -4,8 +4,8 @@ namespace App\Filament\Resources\LeaseTemplateResource\Pages;
 
 use App\Filament\Resources\LeaseTemplateResource;
 use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditLeaseTemplate extends EditRecord
 {
@@ -73,7 +73,7 @@ class EditLeaseTemplate extends EditRecord
         $data['updated_by'] = auth()->id();
 
         // If marked as default, unset other defaults for this type
-        if (!empty($data['is_default']) && $this->record->template_type === $data['template_type']) {
+        if (! empty($data['is_default']) && $this->record->template_type === $data['template_type']) {
             \App\Models\LeaseTemplate::where('template_type', $data['template_type'])
                 ->where('is_default', true)
                 ->where('id', '!=', $this->record->id)
@@ -89,7 +89,7 @@ class EditLeaseTemplate extends EditRecord
         return $data;
     }
 
-    protected function getSavedNotification(): ?\Filament\Notifications\Notification
+    protected function getSavedNotification(): ?Notification
     {
         $wasContentChanged = $this->record->wasChanged('blade_content') || $this->record->wasChanged('css_styles');
 

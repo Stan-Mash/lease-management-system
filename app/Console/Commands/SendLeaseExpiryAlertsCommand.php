@@ -5,18 +5,19 @@ namespace App\Console\Commands;
 use App\Models\Lease;
 use App\Models\User;
 use App\Services\SMSService;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SendLeaseExpiryAlertsCommand extends Command
 {
+    private const ALERT_DAYS = [90, 60, 30];
+
     protected $signature = 'leases:send-expiry-alerts
                             {--dry-run : Show what would be sent without actually sending}';
 
     protected $description = 'Send alerts for leases expiring in 90, 60, and 30 days';
-
-    private const ALERT_DAYS = [90, 60, 30];
 
     public function handle(SMSService $smsService): int
     {
@@ -47,6 +48,7 @@ class SendLeaseExpiryAlertsCommand extends Command
 
         if ($leases->isEmpty()) {
             $this->line("  No leases expiring in {$days} days.");
+
             return 0;
         }
 
@@ -65,7 +67,7 @@ class SendLeaseExpiryAlertsCommand extends Command
                 $this->sendAlerts($lease, $days, $smsService);
                 $alertsSent++;
                 $this->line("  Sent alert for lease {$lease->reference_number}");
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->error("  Failed to send alert for {$lease->reference_number}: {$e->getMessage()}");
                 Log::error('Lease expiry alert failed', [
                     'lease_id' => $lease->id,
@@ -131,7 +133,7 @@ class SendLeaseExpiryAlertsCommand extends Command
             function ($message) use ($lease, $urgency, $days) {
                 $message->to($lease->tenant->email)
                     ->subject("[{$urgency}] Lease Expiring in {$days} Days - {$lease->reference_number}");
-            }
+            },
         );
     }
 
@@ -161,7 +163,7 @@ EOT;
 
     private function notifyZoneManager(Lease $lease, int $days): void
     {
-        if (!$lease->zone_id) {
+        if (! $lease->zone_id) {
             return;
         }
 
@@ -175,7 +177,7 @@ EOT;
                 function ($message) use ($zoneManager, $days) {
                     $message->to($zoneManager->email)
                         ->subject("Lease Expiry Alert - {$days} Days");
-                }
+                },
             );
         }
     }

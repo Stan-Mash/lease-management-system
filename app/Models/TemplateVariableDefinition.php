@@ -33,8 +33,8 @@ class TemplateVariableDefinition extends Model
     // Get formatted value
     public function formatValue($value)
     {
-        return match($this->data_type) {
-            'money' => 'KES ' . number_format($value, 2),
+        return match ($this->data_type) {
+            'money' => 'Ksh ' . number_format($value, 2),
             'date' => $value?->format($this->format_options['date_format'] ?? 'd/m/Y'),
             'number' => number_format($value, $this->format_options['decimal_places'] ?? 0),
             default => $value,

@@ -18,14 +18,13 @@ trait HasLeaseEdits
      * @param string|null $originalText Text before edit (null if new)
      * @param string|null $newText Text after edit (null if removed)
      * @param string|null $reason Why the edit was made
-     * @return LeaseEdit
      */
     public function recordEdit(
         string $editType,
         ?string $sectionAffected = null,
         ?string $originalText = null,
         ?string $newText = null,
-        ?string $reason = null
+        ?string $reason = null,
     ): LeaseEdit {
         return app(RecordLeaseEdit::class)->execute(
             $this,
@@ -33,7 +32,7 @@ trait HasLeaseEdits
             $sectionAffected,
             $originalText,
             $newText,
-            $reason
+            $reason,
         );
     }
 
@@ -41,6 +40,7 @@ trait HasLeaseEdits
      * Record multiple edits in a batch.
      *
      * @param array $edits Array of edit data
+     *
      * @return array<LeaseEdit>
      */
     public function recordEditsBatch(array $edits): array

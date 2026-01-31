@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Lease;
 use App\Models\Tenant;
-use App\Services\OTPService;
 use App\Services\DigitalSigningService;
+use App\Services\OTPService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -14,14 +15,12 @@ class TenantSigningController extends Controller
     /**
      * Display the signing portal for a tenant.
      *
-     * @param Request $request
-     * @param Lease $lease
      * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
      */
     public function show(Request $request, Lease $lease)
     {
         // Verify the signed URL is valid
-        if (!$request->hasValidSignature()) {
+        if (! $request->hasValidSignature()) {
             abort(403, 'This signing link has expired or is invalid.');
         }
 
@@ -48,14 +47,12 @@ class TenantSigningController extends Controller
     /**
      * Request OTP for signing.
      *
-     * @param Request $request
-     * @param Lease $lease
      * @return \Illuminate\Http\JsonResponse
      */
     public function requestOTP(Request $request, Lease $lease)
     {
         // Verify the signed URL
-        if (!$request->hasValidSignature()) {
+        if (! $request->hasValidSignature()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid or expired link.',
@@ -66,7 +63,7 @@ class TenantSigningController extends Controller
             // Generate and send OTP
             $otp = OTPService::generateAndSend(
                 $lease,
-                $lease->tenant->phone
+                $lease->tenant->phone,
             );
 
             Log::info('OTP requested for signing', [
@@ -79,7 +76,7 @@ class TenantSigningController extends Controller
                 'message' => 'OTP sent to your phone.',
                 'expires_in_minutes' => 10,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('OTP request failed', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
@@ -95,14 +92,12 @@ class TenantSigningController extends Controller
     /**
      * Verify OTP code.
      *
-     * @param Request $request
-     * @param Lease $lease
      * @return \Illuminate\Http\JsonResponse
      */
     public function verifyOTP(Request $request, Lease $lease)
     {
         // Verify the signed URL
-        if (!$request->hasValidSignature()) {
+        if (! $request->hasValidSignature()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid or expired link.',
@@ -117,7 +112,7 @@ class TenantSigningController extends Controller
             $verified = OTPService::verify(
                 $lease,
                 $request->code,
-                $request->ip()
+                $request->ip(),
             );
 
             if ($verified) {
@@ -136,7 +131,7 @@ class TenantSigningController extends Controller
                 'success' => false,
                 'message' => 'Invalid or expired OTP code. Please try again.',
             ], 400);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('OTP verification failed', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
@@ -152,14 +147,12 @@ class TenantSigningController extends Controller
     /**
      * Submit digital signature.
      *
-     * @param Request $request
-     * @param Lease $lease
      * @return \Illuminate\Http\JsonResponse
      */
     public function submitSignature(Request $request, Lease $lease)
     {
         // Verify the signed URL
-        if (!$request->hasValidSignature()) {
+        if (! $request->hasValidSignature()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid or expired link.',
@@ -167,7 +160,7 @@ class TenantSigningController extends Controller
         }
 
         // Check if can sign (OTP verified)
-        if (!DigitalSigningService::canSign($lease)) {
+        if (! DigitalSigningService::canSign($lease)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Please verify your OTP before signing.',
@@ -216,7 +209,7 @@ class TenantSigningController extends Controller
                 'message' => 'Lease signed successfully!',
                 'signature_id' => $signature->id,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Signature submission failed', [
                 'lease_id' => $lease->id,
                 'error' => $e->getMessage(),
@@ -232,14 +225,12 @@ class TenantSigningController extends Controller
     /**
      * Display lease PDF for review.
      *
-     * @param Request $request
-     * @param Lease $lease
      * @return \Illuminate\Http\Response
      */
     public function viewLease(Request $request, Lease $lease)
     {
         // Verify the signed URL
-        if (!$request->hasValidSignature()) {
+        if (! $request->hasValidSignature()) {
             abort(403, 'Invalid or expired link.');
         }
 

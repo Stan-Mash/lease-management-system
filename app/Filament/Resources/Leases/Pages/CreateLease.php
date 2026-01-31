@@ -15,7 +15,7 @@ class CreateLease extends CreateRecord
         // Generate reference number
         $data['reference_number'] = LeaseReferenceService::generate(
             $data['lease_type'],
-            $data['zone']
+            $data['zone'],
         );
 
         // Set initial workflow state

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\LeaseTemplateResource\Pages;
 
 use App\Filament\Resources\LeaseTemplateResource;
 use App\Services\TemplateExtractionService;
+use Exception;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Storage;
 
@@ -14,7 +15,7 @@ class CreateLeaseTemplate extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Handle PDF upload and extraction
-        if (!empty($data['source_pdf_path']) && $data['source_type'] === 'uploaded_pdf') {
+        if (! empty($data['source_pdf_path']) && $data['source_type'] === 'uploaded_pdf') {
             $pdfPath = Storage::disk('public')->path($data['source_pdf_path']);
 
             // Use extraction service to convert PDF to Blade
@@ -22,7 +23,7 @@ class CreateLeaseTemplate extends CreateRecord
 
             try {
                 // Extract content from PDF
-                $pdf = (new \Smalot\PdfParser\Parser())->parseFile($pdfPath);
+                $pdf = (new \Smalot\PdfParser\Parser)->parseFile($pdfPath);
                 $textContent = $pdf->getText();
 
                 // Convert to Blade
@@ -40,7 +41,7 @@ class CreateLeaseTemplate extends CreateRecord
                     'author' => $pdf->getDetails()['Author'] ?? null,
                     'extracted_at' => now()->toISOString(),
                 ];
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // If extraction fails, provide empty template
                 $data['blade_content'] = $this->getEmptyTemplate($data['template_type']);
                 $data['extraction_metadata'] = [
@@ -59,7 +60,7 @@ class CreateLeaseTemplate extends CreateRecord
         $data['updated_by'] = auth()->id();
 
         // If marked as default, unset other defaults for this type
-        if (!empty($data['is_default'])) {
+        if (! empty($data['is_default'])) {
             \App\Models\LeaseTemplate::where('template_type', $data['template_type'])
                 ->where('is_default', true)
                 ->update(['is_default' => false]);

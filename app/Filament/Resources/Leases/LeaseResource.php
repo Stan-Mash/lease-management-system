@@ -9,21 +9,53 @@ use App\Filament\Resources\Leases\Pages\ViewLease;
 use App\Filament\Resources\Leases\Schemas\LeaseForm;
 use App\Filament\Resources\Leases\Schemas\LeaseInfolist;
 use App\Models\Lease;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Actions\ViewAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\Action;
+use Filament\Tables\Table;
 
 class LeaseResource extends Resource
 {
     protected static ?string $model = Lease::class;
 
+    protected static ?string $recordTitleAttribute = 'reference_number';
+
     public static function getNavigationIcon(): ?string
     {
         return 'heroicon-o-document-text';
+    }
+
+    // Enable global search
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'reference_number',
+            'tenant.first_name',
+            'tenant.last_name',
+            'tenant.id_number',
+            'property.name',
+            'property.property_code',
+            'unit.unit_number',
+            'landlord.name',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return $record->reference_number . ' - ' . ($record->tenant?->full_name ?? 'Unknown Tenant');
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'Tenant' => $record->tenant?->full_name ?? 'N/A',
+            'Property' => $record->property?->name ?? 'N/A',
+            'Unit' => $record->unit?->unit_number ?? 'N/A',
+            'Status' => ucfirst(str_replace('_', ' ', $record->workflow_state)),
+        ];
     }
 
     public static function form(Schema $schema): Schema
@@ -74,16 +106,32 @@ class LeaseResource extends Resource
                     ->label('Approval')
                     ->badge()
                     ->state(function ($record) {
-                        if (!$record->landlord_id) return null;
-                        if ($record->hasBeenApproved()) return 'Approved';
-                        if ($record->hasBeenRejected()) return 'Rejected';
-                        if ($record->hasPendingApproval()) return 'Pending';
+                        if (! $record->landlord_id) {
+                            return null;
+                        }
+                        if ($record->hasBeenApproved()) {
+                            return 'Approved';
+                        }
+                        if ($record->hasBeenRejected()) {
+                            return 'Rejected';
+                        }
+                        if ($record->hasPendingApproval()) {
+                            return 'Pending';
+                        }
+
                         return null;
                     })
                     ->color(function ($record) {
-                        if ($record->hasBeenApproved()) return 'success';
-                        if ($record->hasBeenRejected()) return 'danger';
-                        if ($record->hasPendingApproval()) return 'warning';
+                        if ($record->hasBeenApproved()) {
+                            return 'success';
+                        }
+                        if ($record->hasBeenRejected()) {
+                            return 'danger';
+                        }
+                        if ($record->hasPendingApproval()) {
+                            return 'warning';
+                        }
+
                         return 'gray';
                     })
                     ->visible(fn ($record) => $record !== null && $record->landlord_id !== null),
@@ -109,11 +157,13 @@ class LeaseResource extends Resource
     }
 
     /**
-     * Apply zone-based filtering for field officers and zone managers.
+     * Apply zone-based filtering and eager loading for performance.
      */
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()
+            ->with(['tenant', 'property', 'unit', 'landlord']); // Eager load relationships
+
         $user = auth()->user();
 
         if ($user && $user->hasZoneRestriction() && $user->zone_id) {

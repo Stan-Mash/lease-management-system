@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('leases', function (Blueprint $table) {
             // Add requires_guarantor column if it doesn't exist
-            if (!Schema::hasColumn('leases', 'requires_guarantor')) {
+            if (! Schema::hasColumn('leases', 'requires_guarantor')) {
                 $table->boolean('requires_guarantor')->default(false)->after('requires_lawyer');
             }
         });

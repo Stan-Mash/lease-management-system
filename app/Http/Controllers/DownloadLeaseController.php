@@ -6,6 +6,7 @@ use App\Models\Lease;
 use App\Models\LeaseTemplate;
 use App\Services\TemplateRenderService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class DownloadLeaseController extends Controller
@@ -46,7 +47,7 @@ class DownloadLeaseController extends Controller
 
                 // Ensure HTML is not empty
                 if (empty(trim($html))) {
-                    throw new \Exception('Template rendered empty HTML');
+                    throw new Exception('Template rendered empty HTML');
                 }
 
                 $pdf = Pdf::loadHTML($html);
@@ -67,7 +68,7 @@ class DownloadLeaseController extends Controller
                 } else {
                     return $pdf->download($filename);
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Failed to generate PDF with custom template', [
                     'lease_id' => $lease->id,
                     'template_id' => $lease->lease_template_id,
@@ -96,7 +97,7 @@ class DownloadLeaseController extends Controller
 
                 // Ensure HTML is not empty
                 if (empty(trim($html))) {
-                    throw new \Exception('Template rendered empty HTML');
+                    throw new Exception('Template rendered empty HTML');
                 }
 
                 $pdf = Pdf::loadHTML($html);
@@ -117,7 +118,7 @@ class DownloadLeaseController extends Controller
                 } else {
                     return $pdf->download($filename);
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Failed to generate PDF with default template', [
                     'lease_id' => $lease->id,
                     'template_id' => $defaultTemplate->id,
@@ -146,19 +147,19 @@ class DownloadLeaseController extends Controller
     protected function generateWithHardcodedViews(Lease $lease, string $method)
     {
         $data = [
-            'lease'    => $lease,
-            'tenant'   => $lease->tenant,
-            'unit'     => $lease->unit,
+            'lease' => $lease,
+            'tenant' => $lease->tenant,
+            'unit' => $lease->unit,
             'landlord' => $lease->landlord,
             'property' => $lease->property,
-            'today'    => now()->format('d/m/Y'),
+            'today' => now()->format('d/m/Y'),
         ];
 
         $viewName = match ($lease->lease_type) {
             'residential_major' => 'pdf.residential-major',
             'residential_micro' => 'pdf.residential-micro',
-            'commercial'        => 'pdf.commercial',
-            default             => 'pdf.residential-major',
+            'commercial' => 'pdf.commercial',
+            default => 'pdf.residential-major',
         };
 
         try {
@@ -179,7 +180,7 @@ class DownloadLeaseController extends Controller
             } else {
                 return $pdf->download($filename);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to generate PDF with hardcoded views', [
                 'lease_id' => $lease->id,
                 'view_name' => $viewName,

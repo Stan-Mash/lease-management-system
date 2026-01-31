@@ -6,6 +6,7 @@ use App\Mail\RentEscalationLandlordNotice;
 use App\Mail\RentEscalationTenantNotice;
 use App\Models\RentEscalation;
 use App\Services\SMSService;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,7 @@ class ApplyRentEscalationsCommand extends Command
         $dryRun = $this->option('dry-run');
         $notifyOnly = $this->option('notify-only');
 
-        if (!$notifyOnly) {
+        if (! $notifyOnly) {
             $this->applyDueEscalations($dryRun);
         }
 
@@ -45,6 +46,7 @@ class ApplyRentEscalationsCommand extends Command
 
         if ($dueEscalations->isEmpty()) {
             $this->line('  No due rent escalations found.');
+
             return;
         }
 
@@ -53,7 +55,7 @@ class ApplyRentEscalationsCommand extends Command
         foreach ($dueEscalations as $escalation) {
             if ($dryRun) {
                 $this->line("  [DRY RUN] Would apply escalation #{$escalation->id} for lease {$escalation->lease->reference_number}");
-                $this->line("    Previous: KES {$escalation->previous_rent} -> New: KES {$escalation->new_rent}");
+                $this->line("    Previous: Ksh {$escalation->previous_rent} -> New: Ksh {$escalation->new_rent}");
                 continue;
             }
 
@@ -77,7 +79,7 @@ class ApplyRentEscalationsCommand extends Command
 
                 $this->line("  Applied escalation for lease {$escalation->lease->reference_number}");
 
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->error("  Failed to apply escalation #{$escalation->id}: {$e->getMessage()}");
                 Log::error('Rent escalation failed', [
                     'escalation_id' => $escalation->id,
@@ -103,6 +105,7 @@ class ApplyRentEscalationsCommand extends Command
 
         if ($upcomingEscalations->isEmpty()) {
             $this->line('  No upcoming escalations to notify.');
+
             return;
         }
 
@@ -139,7 +142,7 @@ class ApplyRentEscalationsCommand extends Command
                 $escalation->markTenantNotified();
                 $this->line("  Notified about escalation for {$lease->reference_number}");
 
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->error("  Failed to notify for escalation #{$escalation->id}: {$e->getMessage()}");
                 Log::error('Rent escalation notification failed', [
                     'escalation_id' => $escalation->id,
@@ -156,7 +159,7 @@ class ApplyRentEscalationsCommand extends Command
         $effectiveDate = $escalation->effective_date->format('d M Y');
 
         return "Rent Adjustment Notice: From {$effectiveDate}, your rent for {$property} "
-            . "will be KES {$escalation->new_rent}/month (was KES {$escalation->previous_rent}). "
+            . "will be Ksh {$escalation->new_rent}/month (was Ksh {$escalation->previous_rent}). "
             . "Ref: {$lease->reference_number}. Contact Chabrin for questions.";
     }
 }

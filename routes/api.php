@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\LeaseApiController;
-use App\Http\Controllers\Api\TenantApiController;
-use App\Http\Controllers\Api\PropertyApiController;
 use App\Http\Controllers\Api\LandlordApiController;
+use App\Http\Controllers\Api\LeaseApiController;
+use App\Http\Controllers\Api\PropertyApiController;
+use App\Http\Controllers\Api\TenantApiController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')
     ->middleware(['api', 'throttle:60,1'])

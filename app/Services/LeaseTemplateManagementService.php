@@ -6,11 +6,10 @@ use App\Models\Lease;
 use App\Models\LeaseTemplate;
 use App\Models\LeaseTemplateVersion;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * LeaseTemplateManagementService
- * 
+ *
  * Manages template versioning, change tracking, and audit logging
  * Ensures immutability of template versions and comprehensive audit trails
  */
@@ -71,8 +70,8 @@ class LeaseTemplateManagementService
      */
     public function createVersion(
         LeaseTemplate $template,
-        string $changeSummary = null,
-        ?array $changes = null
+        ?string $changeSummary = null,
+        ?array $changes = null,
     ): LeaseTemplateVersion {
         $newVersionNumber = $template->versions()->max('version_number') + 1;
 
@@ -90,29 +89,6 @@ class LeaseTemplateManagementService
     }
 
     /**
-     * Identify what changed between old and new data
-     */
-    private function identifyChanges(LeaseTemplate $template, array $newData): array
-    {
-        $changes = [];
-
-        foreach ($newData as $key => $newValue) {
-            if (!in_array($key, ['created_by', 'updated_by'])) {
-                $oldValue = $template->getAttribute($key);
-
-                if ($oldValue !== $newValue) {
-                    $changes[$key] = [
-                        'old' => is_array($oldValue) ? json_encode($oldValue) : $oldValue,
-                        'new' => is_array($newValue) ? json_encode($newValue) : $newValue,
-                    ];
-                }
-            }
-        }
-
-        return $changes;
-    }
-
-    /**
      * Restore template to a specific version
      */
     public function restoreToVersion(LeaseTemplate $template, int $versionNumber, string $reason = 'Restored from previous version'): bool
@@ -121,11 +97,12 @@ class LeaseTemplateManagementService
             ->where('version_number', $versionNumber)
             ->first();
 
-        if (!$version) {
+        if (! $version) {
             Log::warning('Attempted to restore non-existent version', [
                 'template_id' => $template->id,
                 'version_number' => $versionNumber,
             ]);
+
             return false;
         }
 
@@ -146,7 +123,7 @@ class LeaseTemplateManagementService
             [
                 'restored_from_version' => $versionNumber,
                 'reason' => $reason,
-            ]
+            ],
         );
 
         Log::info('Template restored to previous version', [
@@ -235,24 +212,6 @@ class LeaseTemplateManagementService
     }
 
     /**
-     * Calculate differences between two content strings
-     */
-    private function calculateDiff(string $old, string $new): array
-    {
-        $oldLines = explode("\n", $old);
-        $newLines = explode("\n", $new);
-
-        $added = array_diff($newLines, $oldLines);
-        $removed = array_diff($oldLines, $newLines);
-
-        return [
-            'lines_added' => count($added),
-            'lines_removed' => count($removed),
-            'total_changes' => count($added) + count($removed),
-        ];
-    }
-
-    /**
      * Validate template before using in lease
      */
     public function validateTemplate(LeaseTemplate $template): array
@@ -270,7 +229,7 @@ class LeaseTemplateManagementService
             $required = $template->required_variables;
 
             foreach ($required as $var) {
-                if (!in_array($var, $available)) {
+                if (! in_array($var, $available)) {
                     $errors[] = "Required variable \${$var} not found in template";
                 }
             }
@@ -278,7 +237,7 @@ class LeaseTemplateManagementService
 
         // Check template type is valid
         $validTypes = ['residential_major', 'residential_micro', 'commercial'];
-        if (!in_array($template->template_type, $validTypes)) {
+        if (! in_array($template->template_type, $validTypes)) {
             $errors[] = "Invalid template type: {$template->template_type}";
         }
 
@@ -355,5 +314,46 @@ class LeaseTemplateManagementService
         ]);
 
         return $archivedCount;
+    }
+
+    /**
+     * Identify what changed between old and new data
+     */
+    private function identifyChanges(LeaseTemplate $template, array $newData): array
+    {
+        $changes = [];
+
+        foreach ($newData as $key => $newValue) {
+            if (! in_array($key, ['created_by', 'updated_by'])) {
+                $oldValue = $template->getAttribute($key);
+
+                if ($oldValue !== $newValue) {
+                    $changes[$key] = [
+                        'old' => is_array($oldValue) ? json_encode($oldValue) : $oldValue,
+                        'new' => is_array($newValue) ? json_encode($newValue) : $newValue,
+                    ];
+                }
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Calculate differences between two content strings
+     */
+    private function calculateDiff(string $old, string $new): array
+    {
+        $oldLines = explode("\n", $old);
+        $newLines = explode("\n", $new);
+
+        $added = array_diff($newLines, $oldLines);
+        $removed = array_diff($oldLines, $newLines);
+
+        return [
+            'lines_added' => count($added),
+            'lines_removed' => count($removed),
+            'total_changes' => count($added) + count($removed),
+        ];
     }
 }

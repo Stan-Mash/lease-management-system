@@ -76,7 +76,7 @@ class LeaseTemplateSeeder extends Seeder
                     'version_number' => 1,
                     'created_by' => 1, // Assuming admin user exists
                     'updated_by' => 1,
-                ]
+                ],
             );
 
             $this->command->info("Created/Updated template: {$templateData['name']}");

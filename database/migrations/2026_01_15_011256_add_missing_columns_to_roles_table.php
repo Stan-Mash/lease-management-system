@@ -13,27 +13,27 @@ return new class extends Migration
     {
         Schema::table('roles', function (Blueprint $table) {
             // Add sort_order column if it doesn't exist
-            if (!Schema::hasColumn('roles', 'sort_order')) {
+            if (! Schema::hasColumn('roles', 'sort_order')) {
                 $table->integer('sort_order')->default(0)->comment('Display order');
             }
 
             // Add is_active column if it doesn't exist
-            if (!Schema::hasColumn('roles', 'is_active')) {
+            if (! Schema::hasColumn('roles', 'is_active')) {
                 $table->boolean('is_active')->default(true)->comment('Active status');
             }
 
             // Add color column if it doesn't exist
-            if (!Schema::hasColumn('roles', 'color')) {
+            if (! Schema::hasColumn('roles', 'color')) {
                 $table->string('color')->default('gray')->comment('Badge color');
             }
 
             // Add permissions column if it doesn't exist
-            if (!Schema::hasColumn('roles', 'permissions')) {
+            if (! Schema::hasColumn('roles', 'permissions')) {
                 $table->json('permissions')->nullable()->comment('Array of permissions');
             }
 
             // Add is_system column if it doesn't exist
-            if (!Schema::hasColumn('roles', 'is_system')) {
+            if (! Schema::hasColumn('roles', 'is_system')) {
                 $table->boolean('is_system')->default(false)->comment('System roles cannot be deleted');
             }
         });

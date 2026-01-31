@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 trait HasLeaseQueryFiltering
 {
     public ?int $zoneId = null;
+
     public ?int $fieldOfficerId = null;
 
     protected function getFilteredLeaseQuery(): Builder

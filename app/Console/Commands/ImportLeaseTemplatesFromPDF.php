@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\LeaseTemplate;
 use App\Services\LeaseTemplateManagementService;
+use Exception;
 use Illuminate\Console\Command;
 
 class ImportLeaseTemplatesFromPDF extends Command
@@ -61,7 +62,7 @@ class ImportLeaseTemplatesFromPDF extends Command
             [
                 ['Total Templates', LeaseTemplate::count()],
                 ['Total Versions', \App\Models\LeaseTemplateVersion::count()],
-            ]
+            ],
         );
     }
 
@@ -74,6 +75,7 @@ class ImportLeaseTemplatesFromPDF extends Command
 
         if ($existing) {
             $this->comment("   → Template already exists (ID: {$existing->id}, v{$existing->version_number})");
+
             return;
         }
 
@@ -89,12 +91,12 @@ class ImportLeaseTemplatesFromPDF extends Command
             // Create template with versioning
             $template = $service->createTemplate(
                 $data,
-                "Initial template from PDF: {$data['source_pdf_path']}"
+                "Initial template from PDF: {$data['source_pdf_path']}",
             );
 
             $this->info("   ✓ Created template v{$template->version_number} (ID: {$template->id})");
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error("   ✗ Failed: {$e->getMessage()}");
         }
     }

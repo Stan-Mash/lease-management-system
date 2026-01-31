@@ -62,8 +62,8 @@ class OTPVerification extends Model
      */
     public function isValid(): bool
     {
-        return !$this->is_expired
-            && !$this->is_verified
+        return ! $this->is_expired
+            && ! $this->is_verified
             && now()->isBefore($this->expires_at)
             && $this->attempts < 3;
     }
@@ -119,7 +119,7 @@ class OTPVerification extends Model
     public function verify(string $code, ?string $ipAddress = null): bool
     {
         // Check if OTP is still valid
-        if (!$this->isValid()) {
+        if (! $this->isValid()) {
             return false;
         }
 
@@ -132,11 +132,13 @@ class OTPVerification extends Model
             if ($this->maxAttemptsReached()) {
                 $this->markAsExpired();
             }
+
             return false;
         }
 
         // Success - mark as verified
         $this->markAsVerified($ipAddress);
+
         return true;
     }
 
@@ -166,7 +168,7 @@ class OTPVerification extends Model
     {
         return $query->where(function ($q) {
             $q->where('is_expired', true)
-              ->orWhere('expires_at', '<=', now());
+                ->orWhere('expires_at', '<=', now());
         });
     }
 

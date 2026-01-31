@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\SMSService;
+use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -28,7 +29,6 @@ class SMSServiceTest extends TestCase
         Mockery::close();
         parent::tearDown();
     }
-
 
     public function test_is_configured_returns_false_when_not_configured(): void
     {
@@ -84,7 +84,7 @@ class SMSServiceTest extends TestCase
             '+254712345678',
             'LSE-2026-0001',
             'John Doe',
-            25000.00
+            25000.00,
         );
 
         Log::shouldHaveReceived('warning')->withArgs(function ($message, $context) {
@@ -110,7 +110,7 @@ class SMSServiceTest extends TestCase
         SMSService::sendRejectionNotification(
             '+254712345678',
             'LSE-2026-0001',
-            'Incorrect tenant details'
+            'Incorrect tenant details',
         );
 
         Log::shouldHaveReceived('warning')->withArgs(function ($message, $context) {
@@ -125,7 +125,7 @@ class SMSServiceTest extends TestCase
         SMSService::sendSigningLink(
             '+254712345678',
             'LSE-2026-0001',
-            'https://example.com/sign/abc123'
+            'https://example.com/sign/abc123',
         );
 
         Log::shouldHaveReceived('warning')->withArgs(function ($message, $context) {
@@ -219,7 +219,7 @@ class SMSServiceTest extends TestCase
         Config::set('services.africas_talking.username', 'test_user');
 
         Http::fake(function () {
-            throw new \Exception('Connection failed');
+            throw new Exception('Connection failed');
         });
 
         Log::spy();

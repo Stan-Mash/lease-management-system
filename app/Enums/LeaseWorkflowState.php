@@ -66,9 +66,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Check if transition to given state is valid.
-     *
-     * @param LeaseWorkflowState $newState
-     * @return bool
      */
     public function canTransitionTo(LeaseWorkflowState $newState): bool
     {
@@ -77,8 +74,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Get a human-readable label for the state.
-     *
-     * @return string
      */
     public function label(): string
     {
@@ -110,8 +105,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Get a color class for UI display.
-     *
-     * @return string
      */
     public function color(): string
     {
@@ -134,8 +127,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Get an icon for UI display.
-     *
-     * @return string
      */
     public function icon(): string
     {
@@ -167,8 +158,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Check if this is an active/in-progress state.
-     *
-     * @return bool
      */
     public function isActive(): bool
     {
@@ -181,8 +170,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Check if this is a terminal/final state.
-     *
-     * @return bool
      */
     public function isTerminal(): bool
     {
@@ -196,8 +183,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Check if this state requires landlord interaction.
-     *
-     * @return bool
      */
     public function requiresLandlordAction(): bool
     {
@@ -206,8 +191,6 @@ enum LeaseWorkflowState: string
 
     /**
      * Check if this state requires tenant interaction.
-     *
-     * @return bool
      */
     public function requiresTenantAction(): bool
     {
@@ -229,13 +212,13 @@ enum LeaseWorkflowState: string
         foreach (self::cases() as $case) {
             $options[$case->value] = $case->label();
         }
+
         return $options;
     }
 
     /**
      * Get states filtered by a condition.
      *
-     * @param callable $filter
      * @return array<LeaseWorkflowState>
      */
     public static function filter(callable $filter): array
@@ -250,6 +233,6 @@ enum LeaseWorkflowState: string
      */
     public static function activeStates(): array
     {
-        return self::filter(fn (self $state) => !$state->isTerminal());
+        return self::filter(fn (self $state) => ! $state->isTerminal());
     }
 }

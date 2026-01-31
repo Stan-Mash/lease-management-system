@@ -2,7 +2,12 @@
 
 namespace App\Console\Commands;
 
-use App\Models\{User, Zone, Lease, Landlord, Tenant, LeaseApproval};
+use App\Models\Landlord;
+use App\Models\Lease;
+use App\Models\LeaseApproval;
+use App\Models\User;
+use App\Models\Zone;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -10,10 +15,13 @@ use Illuminate\Support\Facades\Schema;
 class SystemHealthCheck extends Command
 {
     protected $signature = 'system:health-check';
+
     protected $description = 'Run comprehensive system health check to verify all features are working';
 
     private int $passCount = 0;
+
     private int $failCount = 0;
+
     private int $warnCount = 0;
 
     public function handle()
@@ -46,8 +54,8 @@ class SystemHealthCheck extends Command
             DB::connection()->getPdo();
             $dbName = DB::connection()->getDatabaseName();
             $this->testPass("Connected to database: {$dbName}");
-        } catch (\Exception $e) {
-            $this->testFail("Database connection failed: " . $e->getMessage());
+        } catch (Exception $e) {
+            $this->testFail('Database connection failed: ' . $e->getMessage());
         }
     }
 
@@ -58,7 +66,7 @@ class SystemHealthCheck extends Command
         $requiredTables = [
             'users', 'zones', 'leases', 'landlords', 'tenants',
             'lease_approvals', 'guarantors', 'digital_signatures',
-            'otp_verifications', 'lease_audit_logs'
+            'otp_verifications', 'lease_audit_logs',
         ];
 
         foreach ($requiredTables as $table) {
@@ -72,15 +80,15 @@ class SystemHealthCheck extends Command
 
         // Check zone columns
         if (Schema::hasColumn('users', 'zone_id')) {
-            $this->testPass("users.zone_id column exists");
+            $this->testPass('users.zone_id column exists');
         } else {
-            $this->testFail("users.zone_id column is missing!");
+            $this->testFail('users.zone_id column is missing!');
         }
 
         if (Schema::hasColumn('leases', 'zone_id')) {
-            $this->testPass("leases.zone_id column exists");
+            $this->testPass('leases.zone_id column exists');
         } else {
-            $this->testFail("leases.zone_id column is missing!");
+            $this->testFail('leases.zone_id column is missing!');
         }
     }
 
@@ -107,7 +115,7 @@ class SystemHealthCheck extends Command
                 $this->line("  • {$zone->name} ({$zone->code}) - Manager: {$managerName}, FOs: {$foCount}");
             }
         } else {
-            $this->testWarn("No zones created yet. Run: php artisan tinker and create zones.");
+            $this->testWarn('No zones created yet. Run: php artisan tinker and create zones.');
         }
     }
 
@@ -149,7 +157,7 @@ class SystemHealthCheck extends Command
                 $this->testWarn("{$orphanedUsers} users assigned to non-existent zones");
             }
         } else {
-            $this->testWarn("No users found. Create admin user first.");
+            $this->testWarn('No users found. Create admin user first.');
         }
     }
 
@@ -184,7 +192,7 @@ class SystemHealthCheck extends Command
                 $this->info("  → {$type->count} {$type->lease_type} leases");
             }
         } else {
-            $this->testWarn("No leases created yet");
+            $this->testWarn('No leases created yet');
         }
     }
 
@@ -209,7 +217,7 @@ class SystemHealthCheck extends Command
             $pendingLandlord = Lease::where('workflow_state', 'pending_landlord_approval')->count();
             $this->info("  → {$pendingLandlord} leases awaiting landlord approval");
         } else {
-            $this->info("No approval records yet");
+            $this->info('No approval records yet');
         }
     }
 
@@ -224,7 +232,7 @@ class SystemHealthCheck extends Command
                 $zone->zoneManager;
                 $zone->fieldOfficers;
                 $zone->leases;
-                $this->testPass("Zone relationships work");
+                $this->testPass('Zone relationships work');
             }
 
             // Test User relationships
@@ -232,7 +240,7 @@ class SystemHealthCheck extends Command
             if ($user) {
                 $user->zone;
                 $user->assignedLeases;
-                $this->testPass("User relationships work");
+                $this->testPass('User relationships work');
             }
 
             // Test Lease relationships
@@ -243,10 +251,10 @@ class SystemHealthCheck extends Command
                 $lease->assignedZone;
                 $lease->assignedFieldOfficer;
                 $lease->approvals;
-                $this->testPass("Lease relationships work");
+                $this->testPass('Lease relationships work');
             }
-        } catch (\Exception $e) {
-            $this->testFail("Relationship error: " . $e->getMessage());
+        } catch (Exception $e) {
+            $this->testFail('Relationship error: ' . $e->getMessage());
         }
     }
 
@@ -259,8 +267,9 @@ class SystemHealthCheck extends Command
         $zm = User::where('role', 'zone_manager')->whereNotNull('zone_id')->first();
         $fo = User::where('role', 'field_officer')->whereNotNull('zone_id')->first();
 
-        if (!$admin) {
-            $this->testWarn("No super_admin found for testing");
+        if (! $admin) {
+            $this->testWarn('No super_admin found for testing');
+
             return;
         }
 
@@ -268,9 +277,9 @@ class SystemHealthCheck extends Command
         try {
             $admin->isSuperAdmin();
             $admin->isAdmin();
-            $this->testPass("Role checking methods work");
-        } catch (\Exception $e) {
-            $this->testFail("Role checking failed: " . $e->getMessage());
+            $this->testPass('Role checking methods work');
+        } catch (Exception $e) {
+            $this->testFail('Role checking failed: ' . $e->getMessage());
         }
 
         if ($zm) {
@@ -278,27 +287,27 @@ class SystemHealthCheck extends Command
                 $zm->isZoneManager();
                 $zm->hasZoneRestriction();
                 $zm->zone;
-                $this->testPass("Zone Manager methods work");
+                $this->testPass('Zone Manager methods work');
 
                 // Test zone access
                 $canAccess = $zm->canAccessZone($zm->zone_id);
                 if ($canAccess) {
-                    $this->testPass("ZM can access their own zone");
+                    $this->testPass('ZM can access their own zone');
                 } else {
-                    $this->testFail("ZM cannot access their own zone!");
+                    $this->testFail('ZM cannot access their own zone!');
                 }
-            } catch (\Exception $e) {
-                $this->testFail("Zone Manager test failed: " . $e->getMessage());
+            } catch (Exception $e) {
+                $this->testFail('Zone Manager test failed: ' . $e->getMessage());
             }
         } else {
-            $this->testWarn("No zone_manager found for testing");
+            $this->testWarn('No zone_manager found for testing');
         }
 
         if ($fo) {
             try {
                 $fo->isFieldOfficer();
                 $fo->hasZoneRestriction();
-                $this->testPass("Field Officer methods work");
+                $this->testPass('Field Officer methods work');
 
                 // Test lease filtering
                 $accessibleLeases = Lease::accessibleByUser($fo)->count();
@@ -307,13 +316,13 @@ class SystemHealthCheck extends Command
                 if ($accessibleLeases <= $totalLeases) {
                     $this->testPass("FO filtering works ({$accessibleLeases}/{$totalLeases} leases visible)");
                 } else {
-                    $this->testFail("Lease filtering broken!");
+                    $this->testFail('Lease filtering broken!');
                 }
-            } catch (\Exception $e) {
-                $this->testFail("Field Officer test failed: " . $e->getMessage());
+            } catch (Exception $e) {
+                $this->testFail('Field Officer test failed: ' . $e->getMessage());
             }
         } else {
-            $this->testWarn("No field_officer found for testing");
+            $this->testWarn('No field_officer found for testing');
         }
     }
 

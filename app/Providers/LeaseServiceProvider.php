@@ -19,13 +19,13 @@ class LeaseServiceProvider extends ServiceProvider
     {
         // SMS Provider - can be swapped for testing or different providers
         $this->app->singleton(SMSProviderInterface::class, function ($app) {
-            return new AfricasTalkingSMSProvider();
+            return new AfricasTalkingSMSProvider;
         });
 
         // OTP Service - singleton for consistency
         $this->app->singleton(OTPServiceInterface::class, function ($app) {
             return new OTPService(
-                $app->make(SMSProviderInterface::class)
+                $app->make(SMSProviderInterface::class),
             );
         });
 
@@ -33,7 +33,7 @@ class LeaseServiceProvider extends ServiceProvider
         $this->app->singleton(DigitalSigningServiceInterface::class, function ($app) {
             return new DigitalSigningService(
                 $app->make(OTPServiceInterface::class),
-                $app->make(SMSProviderInterface::class)
+                $app->make(SMSProviderInterface::class),
             );
         });
 

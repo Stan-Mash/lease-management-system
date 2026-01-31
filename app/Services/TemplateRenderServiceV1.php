@@ -4,8 +4,9 @@ namespace App\Services;
 
 use App\Models\Lease;
 use App\Models\LeaseTemplate;
-use Illuminate\Support\Facades\View;
+use Exception;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\View;
 
 /**
  * Renders Blade templates with lease data
@@ -15,9 +16,7 @@ class TemplateRenderServiceV1
     /**
      * Render template for a specific lease
      *
-     * @param LeaseTemplate $template
      * @param object $lease Can be a Lease model or mock object for preview
-     * @return string
      */
     public function render(LeaseTemplate $template, object $lease): string
     {
@@ -48,10 +47,6 @@ class TemplateRenderServiceV1
 
     /**
      * Prepare all data available to template
-     *
-     * @param object $lease
-     * @param LeaseTemplate $template
-     * @return array
      */
     protected function prepareTemplateData(object $lease, LeaseTemplate $template): array
     {
@@ -69,31 +64,29 @@ class TemplateRenderServiceV1
             'template' => $template,
 
             // Helper functions
-            'formatMoney' => fn($amount) => 'KES ' . number_format($amount, 2),
-            'formatDate' => fn($date, $format = 'd/m/Y') => $date?->format($format),
+            'formatMoney' => fn ($amount) => 'Ksh ' . number_format($amount, 2),
+            'formatDate' => fn ($date, $format = 'd/m/Y') => $date?->format($format),
         ];
     }
 
     /**
      * Get QR code as base64 data URI
-     *
-     * @param object $lease
-     * @return string|null
      */
     protected function getQrCodeDataUri(object $lease): ?string
     {
         // Only generate real QR codes for actual Lease models
-        if (!($lease instanceof Lease)) {
+        if (! ($lease instanceof Lease)) {
             return null;
         }
 
-        if (class_exists(\App\Services\QRCodeService::class)) {
+        if (class_exists(QRCodeService::class)) {
             try {
-                return \App\Services\QRCodeService::getBase64DataUri($lease);
-            } catch (\Exception $e) {
+                return QRCodeService::getBase64DataUri($lease);
+            } catch (Exception $e) {
                 return null;
             }
         }
+
         return null;
     }
 
@@ -107,7 +100,7 @@ class TemplateRenderServiceV1
 
         // Ensure directory exists
         $directory = dirname($viewPath);
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
 
@@ -131,16 +124,11 @@ class TemplateRenderServiceV1
 
     /**
      * Track render metadata
-     *
-     * @param object $lease
-     * @param LeaseTemplate $template
-     * @param array $data
-     * @return void
      */
     protected function trackRenderMetadata(object $lease, LeaseTemplate $template, array $data): void
     {
         // Only track metadata for actual Lease models, not mock objects
-        if (!($lease instanceof Lease)) {
+        if (! ($lease instanceof Lease)) {
             return;
         }
 
@@ -155,7 +143,7 @@ class TemplateRenderServiceV1
                     'variables_used' => array_keys($data),
                     'rendered_at' => now()->toIso8601String(),
                 ],
-            ]
+            ],
         );
     }
 }

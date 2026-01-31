@@ -2,10 +2,10 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
 
-enum UnitStatus: string implements HasLabel, HasColor
+enum UnitStatus: string implements HasColor, HasLabel
 {
     case Vacant = 'VACANT';
     case Occupied = 'OCCUPIED';

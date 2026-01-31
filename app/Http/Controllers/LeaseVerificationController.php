@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Lease;
 use App\Services\QRCodeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Illuminate\Http\JsonResponse;
 
 /**
  * Controller for public lease verification via QR codes
@@ -15,9 +15,6 @@ class LeaseVerificationController extends Controller
 {
     /**
      * Display lease verification page
-     *
-     * @param Request $request
-     * @return View
      */
     public function show(Request $request): View
     {
@@ -56,9 +53,6 @@ class LeaseVerificationController extends Controller
 
     /**
      * API endpoint for programmatic verification
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function api(Request $request): JsonResponse
     {
@@ -74,7 +68,7 @@ class LeaseVerificationController extends Controller
             ->orWhere('reference_number', $serialNumber)
             ->first();
 
-        if (!$lease) {
+        if (! $lease) {
             return response()->json([
                 'verified' => false,
                 'error' => 'Lease document not found.',
@@ -83,7 +77,7 @@ class LeaseVerificationController extends Controller
 
         $verified = QRCodeService::verifyHash($lease, $hash);
 
-        if (!$verified) {
+        if (! $verified) {
             return response()->json([
                 'verified' => false,
                 'error' => 'Invalid verification code.',

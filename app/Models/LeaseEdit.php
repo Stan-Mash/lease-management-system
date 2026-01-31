@@ -79,7 +79,7 @@ class LeaseEdit extends Model
     public function scopeOrdered($query)
     {
         return $query->orderBy('document_version', 'desc')
-                     ->orderBy('created_at', 'desc');
+            ->orderBy('created_at', 'desc');
     }
 
     /**
@@ -90,7 +90,7 @@ class LeaseEdit extends Model
         $editor = $this->editor ? $this->editor->name : 'Unknown';
         $section = $this->section_affected ? " in {$this->section_affected}" : '';
 
-        return match($this->edit_type) {
+        return match ($this->edit_type) {
             'clause_added' => "{$editor} added a clause{$section}",
             'clause_removed' => "{$editor} removed a clause{$section}",
             'clause_modified' => "{$editor} modified a clause{$section}",

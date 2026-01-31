@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\Lease;
 use App\Models\Landlord;
-use App\Models\Tenant;
+use App\Models\Lease;
 use App\Models\Property;
+use App\Models\Tenant;
 use App\Models\Unit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -49,4 +49,3 @@ class LeaseFactory extends Factory
         ];
     }
 }
-

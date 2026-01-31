@@ -6,6 +6,7 @@ use App\Models\LeaseTemplate;
 use App\Services\SampleLeaseDataService;
 use App\Services\TemplateRenderService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -42,7 +43,7 @@ class TemplatePreviewController extends Controller
             $html = $this->templateRenderer->render($template, $mockLease);
 
             if (empty(trim($html))) {
-                throw new \Exception('Template rendered empty HTML');
+                throw new Exception('Template rendered empty HTML');
             }
 
             // Generate PDF
@@ -58,7 +59,7 @@ class TemplatePreviewController extends Controller
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="' . $filename . '"',
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to generate template PDF preview', [
                 'template_id' => $template->id,
                 'error' => $e->getMessage(),
@@ -92,7 +93,7 @@ class TemplatePreviewController extends Controller
             $html = $this->templateRenderer->render($template, $mockLease);
 
             if (empty(trim($html))) {
-                throw new \Exception('Template rendered empty HTML');
+                throw new Exception('Template rendered empty HTML');
             }
 
             Log::info('Template HTML preview generated successfully', [
@@ -103,7 +104,7 @@ class TemplatePreviewController extends Controller
             return response($html, 200, [
                 'Content-Type' => 'text/html',
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to generate template HTML preview', [
                 'template_id' => $template->id,
                 'error' => $e->getMessage(),
@@ -143,7 +144,7 @@ class TemplatePreviewController extends Controller
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="' . $filename . '"',
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to generate direct template preview', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

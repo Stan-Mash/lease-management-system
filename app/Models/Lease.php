@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Lease model representing a rental agreement.
@@ -34,7 +33,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $document_version
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @property-read Tenant|null $tenant
  * @property-read Landlord|null $landlord
  * @property-read Property|null $property
@@ -44,11 +42,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Lease extends Model
 {
-    use HasFactory;
-    use HasWorkflowState;
     use HasApprovalWorkflow;
     use HasDigitalSigning;
+    use HasFactory;
     use HasLeaseEdits;
+    use HasWorkflowState;
 
     protected $fillable = [
         'reference_number',
@@ -161,6 +159,11 @@ class Lease extends Model
     public function lawyerTrackings(): HasMany
     {
         return $this->hasMany(LeaseLawyerTracking::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(LeaseDocument::class);
     }
 
     public function copyDistribution()
@@ -281,6 +284,7 @@ class Lease extends Model
     public function scopeInState($query, string|LeaseWorkflowState $state)
     {
         $stateValue = $state instanceof LeaseWorkflowState ? $state->value : $state;
+
         return $query->where('workflow_state', $stateValue);
     }
 
@@ -324,7 +328,7 @@ class Lease extends Model
             LeaseWorkflowState::PENDING_DEPOSIT,
         ];
 
-        return $query->whereIn('workflow_state', array_map(fn($state) => $state->value, $pendingStates));
+        return $query->whereIn('workflow_state', array_map(fn ($state) => $state->value, $pendingStates));
     }
 
     /**
@@ -333,11 +337,11 @@ class Lease extends Model
     public function scopeNotTerminal($query)
     {
         $terminalStates = array_map(
-            fn($state) => $state->value,
+            fn ($state) => $state->value,
             array_filter(
                 LeaseWorkflowState::cases(),
-                fn($state) => $state->isTerminal()
-            )
+                fn ($state) => $state->isTerminal(),
+            ),
         );
 
         return $query->whereNotIn('workflow_state', $terminalStates);

@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Lease;
 use App\Models\Landlord;
+use App\Models\Lease;
 use App\Services\LandlordApprovalService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -12,42 +13,9 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 class LandlordApprovalController extends Controller
 {
     /**
-     * Verify the authenticated user owns the given landlord record.
-     */
-    private function verifyLandlordOwnership(int $landlordId): Landlord
-    {
-        $landlord = $this->verifyLandlordOwnership($landlordId);
-        $user = auth()->user();
-
-        // Super admins and admins can access any landlord
-        if ($user->isSuperAdmin() || $user->isAdmin()) {
-            return $landlord;
-        }
-
-        // Field officers can access landlords in their zone
-        if ($user->isFieldOfficer() && $landlord->zone_id === $user->zone_id) {
-            return $landlord;
-        }
-
-        // Zone managers can access landlords in their zone
-        if ($user->isZoneManager() && $landlord->zone_id === $user->zone_id) {
-            return $landlord;
-        }
-
-        // Check if the user is directly linked to this landlord
-        if ($user->landlord_id === $landlord->id) {
-            return $landlord;
-        }
-
-        throw new AccessDeniedHttpException('You are not authorized to access this landlord\'s data.');
-    }
-
-    /**
      * Display pending leases for a landlord.
      * For use in Landlord Mobile/Web App
      *
-     * @param Request $request
-     * @param int $landlordId
      * @return \Illuminate\View\View
      */
     public function index(Request $request, int $landlordId)
@@ -90,16 +58,13 @@ class LandlordApprovalController extends Controller
             'landlord',
             'pendingLeases',
             'approvedLeases',
-            'rejectedLeases'
+            'rejectedLeases',
         ));
     }
 
     /**
      * Show lease details for landlord review.
      *
-     * @param Request $request
-     * @param int $landlordId
-     * @param int $leaseId
      * @return \Illuminate\View\View
      */
     public function show(Request $request, int $landlordId, int $leaseId)
@@ -118,9 +83,6 @@ class LandlordApprovalController extends Controller
     /**
      * Approve a lease (landlord action).
      *
-     * @param Request $request
-     * @param int $landlordId
-     * @param int $leaseId
      * @return \Illuminate\Http\RedirectResponse
      */
     public function approve(Request $request, int $landlordId, int $leaseId)
@@ -138,7 +100,7 @@ class LandlordApprovalController extends Controller
         $result = LandlordApprovalService::approveLease(
             $lease,
             $request->comments,
-            'both' // Send email + SMS
+            'both', // Send email + SMS
         );
 
         if ($result['success']) {
@@ -153,9 +115,6 @@ class LandlordApprovalController extends Controller
     /**
      * Reject a lease (landlord action).
      *
-     * @param Request $request
-     * @param int $landlordId
-     * @param int $leaseId
      * @return \Illuminate\Http\RedirectResponse
      */
     public function reject(Request $request, int $landlordId, int $leaseId)
@@ -175,7 +134,7 @@ class LandlordApprovalController extends Controller
             $lease,
             $request->rejection_reason,
             $request->comments,
-            'both' // Send email + SMS
+            'both', // Send email + SMS
         );
 
         if ($result['success']) {
@@ -192,8 +151,6 @@ class LandlordApprovalController extends Controller
     /**
      * API: Get pending leases for landlord.
      *
-     * @param Request $request
-     * @param int $landlordId
      * @return \Illuminate\Http\JsonResponse
      */
     public function apiIndex(Request $request, int $landlordId)
@@ -236,7 +193,7 @@ class LandlordApprovalController extends Controller
                 'pending_count' => $pendingLeases->count(),
                 'leases' => $pendingLeases,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('API: Failed to fetch pending leases', [
                 'landlord_id' => $landlordId,
                 'error' => $e->getMessage(),
@@ -252,9 +209,6 @@ class LandlordApprovalController extends Controller
     /**
      * API: Get lease details for landlord.
      *
-     * @param Request $request
-     * @param int $landlordId
-     * @param int $leaseId
      * @return \Illuminate\Http\JsonResponse
      */
     public function apiShow(Request $request, int $landlordId, int $leaseId)
@@ -304,7 +258,7 @@ class LandlordApprovalController extends Controller
                     ] : null,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lease not found.',
@@ -315,9 +269,6 @@ class LandlordApprovalController extends Controller
     /**
      * API: Approve lease (landlord mobile app).
      *
-     * @param Request $request
-     * @param int $landlordId
-     * @param int $leaseId
      * @return \Illuminate\Http\JsonResponse
      */
     public function apiApprove(Request $request, int $landlordId, int $leaseId)
@@ -335,11 +286,11 @@ class LandlordApprovalController extends Controller
             $result = LandlordApprovalService::approveLease(
                 $lease,
                 $request->comments,
-                'both'
+                'both',
             );
 
             return response()->json($result);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('API: Lease approval failed', [
                 'landlord_id' => $landlordId,
                 'lease_id' => $leaseId,
@@ -356,9 +307,6 @@ class LandlordApprovalController extends Controller
     /**
      * API: Reject lease (landlord mobile app).
      *
-     * @param Request $request
-     * @param int $landlordId
-     * @param int $leaseId
      * @return \Illuminate\Http\JsonResponse
      */
     public function apiReject(Request $request, int $landlordId, int $leaseId)
@@ -378,11 +326,11 @@ class LandlordApprovalController extends Controller
                 $lease,
                 $request->rejection_reason,
                 $request->comments,
-                'both'
+                'both',
             );
 
             return response()->json($result);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('API: Lease rejection failed', [
                 'landlord_id' => $landlordId,
                 'lease_id' => $leaseId,
@@ -394,5 +342,36 @@ class LandlordApprovalController extends Controller
                 'message' => 'Failed to reject lease: ' . $e->getMessage(),
             ], 400);
         }
+    }
+
+    /**
+     * Verify the authenticated user owns the given landlord record.
+     */
+    private function verifyLandlordOwnership(int $landlordId): Landlord
+    {
+        $landlord = Landlord::findOrFail($landlordId);
+        $user = auth()->user();
+
+        // Super admins and admins can access any landlord
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
+            return $landlord;
+        }
+
+        // Field officers can access landlords in their zone
+        if ($user->isFieldOfficer() && $landlord->zone_id === $user->zone_id) {
+            return $landlord;
+        }
+
+        // Zone managers can access landlords in their zone
+        if ($user->isZoneManager() && $landlord->zone_id === $user->zone_id) {
+            return $landlord;
+        }
+
+        // Check if the user is directly linked to this landlord
+        if ($user->landlord_id === $landlord->id) {
+            return $landlord;
+        }
+
+        throw new AccessDeniedHttpException('You are not authorized to access this landlord\'s data.');
     }
 }

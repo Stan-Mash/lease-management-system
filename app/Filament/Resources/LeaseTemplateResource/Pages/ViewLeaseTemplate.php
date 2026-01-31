@@ -5,7 +5,6 @@ namespace App\Filament\Resources\LeaseTemplateResource\Pages;
 use App\Filament\Resources\LeaseTemplateResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
-use Filament\Notifications\Notification;
 
 class ViewLeaseTemplate extends ViewRecord
 {

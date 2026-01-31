@@ -56,6 +56,7 @@ class RoleService
     public static function getRoleName(string $role): string
     {
         $roles = self::getRoles();
+
         return $roles[$role]['name'] ?? ucfirst($role);
     }
 
@@ -65,6 +66,7 @@ class RoleService
     public static function getRoleDescription(string $role): string
     {
         $roles = self::getRoles();
+
         return $roles[$role]['description'] ?? '';
     }
 
@@ -74,6 +76,7 @@ class RoleService
     public static function getRoleColor(string $role): string
     {
         $roles = self::getRoles();
+
         return $roles[$role]['color'] ?? 'gray';
     }
 
@@ -83,6 +86,7 @@ class RoleService
     public static function getRolePermissions(string $role): array
     {
         $roles = self::getRoles();
+
         return $roles[$role]['permissions'] ?? [];
     }
 
@@ -123,6 +127,7 @@ class RoleService
     public static function getManagedRoles(string $role): array
     {
         $hierarchy = Config::get('roles.hierarchy', []);
+
         return $hierarchy[$role] ?? [];
     }
 
@@ -132,6 +137,7 @@ class RoleService
     public static function canManageRole(string $managerRole, string $targetRole): bool
     {
         $managedRoles = self::getManagedRoles($managerRole);
+
         return in_array($targetRole, $managedRoles);
     }
 
@@ -140,7 +146,7 @@ class RoleService
      */
     public static function getFilteredRoleOptions(?string $currentUserRole = null): array
     {
-        if (!$currentUserRole) {
+        if (! $currentUserRole) {
             $currentUserRole = auth()->user()?->role ?? 'viewer';
         }
 

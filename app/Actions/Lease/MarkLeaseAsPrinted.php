@@ -14,23 +14,21 @@ use Illuminate\Support\Facades\DB;
 class MarkLeaseAsPrinted
 {
     public function __construct(
-        protected TransitionLeaseState $transitionAction
+        protected TransitionLeaseState $transitionAction,
     ) {}
 
     /**
      * Execute the print action.
      *
-     * @param Lease $lease
      * @param string|null $workstation Optional workstation identifier
      * @param int $copies Number of copies printed
      * @param string|null $reason Reason for printing
-     * @return LeasePrintLog
      */
     public function execute(
         Lease $lease,
         ?string $workstation = null,
         int $copies = 1,
-        ?string $reason = null
+        ?string $reason = null,
     ): LeasePrintLog {
         return DB::transaction(function () use ($lease, $workstation, $copies, $reason) {
             $oldState = $lease->workflow_state;
@@ -45,7 +43,7 @@ class MarkLeaseAsPrinted
                 copies: $copies,
                 workstation: $workstation,
                 ipAddress: request()->ip(),
-                reason: $reason
+                reason: $reason,
             );
 
             // Log to audit trail

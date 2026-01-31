@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use App\Services\SerialNumberService;
 use App\Models\Lease;
+use App\Services\SerialNumberService;
+use Tests\TestCase;
 
 class SerialNumberServiceTest extends TestCase
 {
@@ -23,10 +23,10 @@ class SerialNumberServiceTest extends TestCase
     public function test_generate_increments_sequence(): void
     {
         Lease::query()->delete(); // Clean slate
-        
+
         $serial1 = SerialNumberService::generateUnique();
         $serial2 = SerialNumberService::generateUnique();
-        
+
         $this->assertNotEquals($serial1, $serial2);
         $this->assertTrue(str_ends_with($serial2, '-0002'));
     }
@@ -47,7 +47,7 @@ class SerialNumberServiceTest extends TestCase
     public function test_parse_extracts_components(): void
     {
         $parsed = SerialNumberService::parse('LSE-2026-0042');
-        
+
         $this->assertNotNull($parsed);
         $this->assertEquals('LSE', $parsed['prefix']);
         $this->assertEquals('2026', $parsed['year']);

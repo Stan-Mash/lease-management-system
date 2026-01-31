@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Exception;
 use Illuminate\Support\Facades\DB;
 
 class LeaseReferenceService
@@ -28,14 +29,16 @@ class LeaseReferenceService
      * @param string $leaseType The lease type (commercial, residential_micro, etc.)
      * @param string $zone The zone letter (A-G)
      * @param int|null $year Optional year (defaults to current year)
+     *
+     * @throws Exception If lease type is invalid
+     *
      * @return string The generated reference number
-     * @throws \Exception If lease type is invalid
      */
     public static function generate(string $leaseType, string $zone, ?int $year = null): string
     {
         // Validate lease type
-        if (!isset(self::$typeCodes[$leaseType])) {
-            throw new \Exception("Invalid lease type: {$leaseType}");
+        if (! isset(self::$typeCodes[$leaseType])) {
+            throw new Exception("Invalid lease type: {$leaseType}");
         }
 
         // Default to current year if not specified
@@ -92,9 +95,6 @@ class LeaseReferenceService
      * Get the current sequence number for a zone/year/type combination
      * without incrementing it.
      *
-     * @param string $leaseType
-     * @param string $zone
-     * @param int|null $year
      * @return int Current sequence number (0 if no leases yet)
      */
     public static function getCurrentSequence(string $leaseType, string $zone, ?int $year = null): int
@@ -114,11 +114,6 @@ class LeaseReferenceService
     /**
      * Reset sequence for a zone/year/type combination.
      * USE WITH CAUTION - Only for testing or year-end resets.
-     *
-     * @param string $leaseType
-     * @param string $zone
-     * @param int|null $year
-     * @return bool
      */
     public static function resetSequence(string $leaseType, string $zone, ?int $year = null): bool
     {
@@ -134,9 +129,6 @@ class LeaseReferenceService
 
     /**
      * Get statistics for all zones and types.
-     *
-     * @param int|null $year
-     * @return \Illuminate\Support\Collection
      */
     public static function getStatistics(?int $year = null): \Illuminate\Support\Collection
     {

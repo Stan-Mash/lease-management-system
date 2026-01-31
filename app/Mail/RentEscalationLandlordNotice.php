@@ -11,7 +11,8 @@ use Illuminate\Queue\SerializesModels;
 
 class RentEscalationLandlordNotice extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable;
+    use SerializesModels;
 
     public function __construct(
         public RentEscalation $escalation,

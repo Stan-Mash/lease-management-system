@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\LeaseRenewalService;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -25,6 +26,7 @@ class GenerateRenewalOffersCommand extends Command
 
         if ($eligibleLeases->isEmpty()) {
             $this->line('No eligible leases found for renewal offers.');
+
             return self::SUCCESS;
         }
 
@@ -35,7 +37,7 @@ class GenerateRenewalOffersCommand extends Command
         foreach ($eligibleLeases as $lease) {
             if ($dryRun) {
                 $this->line("  [DRY RUN] Would create renewal offer for {$lease->reference_number}");
-                $this->line("    New rent: KES " . number_format($renewalService->calculateRenewalRent($lease), 2));
+                $this->line('    New rent: Ksh ' . number_format($renewalService->calculateRenewalRent($lease), 2));
                 $created++;
                 continue;
             }
@@ -44,7 +46,7 @@ class GenerateRenewalOffersCommand extends Command
                 $renewalLease = $renewalService->createRenewalOffer($lease);
                 $this->line("  Created renewal offer {$renewalLease->reference_number} for {$lease->reference_number}");
                 $created++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->error("  Failed to create renewal for {$lease->reference_number}: {$e->getMessage()}");
                 Log::error('Renewal offer generation failed', [
                     'lease_id' => $lease->id,

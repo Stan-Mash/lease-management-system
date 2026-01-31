@@ -4,14 +4,13 @@ namespace Tests\Unit;
 
 use App\Enums\LeaseWorkflowState;
 use App\Exceptions\OTPRateLimitException;
-use App\Exceptions\OTPSendingException;
 use App\Models\Lease;
 use App\Models\OTPVerification;
 use App\Models\Tenant;
 use App\Services\OTPService;
-use App\Services\SMSService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
+use ReflectionClass;
 use Tests\TestCase;
 
 class OTPServiceTest extends TestCase
@@ -19,6 +18,7 @@ class OTPServiceTest extends TestCase
     use RefreshDatabase;
 
     protected Lease $lease;
+
     protected Tenant $tenant;
 
     protected function setUp(): void
@@ -35,7 +35,7 @@ class OTPServiceTest extends TestCase
         ]);
 
         // Mock the SMS service
-        $smsServiceMock = \Mockery::mock('overload:App\Services\SMSService');
+        $smsServiceMock = Mockery::mock('overload:App\Services\SMSService');
         $smsServiceMock->shouldReceive('sendOTP')->andReturn(true);
     }
 
@@ -48,7 +48,7 @@ class OTPServiceTest extends TestCase
     public function test_generate_code_is_6_digits(): void
     {
         // Use reflection to test private method
-        $reflection = new \ReflectionClass(OTPService::class);
+        $reflection = new ReflectionClass(OTPService::class);
         $method = $reflection->getMethod('generateCode');
         $method->setAccessible(true);
 
@@ -59,7 +59,7 @@ class OTPServiceTest extends TestCase
 
     public function test_generate_code_is_cryptographically_random(): void
     {
-        $reflection = new \ReflectionClass(OTPService::class);
+        $reflection = new ReflectionClass(OTPService::class);
         $method = $reflection->getMethod('generateCode');
         $method->setAccessible(true);
 

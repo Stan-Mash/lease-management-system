@@ -17,29 +17,27 @@ class TransitionLeaseState
     /**
      * Execute the state transition.
      *
-     * @param Lease $lease
-     * @param string|LeaseWorkflowState $newState
      * @param array|null $additionalData Extra data to log
-     * @return bool
+     *
      * @throws InvalidLeaseTransitionException
      */
     public function execute(
         Lease $lease,
         string|LeaseWorkflowState $newState,
-        ?array $additionalData = null
+        ?array $additionalData = null,
     ): bool {
         $newStateValue = $newState instanceof LeaseWorkflowState ? $newState->value : $newState;
         $newStateEnum = $newState instanceof LeaseWorkflowState
             ? $newState
             : LeaseWorkflowState::tryFrom($newState);
 
-        if (!$newStateEnum) {
+        if (! $newStateEnum) {
             throw new InvalidLeaseTransitionException($lease->workflow_state, $newStateValue);
         }
 
         $currentState = LeaseWorkflowState::from($lease->workflow_state);
 
-        if (!$currentState->canTransitionTo($newStateEnum)) {
+        if (! $currentState->canTransitionTo($newStateEnum)) {
             throw new InvalidLeaseTransitionException($lease->workflow_state, $newStateValue);
         }
 
@@ -56,27 +54,6 @@ class TransitionLeaseState
     }
 
     /**
-     * Log the state transition to audit log.
-     */
-    protected function logTransition(
-        Lease $lease,
-        string $oldState,
-        string $newState,
-        ?array $additionalData = null
-    ): void {
-        $lease->auditLogs()->create([
-            'action' => 'state_transition',
-            'old_state' => $oldState,
-            'new_state' => $newState,
-            'user_id' => Auth::id(),
-            'user_role_at_time' => Auth::user()?->roles?->first()?->name ?? 'system',
-            'ip_address' => request()->ip(),
-            'additional_data' => $additionalData,
-            'description' => "Transitioned from {$oldState} to {$newState}",
-        ]);
-    }
-
-    /**
      * Check if a transition is valid without executing it.
      */
     public function canTransition(Lease $lease, string|LeaseWorkflowState $newState): bool
@@ -85,13 +62,13 @@ class TransitionLeaseState
             ? $newState
             : LeaseWorkflowState::tryFrom($newState);
 
-        if (!$newStateEnum) {
+        if (! $newStateEnum) {
             return false;
         }
 
         $currentState = LeaseWorkflowState::tryFrom($lease->workflow_state);
 
-        if (!$currentState) {
+        if (! $currentState) {
             return false;
         }
 
@@ -107,10 +84,31 @@ class TransitionLeaseState
     {
         $currentState = LeaseWorkflowState::tryFrom($lease->workflow_state);
 
-        if (!$currentState) {
+        if (! $currentState) {
             return [];
         }
 
         return $currentState->validTransitions();
+    }
+
+    /**
+     * Log the state transition to audit log.
+     */
+    protected function logTransition(
+        Lease $lease,
+        string $oldState,
+        string $newState,
+        ?array $additionalData = null,
+    ): void {
+        $lease->auditLogs()->create([
+            'action' => 'state_transition',
+            'old_state' => $oldState,
+            'new_state' => $newState,
+            'user_id' => Auth::id(),
+            'user_role_at_time' => Auth::user()?->roles?->first()?->name ?? 'system',
+            'ip_address' => request()->ip(),
+            'additional_data' => $additionalData,
+            'description' => "Transitioned from {$oldState} to {$newState}",
+        ]);
     }
 }

@@ -22,7 +22,27 @@ class TenantResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'full_name';
+
+    // Enable global search
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['first_name', 'last_name', 'id_number', 'phone', 'email'];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return $record->full_name ?? ($record->first_name . ' ' . $record->last_name);
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'ID' => $record->id_number,
+            'Phone' => $record->phone,
+            'Email' => $record->email,
+        ];
+    }
 
     public static function form(Schema $schema): Schema
     {

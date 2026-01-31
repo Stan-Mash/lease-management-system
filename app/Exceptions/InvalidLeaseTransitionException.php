@@ -10,7 +10,7 @@ class InvalidLeaseTransitionException extends Exception
     public function __construct(string $from, string $to)
     {
         parent::__construct(
-            "Cannot transition lease from '{$from}' to '{$to}'. This transition is not allowed."
+            "Cannot transition lease from '{$from}' to '{$to}'. This transition is not allowed.",
         );
     }
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\SMSProviderInterface;
 use App\Support\PhoneFormatter;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,8 +15,11 @@ use Illuminate\Support\Facades\Log;
 class AfricasTalkingSMSProvider implements SMSProviderInterface
 {
     protected ?string $apiKey;
+
     protected ?string $username;
+
     protected string $shortcode;
+
     protected string $apiUrl = 'https://api.africastalking.com/version1/messaging';
 
     public function __construct()
@@ -31,21 +35,23 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
     public function send(string $phone, string $message, array $context = []): bool
     {
         // Validate phone number
-        if (!PhoneFormatter::isValid($phone)) {
+        if (! PhoneFormatter::isValid($phone)) {
             Log::warning('Invalid phone number for SMS', [
                 'phone_masked' => PhoneFormatter::mask($phone),
                 ...$context,
             ]);
+
             return false;
         }
 
         // If not configured, log and return (development mode)
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             Log::warning('Africa\'s Talking not configured - SMS not sent', [
                 'phone_masked' => PhoneFormatter::mask($phone),
                 'message_length' => strlen($message),
                 ...$context,
             ]);
+
             return false;
         }
 
@@ -73,6 +79,7 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
                         'message_id' => $data['SMSMessageData']['Recipients'][0]['messageId'] ?? null,
                         ...$context,
                     ]);
+
                     return true;
                 }
 
@@ -81,6 +88,7 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
                     'status' => $status,
                     ...$context,
                 ]);
+
                 return false;
             }
 
@@ -89,13 +97,15 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
                 'status_code' => $response->status(),
                 ...$context,
             ]);
+
             return false;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('SMS sending exception', [
                 'phone_masked' => PhoneFormatter::mask($phone),
                 'error' => $e->getMessage(),
                 ...$context,
             ]);
+
             return false;
         }
     }
@@ -105,7 +115,7 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
      */
     public function isConfigured(): bool
     {
-        return !empty($this->apiKey) && !empty($this->username);
+        return ! empty($this->apiKey) && ! empty($this->username);
     }
 
     /**
@@ -114,6 +124,7 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
     public function sendOTP(string $phone, string $code, string $reference, int $expiryMinutes = 10): bool
     {
         $message = "Your Chabrin Lease verification code is: {$code}. Valid for {$expiryMinutes} minutes. Ref: {$reference}";
+
         return $this->send($phone, $message, ['type' => 'otp', 'reference' => $reference]);
     }
 
@@ -124,8 +135,9 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
     {
         $message = "New lease {$reference} awaits your approval. " .
             "Tenant: {$tenantName}. " .
-            "Rent: " . number_format($monthlyRent) . " KES/month. " .
-            "Login to approve or reject.";
+            'Rent: Ksh ' . number_format($monthlyRent) . '/month. ' .
+            'Login to approve or reject.';
+
         return $this->send($phone, $message, ['type' => 'approval_request', 'reference' => $reference]);
     }
 
@@ -135,7 +147,8 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
     public function sendApprovalNotification(string $phone, string $reference): bool
     {
         $message = "Good news! Your lease {$reference} has been APPROVED by the landlord. " .
-            "You will receive the digital signing link shortly.";
+            'You will receive the digital signing link shortly.';
+
         return $this->send($phone, $message, ['type' => 'approval_notification', 'reference' => $reference]);
     }
 
@@ -146,7 +159,8 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
     {
         $message = "Your lease {$reference} needs revision. " .
             "Reason: {$reason}. " .
-            "Contact Chabrin support for details.";
+            'Contact Chabrin support for details.';
+
         return $this->send($phone, $message, ['type' => 'rejection_notification', 'reference' => $reference]);
     }
 
@@ -156,6 +170,7 @@ class AfricasTalkingSMSProvider implements SMSProviderInterface
     public function sendSigningLink(string $phone, string $reference, string $link): bool
     {
         $message = "Please sign your lease ({$reference}). Click: {$link}. Link expires in 72 hours. - Chabrin Agencies";
+
         return $this->send($phone, $message, ['type' => 'signing_link', 'reference' => $reference]);
     }
 }

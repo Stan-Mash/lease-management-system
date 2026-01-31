@@ -26,7 +26,7 @@ class PendingApprovalsOverview extends BaseWidget
                 ->descriptionIcon('heroicon-m-clock')
                 ->color('warning')
                 ->url(route('filament.admin.resources.leases.index', [
-                    'tableFilters' => ['workflow_state' => 'pending_landlord_approval']
+                    'tableFilters' => ['workflow_state' => 'pending_landlord_approval'],
                 ])),
 
             Stat::make('Approved Today', (int) ($stats->approved_today ?? 0))

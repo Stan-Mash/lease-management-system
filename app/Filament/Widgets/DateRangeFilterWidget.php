@@ -10,19 +10,20 @@ use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Widgets\Widget;
-use Livewire\Attributes\On;
 
 class DateRangeFilterWidget extends Widget implements HasSchemas
 {
     use InteractsWithSchemas;
 
+    public ?string $dateFilter = null;
+
+    public ?string $startDate = null;
+
+    public ?string $endDate = null;
+
     protected string $view = 'filament.widgets.date-range-filter-widget';
 
-    protected int | string | array $columnSpan = 'full';
-
-    public ?string $dateFilter = null;
-    public ?string $startDate = null;
-    public ?string $endDate = null;
+    protected int|string|array $columnSpan = 'full';
 
     public function mount(): void
     {

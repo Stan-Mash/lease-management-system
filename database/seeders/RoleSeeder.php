@@ -36,7 +36,7 @@ class RoleSeeder extends Seeder
                     'sort_order' => $order++,
                     'is_system' => in_array($key, ['super_admin', 'admin']), // Mark super_admin and admin as system roles
                     'is_active' => true,
-                ]
+                ],
             );
         }
 

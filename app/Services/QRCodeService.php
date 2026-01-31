@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Lease;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\Storage;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 /**
  * Service for generating and managing QR codes for lease documents
@@ -15,8 +15,8 @@ class QRCodeService
     /**
      * Generate QR code for a lease document
      *
-     * @param Lease $lease
      * @param bool $saveToStorage Save QR code image to storage
+     *
      * @return array{data: string, url: string, svg: string, path: string|null}
      */
     public static function generateForLease(Lease $lease, bool $saveToStorage = true): array
@@ -73,9 +73,6 @@ class QRCodeService
 
     /**
      * Update lease with QR code information
-     *
-     * @param Lease $lease
-     * @return Lease
      */
     public static function attachToLease(Lease $lease): Lease
     {
@@ -93,9 +90,6 @@ class QRCodeService
 
     /**
      * Generate verification hash for security
-     *
-     * @param Lease $lease
-     * @return string
      */
     public static function generateVerificationHash(Lease $lease): string
     {
@@ -111,10 +105,6 @@ class QRCodeService
 
     /**
      * Verify QR code hash
-     *
-     * @param Lease $lease
-     * @param string $hash
-     * @return bool
      */
     public static function verifyHash(Lease $lease, string $hash): bool
     {
@@ -123,9 +113,6 @@ class QRCodeService
 
     /**
      * Get QR code as base64 data URI for embedding in PDFs
-     *
-     * @param Lease $lease
-     * @return string
      */
     public static function getBase64DataUri(Lease $lease): string
     {
@@ -147,9 +134,6 @@ class QRCodeService
 
     /**
      * Regenerate QR code for a lease (useful if verification data changes)
-     *
-     * @param Lease $lease
-     * @return Lease
      */
     public static function regenerate(Lease $lease): Lease
     {

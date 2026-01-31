@@ -13,6 +13,7 @@ class TenantApiController
     public function index(): JsonResponse
     {
         $tenants = Tenant::paginate(15);
+
         return response()->json($tenants);
     }
 
@@ -22,6 +23,7 @@ class TenantApiController
     public function show(Tenant $tenant): JsonResponse
     {
         $tenant->load('leases');
+
         return response()->json($tenant);
     }
 }

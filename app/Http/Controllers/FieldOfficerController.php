@@ -2,37 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Landlord;
 use App\Models\Lease;
 use App\Models\LeaseApproval;
-use App\Models\Landlord;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class FieldOfficerController extends Controller
 {
     /**
-     * Scope lease queries to the authenticated field officer's assignments.
-     */
-    private function scopedLeaseQuery()
-    {
-        $user = auth()->user();
-
-        $query = Lease::query();
-
-        // Field officers only see their own assigned leases
-        if ($user->isFieldOfficer()) {
-            $query->where('assigned_field_officer_id', $user->id);
-        } elseif ($user->hasZoneRestriction()) {
-            $query->where('zone_id', $user->zone_id);
-        }
-
-        return $query;
-    }
-
-    /**
      * API: Get approval overview dashboard data.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function dashboard(Request $request)
@@ -71,7 +52,7 @@ class FieldOfficerController extends Controller
                     'avg_approval_time_hours' => $approvalStats->avg_hours ? round($approvalStats->avg_hours, 1) : null,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch dashboard data.',
@@ -82,7 +63,6 @@ class FieldOfficerController extends Controller
     /**
      * API: Get all pending approvals.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function pendingApprovals(Request $request)
@@ -125,7 +105,7 @@ class FieldOfficerController extends Controller
                 'pending_count' => $pendingLeases->count(),
                 'leases' => $pendingLeases,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch pending approvals.',
@@ -136,7 +116,6 @@ class FieldOfficerController extends Controller
     /**
      * API: Get pending approvals grouped by landlord.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function pendingByLandlord(Request $request)
@@ -150,6 +129,7 @@ class FieldOfficerController extends Controller
                 ->groupBy('landlord_id')
                 ->map(function ($leases) {
                     $landlord = $leases->first()->landlord;
+
                     return [
                         'landlord' => [
                             'id' => $landlord->id,
@@ -181,7 +161,7 @@ class FieldOfficerController extends Controller
                 'landlords_count' => $leasesByLandlord->count(),
                 'data' => $leasesByLandlord,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch data by landlord.',
@@ -192,7 +172,6 @@ class FieldOfficerController extends Controller
     /**
      * API: Get overdue approvals (>24 hours).
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function overdueApprovals(Request $request)
@@ -230,7 +209,7 @@ class FieldOfficerController extends Controller
                 'overdue_count' => $overdueLeases->count(),
                 'leases' => $overdueLeases,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch overdue approvals.',
@@ -241,7 +220,6 @@ class FieldOfficerController extends Controller
     /**
      * API: Get approval history.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function approvalHistory(Request $request)
@@ -253,8 +231,8 @@ class FieldOfficerController extends Controller
             $approvals = LeaseApproval::whereNotNull('decision')
                 ->where('reviewed_at', '>=', now()->subDays($days))
                 ->with(['lease:id,reference_number,monthly_rent,landlord_id,tenant_id',
-                        'lease.landlord:id,name',
-                        'lease.tenant:id,name'])
+                    'lease.landlord:id,name',
+                    'lease.tenant:id,name'])
                 ->orderBy('reviewed_at', 'desc')
                 ->get()
                 ->map(function ($approval) {
@@ -283,7 +261,7 @@ class FieldOfficerController extends Controller
                 'rejected_count' => $rejectedCount,
                 'history' => $approvals,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch approval history.',
@@ -294,8 +272,6 @@ class FieldOfficerController extends Controller
     /**
      * API: Get lease approval status details.
      *
-     * @param Request $request
-     * @param int $leaseId
      * @return \Illuminate\Http\JsonResponse
      */
     public function leaseApprovalStatus(Request $request, int $leaseId)
@@ -303,10 +279,10 @@ class FieldOfficerController extends Controller
         try {
             $lease = $this->scopedLeaseQuery()
                 ->with(['landlord:id,name,phone,email',
-                        'tenant:id,name,phone,email',
-                        'approvals' => function ($query) {
-                            $query->latest();
-                        }])
+                    'tenant:id,name,phone,email',
+                    'approvals' => function ($query) {
+                        $query->latest();
+                    }])
                 ->findOrFail($leaseId);
 
             $latestApproval = $lease->approvals->first();
@@ -343,11 +319,30 @@ class FieldOfficerController extends Controller
                     ] : null,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lease not found.',
             ], 404);
         }
+    }
+
+    /**
+     * Scope lease queries to the authenticated field officer's assignments.
+     */
+    private function scopedLeaseQuery()
+    {
+        $user = auth()->user();
+
+        $query = Lease::query();
+
+        // Field officers only see their own assigned leases
+        if ($user->isFieldOfficer()) {
+            $query->where('assigned_field_officer_id', $user->id);
+        } elseif ($user->hasZoneRestriction()) {
+            $query->where('zone_id', $user->zone_id);
+        }
+
+        return $query;
     }
 }

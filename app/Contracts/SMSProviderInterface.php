@@ -14,6 +14,7 @@ interface SMSProviderInterface
      * @param string $phone The recipient phone number
      * @param string $message The message to send
      * @param array $context Additional context for logging
+     *
      * @return bool True if sent successfully
      */
     public function send(string $phone, string $message, array $context = []): bool;

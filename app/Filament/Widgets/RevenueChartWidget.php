@@ -4,7 +4,6 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
-use App\Models\Lease;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
@@ -14,10 +13,11 @@ class RevenueChartWidget extends ChartWidget
     use HasDateFiltering;
     use HasLeaseQueryFiltering;
 
-    protected static ?int $sort = 5;
-
     public ?string $heading = 'Revenue Trend';
+
     public ?string $maxHeight = '300px';
+
+    protected static ?int $sort = 5;
 
     protected ?string $pollingInterval = null;
 
@@ -47,7 +47,7 @@ class RevenueChartWidget extends ChartWidget
             ->where('workflow_state', 'active')
             ->select(
                 DB::raw($this->getDateSelectExpression($groupBy) . ' as period'),
-                DB::raw('SUM(monthly_rent) as total_revenue')
+                DB::raw('SUM(monthly_rent) as total_revenue'),
             )
             ->groupBy('period')
             ->orderBy('period')
@@ -70,7 +70,7 @@ class RevenueChartWidget extends ChartWidget
         return [
             'datasets' => [
                 [
-                    'label' => 'Revenue (KES)',
+                    'label' => 'Revenue (Ksh)',
                     'data' => $data,
                     'borderColor' => '#10b981',
                     'backgroundColor' => 'rgba(16, 185, 129, 0.1)',
@@ -100,7 +100,7 @@ class RevenueChartWidget extends ChartWidget
                 'y' => [
                     'beginAtZero' => true,
                     'ticks' => [
-                        'callback' => 'function(value) { return "KES " + value.toLocaleString(); }',
+                        'callback' => 'function(value) { return "Ksh " + value.toLocaleString(); }',
                     ],
                 ],
             ],
@@ -132,7 +132,7 @@ class RevenueChartWidget extends ChartWidget
 
     protected function determineCustomGrouping(): string
     {
-        if (!$this->startDate || !$this->endDate) {
+        if (! $this->startDate || ! $this->endDate) {
             return 'month';
         }
 
@@ -155,7 +155,7 @@ class RevenueChartWidget extends ChartWidget
         if ($driver === 'pgsql') {
             return match ($groupBy) {
                 'hour' => "TO_CHAR(created_at, 'YYYY-MM-DD HH24:00:00')",
-                'day' => "DATE(created_at)",
+                'day' => 'DATE(created_at)',
                 'week' => "TO_CHAR(created_at, 'IYYY-IW')",
                 'month' => "TO_CHAR(created_at, 'YYYY-MM')",
                 default => "TO_CHAR(created_at, 'YYYY-MM')",
@@ -165,7 +165,7 @@ class RevenueChartWidget extends ChartWidget
         // MySQL
         return match ($groupBy) {
             'hour' => "DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00')",
-            'day' => "DATE(created_at)",
+            'day' => 'DATE(created_at)',
             'week' => "DATE_FORMAT(created_at, '%Y-%u')",
             'month' => "DATE_FORMAT(created_at, '%Y-%m')",
             default => "DATE_FORMAT(created_at, '%Y-%m')",

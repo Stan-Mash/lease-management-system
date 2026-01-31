@@ -53,7 +53,7 @@ class RentEscalation extends Model
         Lease $lease,
         float $newRent,
         string $effectiveDate,
-        ?string $notes = null
+        ?string $notes = null,
     ): self {
         $previousRent = $lease->monthly_rent;
         $increasePercentage = $previousRent > 0
@@ -127,12 +127,12 @@ class RentEscalation extends Model
 
     public function isDue(): bool
     {
-        return !$this->applied && $this->effective_date->isPast();
+        return ! $this->applied && $this->effective_date->isPast();
     }
 
     public function isDueSoon(int $days = 30): bool
     {
-        return !$this->applied
+        return ! $this->applied
             && $this->effective_date->isFuture()
             && $this->effective_date->diffInDays(now()) <= $days;
     }
@@ -147,6 +147,6 @@ class RentEscalation extends Model
         $amount = number_format($this->increase_amount, 2);
         $percentage = number_format($this->increase_percentage, 1);
 
-        return "KES {$amount} ({$percentage}%)";
+        return "Ksh {$amount} ({$percentage}%)";
     }
 }

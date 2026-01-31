@@ -15,19 +15,17 @@ use Illuminate\Support\Facades\DB;
 class RequestLeaseApproval
 {
     public function __construct(
-        protected TransitionLeaseState $transitionAction
+        protected TransitionLeaseState $transitionAction,
     ) {}
 
     /**
      * Execute the approval request.
      *
-     * @param Lease $lease
-     * @return LeaseApproval
      * @throws LeaseApprovalException
      */
     public function execute(Lease $lease): LeaseApproval
     {
-        if (!$lease->landlord_id) {
+        if (! $lease->landlord_id) {
             throw LeaseApprovalException::noLandlord($lease->reference_number);
         }
 
@@ -35,7 +33,7 @@ class RequestLeaseApproval
             throw new LeaseApprovalException(
                 $lease->reference_number,
                 'already_pending',
-                "Lease {$lease->reference_number} already has a pending approval request."
+                "Lease {$lease->reference_number} already has a pending approval request.",
             );
         }
 
