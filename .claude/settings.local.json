@@ -65,7 +65,9 @@
       "Bash(del check_counts.php)",
       "Bash(composer dump-autoload:*)",
       "Bash(git pull:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
     ]
   }
 }
