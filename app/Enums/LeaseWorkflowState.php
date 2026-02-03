@@ -29,6 +29,7 @@ enum LeaseWorkflowState: string
     case EXPIRED = 'expired';
     case TERMINATED = 'terminated';
     case CANCELLED = 'cancelled';
+    case DISPUTED = 'disputed';
     case ARCHIVED = 'archived';
 
     /**
@@ -45,9 +46,9 @@ enum LeaseWorkflowState: string
             self::APPROVED => [self::PRINTED, self::SENT_DIGITAL, self::CANCELLED],
             self::PRINTED => [self::CHECKED_OUT, self::CANCELLED],
             self::CHECKED_OUT => [self::PENDING_TENANT_SIGNATURE, self::RETURNED_UNSIGNED],
-            self::SENT_DIGITAL => [self::PENDING_OTP, self::CANCELLED],
-            self::PENDING_OTP => [self::TENANT_SIGNED, self::SENT_DIGITAL],
-            self::PENDING_TENANT_SIGNATURE => [self::TENANT_SIGNED, self::RETURNED_UNSIGNED],
+            self::SENT_DIGITAL => [self::PENDING_OTP, self::DISPUTED, self::CANCELLED],
+            self::PENDING_OTP => [self::TENANT_SIGNED, self::DISPUTED, self::SENT_DIGITAL],
+            self::PENDING_TENANT_SIGNATURE => [self::TENANT_SIGNED, self::DISPUTED, self::RETURNED_UNSIGNED],
             self::RETURNED_UNSIGNED => [self::CHECKED_OUT, self::CANCELLED],
             self::TENANT_SIGNED => [self::WITH_LAWYER, self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
             self::WITH_LAWYER => [self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
@@ -60,6 +61,7 @@ enum LeaseWorkflowState: string
             self::EXPIRED => [self::ARCHIVED],
             self::TERMINATED => [self::ARCHIVED],
             self::CANCELLED => [self::ARCHIVED],
+            self::DISPUTED => [self::SENT_DIGITAL, self::CANCELLED],  // Can be re-sent or cancelled
             self::ARCHIVED => [],
         };
     }
@@ -99,6 +101,7 @@ enum LeaseWorkflowState: string
             self::EXPIRED => 'Expired',
             self::TERMINATED => 'Terminated',
             self::CANCELLED => 'Cancelled',
+            self::DISPUTED => 'Disputed',
             self::ARCHIVED => 'Archived',
         };
     }
@@ -120,6 +123,7 @@ enum LeaseWorkflowState: string
             self::RENEWAL_ACCEPTED => 'success',
             self::RENEWAL_DECLINED => 'danger',
             self::RETURNED_UNSIGNED => 'warning',
+            self::DISPUTED => 'danger',
             self::EXPIRED, self::TERMINATED, self::CANCELLED => 'danger',
             self::ARCHIVED => 'gray',
         };
@@ -152,6 +156,7 @@ enum LeaseWorkflowState: string
             self::EXPIRED => 'heroicon-o-calendar-days',
             self::TERMINATED => 'heroicon-o-x-circle',
             self::CANCELLED => 'heroicon-o-trash',
+            self::DISPUTED => 'heroicon-o-exclamation-triangle',
             self::ARCHIVED => 'heroicon-o-archive-box',
         };
     }
@@ -199,6 +204,25 @@ enum LeaseWorkflowState: string
             self::PENDING_TENANT_SIGNATURE,
             self::PENDING_DEPOSIT,
         ], true);
+    }
+
+    /**
+     * Check if this state requires admin/manager action.
+     */
+    public function requiresAdminAction(): bool
+    {
+        return in_array($this, [
+            self::DISPUTED,
+            self::RETURNED_UNSIGNED,
+        ], true);
+    }
+
+    /**
+     * Check if the lease is in dispute.
+     */
+    public function isDisputed(): bool
+    {
+        return $this === self::DISPUTED;
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Leases\Pages;
 
+use App\Filament\Resources\Leases\Actions\CancelDisputedLeaseAction;
+use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
@@ -151,6 +153,12 @@ class ViewLease extends ViewRecord
                             ->send();
                     }
                 }),
+
+            // Resolve Dispute Action (visible only when lease is in DISPUTED state)
+            ResolveDisputeAction::make(),
+
+            // Cancel Disputed Lease Action
+            CancelDisputedLeaseAction::make(),
 
             Action::make('sendDigital')
                 ->label('Send Digital Link')
