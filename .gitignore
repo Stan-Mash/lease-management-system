@@ -83,3 +83,11 @@ read_staff_excel.php
 read_staff.ps1
 analyze_excel.ps1
 export_clean_staff.ps1
+
+# Security: Never commit credential files
+*CREDENTIALS*.txt
+*CREDENTIALS*.md
+*_credentials.txt
+*_credentials.md
+*.secrets
+.secrets/

@@ -11,10 +11,12 @@ Open your `.env` file in the root directory and add the following lines:
 
 ```env
 # Africa's Talking SMS Configuration
-AFRICAS_TALKING_USERNAME=tech@chabrinagencies.co.ke
-AFRICAS_TALKING_API_KEY=c9df9f6abe34247ed49e860fc78554fc70ba08fad07ea38df07aff6a2e486c17
-AFRICAS_TALKING_SHORTCODE=CHABRIN
+AFRICAS_TALKING_USERNAME=your-username-here
+AFRICAS_TALKING_API_KEY=your-api-key-here
+AFRICAS_TALKING_SHORTCODE=your-shortcode-here
 ```
+
+> **SECURITY WARNING**: Never commit real credentials to version control. Always use environment variables.
 
 ### 2. Clear Configuration Cache
 
@@ -85,19 +87,22 @@ For development/testing, if Africa's Talking is not configured, the system will:
 - Continue with the signing flow
 - Look for: `Africa's Talking not configured - OTP would be: XXXX`
 
-## Account Details
+## Getting Your Credentials
 
-- **Username**: tech@chabrinagencies.co.ke
-- **API Key**: `c9df9f6abe34247ed49e860fc78554fc70ba08fad07ea38df07aff6a2e486c17`
-- **Shortcode**: CHABRIN (sender ID shown to recipients)
+1. Sign up at https://account.africastalking.com/
+2. Create an application
+3. Go to Settings → API Key to generate your key
+4. Request a shortcode/sender ID if needed
 
 ## Security Notes
 
-- ✅ OTP codes expire after 10 minutes
-- ✅ Maximum 3 verification attempts per OTP
-- ✅ Rate limiting prevents OTP spam
-- ✅ All OTP activity is logged for audit
-- ✅ Old OTPs (30+ days) are automatically cleaned up
+- Never commit API keys or credentials to Git
+- Use `.env` files for all sensitive configuration
+- OTP codes expire after 10 minutes
+- Maximum 3 verification attempts per OTP
+- Rate limiting prevents OTP spam
+- All OTP activity is logged for audit
+- Old OTPs (30+ days) are automatically cleaned up
 
 ## API Documentation
 
