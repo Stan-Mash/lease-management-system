@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -48,6 +51,64 @@ class OTPVerification extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     * This prevents the code from being exposed in JSON responses.
+     *
+     * @var array<string>
+     */
+    protected $hidden = [
+        'code',
+    ];
+
+    /**
+     * Get the masked version of the OTP code for display.
+     * Only shows first and last digit, e.g., "1****6"
+     */
+    protected function maskedCode(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                $code = $this->attributes['code'] ?? '';
+                if (strlen($code) < 2) {
+                    return str_repeat('*', strlen($code));
+                }
+
+                return $code[0] . str_repeat('*', strlen($code) - 2) . $code[strlen($code) - 1];
+            }
+        );
+    }
+
+    /**
+     * Get the fully masked code (all asterisks).
+     */
+    protected function hiddenCode(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => str_repeat('*', strlen($this->attributes['code'] ?? ''))
+        );
+    }
+
+    /**
+     * Check if the current request/user is the tenant who should receive this OTP.
+     * Used to determine if the code can be displayed.
+     */
+    public function isViewableByCurrentUser(): bool
+    {
+        // Code should never be viewable in admin panel or API responses
+        // It's only sent via SMS directly to the tenant
+        return false;
+    }
+
+    /**
+     * Get display-safe code representation.
+     * Always returns masked version for security.
+     */
+    public function getDisplayCode(): string
+    {
+        return $this->hidden_code;
+    }
 
     /**
      * Get the lease that this OTP belongs to.

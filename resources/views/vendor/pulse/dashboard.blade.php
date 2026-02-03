@@ -1,0 +1,28 @@
+<x-pulse>
+    {{-- System Health Overview --}}
+    @if(PHP_OS_FAMILY !== 'Windows')
+        <livewire:pulse.servers cols="full" />
+    @endif
+
+    {{-- Chabrin Custom Monitoring Cards --}}
+    <livewire:pulse.sms-balance cols="4" rows="2" />
+    <livewire:pulse.chips-database cols="4" rows="2" />
+
+    {{-- Application Metrics --}}
+    <livewire:pulse.usage cols="4" rows="2" />
+
+    <livewire:pulse.queues cols="4" />
+
+    <livewire:pulse.cache cols="4" />
+
+    {{-- Performance Monitoring --}}
+    <livewire:pulse.slow-queries cols="8" />
+
+    <livewire:pulse.exceptions cols="6" />
+
+    <livewire:pulse.slow-requests cols="6" />
+
+    <livewire:pulse.slow-jobs cols="6" />
+
+    <livewire:pulse.slow-outgoing-requests cols="6" />
+</x-pulse>

@@ -127,6 +127,15 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        // Tenant CRM Activity Log
+        'tenant_crm' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tenant-crm.log'),
+            'level' => 'info',
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

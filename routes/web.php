@@ -30,6 +30,8 @@ Route::prefix('tenant')->name('tenant.')->group(function () {
         ->name('submit-signature');
     Route::get('/sign/{lease}/view', [TenantSigningController::class, 'viewLease'])
         ->name('view-lease');
+    Route::post('/sign/{lease}/reject', [TenantSigningController::class, 'rejectLease'])
+        ->name('reject-lease');
 });
 
 // Landlord approval portal routes (for landlord app integration)
