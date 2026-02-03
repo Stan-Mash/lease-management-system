@@ -3,6 +3,7 @@
 use App\Http\Controllers\DownloadLeaseController;
 use App\Http\Controllers\FieldOfficerController;
 use App\Http\Controllers\LandlordApprovalController;
+use App\Http\Controllers\LeaseDocumentController;
 use App\Http\Controllers\LeaseVerificationController;
 use App\Http\Controllers\TemplatePreviewController;
 use App\Http\Controllers\TenantSigningController;
@@ -86,5 +87,15 @@ Route::middleware(['auth'])->group(function () {
             ->name('preview-html');
         Route::get('/preview-direct', [TemplatePreviewController::class, 'previewDirect'])
             ->name('preview-direct');
+    });
+
+    // Lease Document Routes
+    Route::prefix('lease-documents')->name('lease-documents.')->group(function () {
+        Route::get('/{leaseDocument}/download', [LeaseDocumentController::class, 'download'])
+            ->name('download');
+        Route::get('/{leaseDocument}/preview', [LeaseDocumentController::class, 'preview'])
+            ->name('preview');
+        Route::get('/{leaseDocument}/verify', [LeaseDocumentController::class, 'verifyIntegrity'])
+            ->name('verify');
     });
 });
