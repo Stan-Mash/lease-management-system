@@ -8,13 +8,21 @@ use App\Enums\DocumentQuality;
 use App\Enums\DocumentSource;
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\LeaseDocumentResource;
+use App\Models\DocumentAudit;
 use App\Models\LeaseDocument;
 use App\Models\Property;
 use App\Services\DocumentCompressionService;
-use Filament\Forms;
-use Filament\Forms\Form;
+use BackedEnum;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -26,11 +34,14 @@ class BulkUploadDocuments extends Page
 
     protected static string $resource = LeaseDocumentResource::class;
 
-    protected static string $view = 'filament.resources.lease-document-resource.pages.bulk-upload-documents';
+    protected string $view = 'filament.resources.lease-document-resource.pages.bulk-upload-documents';
 
     protected static ?string $title = 'Bulk Document Upload';
 
-    protected static ?string $navigationIcon = 'heroicon-o-cloud-arrow-up';
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-cloud-arrow-up';
+    }
 
     public ?array $data = [];
 
@@ -54,27 +65,27 @@ class BulkUploadDocuments extends Page
         ]);
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Upload Settings')
+                Section::make('Upload Settings')
                     ->description('These settings will apply to all uploaded documents')
                     ->schema([
-                        Forms\Components\Grid::make(3)
+                        Grid::make(3)
                             ->schema([
-                                Forms\Components\Select::make('zone_id')
+                                Select::make('zone_id')
                                     ->label('Zone')
                                     ->relationship('zone', 'name', fn ($query) => $query->orderBy('name'))
                                     ->searchable()
                                     ->preload()
                                     ->required()
                                     ->live()
-                                    ->afterStateUpdated(fn (Forms\Set $set) => $set('property_id', null)),
+                                    ->afterStateUpdated(fn (Set $set) => $set('property_id', null)),
 
-                                Forms\Components\Select::make('property_id')
+                                Select::make('property_id')
                                     ->label('Property')
-                                    ->options(function (Forms\Get $get) {
+                                    ->options(function (Get $get) {
                                         $zoneId = $get('zone_id');
                                         if (!$zoneId) {
                                             return [];
@@ -86,7 +97,7 @@ class BulkUploadDocuments extends Page
                                     ->searchable()
                                     ->required(),
 
-                                Forms\Components\TextInput::make('document_year')
+                                TextInput::make('document_year')
                                     ->label('Document Year')
                                     ->numeric()
                                     ->minValue(1990)
@@ -94,29 +105,29 @@ class BulkUploadDocuments extends Page
                                     ->required(),
                             ]),
 
-                        Forms\Components\Grid::make(3)
+                        Grid::make(3)
                             ->schema([
-                                Forms\Components\Select::make('document_type')
+                                Select::make('document_type')
                                     ->label('Document Type')
                                     ->options(LeaseDocument::getDocumentTypes())
                                     ->required(),
 
-                                Forms\Components\Select::make('quality')
+                                Select::make('quality')
                                     ->label('Default Quality')
                                     ->options(DocumentQuality::class)
                                     ->required(),
 
-                                Forms\Components\Select::make('source')
+                                Select::make('source')
                                     ->label('Source')
                                     ->options(DocumentSource::class)
                                     ->required(),
                             ]),
                     ]),
 
-                Forms\Components\Section::make('Upload Documents')
+                Section::make('Upload Documents')
                     ->description('Drag and drop multiple files or click to browse. Supported: PDF, DOC, DOCX, JPG, PNG, TIFF')
                     ->schema([
-                        Forms\Components\FileUpload::make('files')
+                        FileUpload::make('files')
                             ->label('Select Files')
                             ->multiple()
                             ->acceptedFileTypes([
@@ -216,7 +227,7 @@ class BulkUploadDocuments extends Page
                     }
 
                     // Create document record
-                    LeaseDocument::create([
+                    $document = LeaseDocument::create([
                         'zone_id' => $data['zone_id'],
                         'property_id' => $data['property_id'],
                         'document_type' => $data['document_type'],
@@ -234,7 +245,20 @@ class BulkUploadDocuments extends Page
                         'compression_method' => $compressionMethod,
                         'file_hash' => $fileHash,
                         'uploaded_by' => auth()->id(),
+                        'version' => 1,
                     ]);
+
+                    // Log the upload audit event
+                    $document->logAudit(
+                        DocumentAudit::ACTION_UPLOAD,
+                        'Document uploaded via bulk upload: ' . $originalFilename,
+                        newValues: [
+                            'filename' => $originalFilename,
+                            'file_size' => $fileSize,
+                            'mime_type' => $mimeType,
+                            'file_hash' => $fileHash,
+                        ]
+                    );
 
                     $this->successCount++;
                 } catch (\Exception $e) {

@@ -6,21 +6,221 @@ namespace App\Filament\Resources\LeaseDocumentResource\Pages;
 
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\LeaseDocumentResource;
+use App\Models\DocumentAudit;
 use App\Models\Lease;
 use Filament\Actions;
 use Filament\Forms;
-use Filament\Infolists;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\View;
+use Filament\Schemas\Schema;
 
 class ViewLeaseDocument extends ViewRecord
 {
     protected static string $resource = LeaseDocumentResource::class;
 
+    public function infolist(Schema $schema): Schema
+    {
+        return $schema
+            ->schema([
+                Section::make('Document Information')
+                    ->schema([
+                        Grid::make(3)
+                            ->schema([
+                                Text::make($this->record->title ?? 'Untitled')
+                                    ->weight('bold'),
+                                Text::make(\App\Models\LeaseDocument::getDocumentTypes()[$this->record->document_type] ?? ucfirst($this->record->document_type ?? '')),
+                                Text::make($this->record->status?->getLabel() ?? 'Unknown')
+                                    ->badge()
+                                    ->color($this->record->status?->getColor() ?? 'gray'),
+                            ]),
+                        Grid::make(3)
+                            ->schema([
+                                Text::make('Zone: ' . ($this->record->zone?->name ?? 'N/A')),
+                                Text::make('Property: ' . ($this->record->property?->name ?? 'N/A')),
+                                Text::make('Year: ' . ($this->record->document_year ?? 'N/A')),
+                            ]),
+                        Grid::make(3)
+                            ->schema([
+                                Text::make($this->record->quality?->getLabel() ?? 'Unknown')
+                                    ->badge()
+                                    ->color($this->record->quality?->getColor() ?? 'gray'),
+                                Text::make($this->record->source?->getLabel() ?? 'Unknown')
+                                    ->badge()
+                                    ->color('info'),
+                                Text::make('Uploaded: ' . ($this->record->created_at?->format('M j, Y g:i A') ?? 'Unknown')),
+                            ]),
+                    ]),
+
+                Section::make('Document Integrity & Security')
+                    ->icon('heroicon-o-shield-check')
+                    ->description('Cryptographic hash ensures document authenticity and tamper detection')
+                    ->schema([
+                        Grid::make(2)
+                            ->schema([
+                                Group::make([
+                                    Text::make('SHA-256 Hash')
+                                        ->weight('semibold')
+                                        ->size('sm'),
+                                    Text::make($this->record->file_hash ?? 'No hash generated')
+                                        ->fontFamily('mono')
+                                        ->copyable()
+                                        ->size('sm'),
+                                    Text::make('Short: ' . ($this->record->short_hash ?? 'N/A'))
+                                        ->fontFamily('mono')
+                                        ->size('xs')
+                                        ->color('gray'),
+                                ]),
+                                Group::make([
+                                    Text::make('Integrity Status')
+                                        ->weight('semibold')
+                                        ->size('sm'),
+                                    Text::make($this->getIntegrityStatusLabel())
+                                        ->badge()
+                                        ->color($this->getIntegrityStatusColor()),
+                                    Text::make('Last Verified: ' . ($this->record->last_integrity_check?->format('M j, Y g:i A') ?? 'Never'))
+                                        ->size('xs')
+                                        ->color('gray'),
+                                    Text::make('Version: v' . ($this->record->version ?? 1))
+                                        ->badge()
+                                        ->color('info'),
+                                ]),
+                            ]),
+                    ])
+                    ->collapsible(),
+
+                Section::make('File Details')
+                    ->schema([
+                        Grid::make(4)
+                            ->schema([
+                                Text::make('Filename: ' . ($this->record->original_filename ?? 'Unknown')),
+                                Text::make('Type: ' . ($this->record->mime_type ?? 'Unknown')),
+                                Text::make('Size: ' . ($this->record->file_size_for_humans ?? 'Unknown')),
+                                Text::make($this->record->is_compressed ? 'Compressed' : 'Not Compressed')
+                                    ->badge()
+                                    ->color($this->record->is_compressed ? 'success' : 'gray'),
+                            ]),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+
+                Section::make('Workflow History')
+                    ->schema([
+                        Grid::make(3)
+                            ->schema([
+                                Text::make('Uploaded By: ' . ($this->record->uploader?->name ?? 'Unknown')),
+                                Text::make('Reviewed By: ' . ($this->record->reviewer?->name ?? 'Not reviewed')),
+                                Text::make('Reviewed At: ' . ($this->record->reviewed_at?->format('M j, Y g:i A') ?? 'Not reviewed')),
+                            ]),
+                        ...$this->getWorkflowNotes(),
+                    ])
+                    ->collapsible(),
+
+                Section::make('Audit Trail')
+                    ->icon('heroicon-o-clipboard-document-list')
+                    ->description('Complete history of all actions on this document')
+                    ->schema([
+                        View::make('filament.resources.lease-document-resource.components.audit-trail')
+                            ->viewData([
+                                'audits' => $this->record->auditTrail()->with('user')->limit(20)->get(),
+                            ]),
+                    ])
+                    ->collapsible(),
+
+                ...$this->getVersionHistorySection(),
+            ]);
+    }
+
+    protected function getIntegrityStatusLabel(): string
+    {
+        if ($this->record->integrity_status === null) {
+            return 'Not Verified';
+        }
+        return $this->record->integrity_status ? 'Verified' : 'FAILED';
+    }
+
+    protected function getIntegrityStatusColor(): string
+    {
+        if ($this->record->integrity_status === null) {
+            return 'gray';
+        }
+        return $this->record->integrity_status ? 'success' : 'danger';
+    }
+
+    protected function getWorkflowNotes(): array
+    {
+        $components = [];
+
+        if ($this->record->status === DocumentStatus::REJECTED && $this->record->rejection_reason) {
+            $components[] = Text::make('Rejection Reason: ' . $this->record->rejection_reason)
+                ->color('danger');
+        }
+
+        if ($this->record->notes) {
+            $components[] = Text::make('Notes: ' . $this->record->notes)
+                ->color('gray');
+        }
+
+        return $components;
+    }
+
+    protected function getVersionHistorySection(): array
+    {
+        if ($this->record->version <= 1 && !$this->record->versions()->exists()) {
+            return [];
+        }
+
+        return [
+            Section::make('Version History')
+                ->icon('heroicon-o-document-duplicate')
+                ->description('Track document revisions and replacements')
+                ->schema([
+                    View::make('filament.resources.lease-document-resource.components.version-history')
+                        ->viewData([
+                            'versions' => $this->record->getAllVersions(),
+                            'currentId' => $this->record->id,
+                        ]),
+                ])
+                ->collapsible()
+                ->collapsed(),
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('verifyIntegrity')
+                ->label('Verify Integrity')
+                ->icon('heroicon-o-shield-check')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('Verify Document Integrity')
+                ->modalDescription('This will compare the stored hash with the current file to detect any tampering.')
+                ->action(function (): void {
+                    $isValid = $this->record->verifyIntegrity();
+
+                    if ($isValid) {
+                        Notification::make()
+                            ->title('Integrity Verified')
+                            ->body('Document hash matches. No tampering detected.')
+                            ->success()
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->title('Integrity Check Failed')
+                            ->body('WARNING: Document hash does not match! File may have been modified.')
+                            ->danger()
+                            ->persistent()
+                            ->send();
+                    }
+
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                }),
+
             Actions\EditAction::make()
                 ->visible(fn (): bool => $this->record->can_edit),
 
@@ -29,6 +229,13 @@ class ViewLeaseDocument extends ViewRecord
                 ->icon('heroicon-o-arrow-down-tray')
                 ->url(fn (): ?string => $this->record->getDownloadUrl())
                 ->openUrlInNewTab(),
+
+            Actions\Action::make('preview')
+                ->label('Preview')
+                ->icon('heroicon-o-eye')
+                ->url(fn (): ?string => $this->record->getPreviewUrl())
+                ->openUrlInNewTab()
+                ->visible(fn (): bool => $this->record->getPreviewUrl() !== null),
 
             // Review Actions
             Actions\Action::make('approve')
@@ -49,6 +256,11 @@ class ViewLeaseDocument extends ViewRecord
                 ])
                 ->action(function (array $data): void {
                     $this->record->approve(auth()->user(), $data['notes'] ?? null);
+                    $this->record->logAudit(
+                        DocumentAudit::ACTION_APPROVE,
+                        'Document approved by ' . auth()->user()->name,
+                        newValues: ['notes' => $data['notes'] ?? null]
+                    );
                     Notification::make()
                         ->title('Document approved')
                         ->success()
@@ -85,6 +297,11 @@ class ViewLeaseDocument extends ViewRecord
                 ->action(function (array $data): void {
                     $reason = $data['reason_type'] . ': ' . $data['rejection_reason'];
                     $this->record->reject(auth()->user(), $reason);
+                    $this->record->logAudit(
+                        DocumentAudit::ACTION_REJECT,
+                        'Document rejected by ' . auth()->user()->name,
+                        newValues: ['reason' => $reason]
+                    );
                     Notification::make()
                         ->title('Document rejected')
                         ->body('The uploader will be notified.')
@@ -118,6 +335,11 @@ class ViewLeaseDocument extends ViewRecord
                 ->action(function (array $data): void {
                     $lease = Lease::find($data['lease_id']);
                     if ($lease && $this->record->linkToLease($lease, auth()->user())) {
+                        $this->record->logAudit(
+                            DocumentAudit::ACTION_LINK,
+                            'Document linked to lease ' . $lease->reference_number,
+                            newValues: ['lease_id' => $lease->id, 'reference' => $lease->reference_number]
+                        );
                         Notification::make()
                             ->title('Document linked to lease')
                             ->success()
@@ -135,136 +357,12 @@ class ViewLeaseDocument extends ViewRecord
         ];
     }
 
-    public function infolist(Infolist $infolist): Infolist
+    protected function afterFill(): void
     {
-        return $infolist
-            ->schema([
-                Infolists\Components\Section::make('Document Details')
-                    ->schema([
-                        Infolists\Components\Grid::make(3)
-                            ->schema([
-                                Infolists\Components\TextEntry::make('title')
-                                    ->label('Title'),
-                                Infolists\Components\TextEntry::make('document_type')
-                                    ->label('Type')
-                                    ->formatStateUsing(fn (string $state): string =>
-                                        \App\Models\LeaseDocument::getDocumentTypes()[$state] ?? $state
-                                    ),
-                                Infolists\Components\TextEntry::make('status')
-                                    ->badge(),
-                            ]),
-
-                        Infolists\Components\Grid::make(3)
-                            ->schema([
-                                Infolists\Components\TextEntry::make('zone.name')
-                                    ->label('Zone'),
-                                Infolists\Components\TextEntry::make('property.name')
-                                    ->label('Property'),
-                                Infolists\Components\TextEntry::make('document_year')
-                                    ->label('Year'),
-                            ]),
-
-                        Infolists\Components\TextEntry::make('description')
-                            ->label('Description')
-                            ->columnSpanFull()
-                            ->placeholder('No description'),
-                    ]),
-
-                Infolists\Components\Section::make('File Information')
-                    ->schema([
-                        Infolists\Components\Grid::make(4)
-                            ->schema([
-                                Infolists\Components\TextEntry::make('original_filename')
-                                    ->label('Original Filename'),
-                                Infolists\Components\TextEntry::make('mime_type')
-                                    ->label('File Type'),
-                                Infolists\Components\TextEntry::make('file_size_for_humans')
-                                    ->label('Original Size'),
-                                Infolists\Components\TextEntry::make('quality')
-                                    ->badge(),
-                            ]),
-
-                        Infolists\Components\Grid::make(4)
-                            ->schema([
-                                Infolists\Components\IconEntry::make('is_compressed')
-                                    ->label('Compressed')
-                                    ->boolean(),
-                                Infolists\Components\TextEntry::make('compressed_size_for_humans')
-                                    ->label('Compressed Size')
-                                    ->placeholder('N/A'),
-                                Infolists\Components\TextEntry::make('compression_ratio')
-                                    ->label('Compression Ratio')
-                                    ->suffix('%')
-                                    ->placeholder('N/A'),
-                                Infolists\Components\TextEntry::make('compression_savings')
-                                    ->label('Space Saved')
-                                    ->placeholder('N/A'),
-                            ]),
-
-                        Infolists\Components\TextEntry::make('file_hash')
-                            ->label('File Hash (SHA-256)')
-                            ->fontFamily('mono')
-                            ->size('sm')
-                            ->copyable()
-                            ->columnSpanFull(),
-                    ]),
-
-                Infolists\Components\Section::make('Workflow History')
-                    ->schema([
-                        Infolists\Components\Grid::make(2)
-                            ->schema([
-                                Infolists\Components\TextEntry::make('uploader.name')
-                                    ->label('Uploaded By'),
-                                Infolists\Components\TextEntry::make('created_at')
-                                    ->label('Uploaded At')
-                                    ->dateTime(),
-                            ]),
-
-                        Infolists\Components\Grid::make(2)
-                            ->schema([
-                                Infolists\Components\TextEntry::make('reviewer.name')
-                                    ->label('Reviewed By')
-                                    ->placeholder('Not reviewed'),
-                                Infolists\Components\TextEntry::make('reviewed_at')
-                                    ->label('Reviewed At')
-                                    ->dateTime()
-                                    ->placeholder('Not reviewed'),
-                            ]),
-
-                        Infolists\Components\TextEntry::make('rejection_reason')
-                            ->label('Rejection Reason')
-                            ->visible(fn ($record) => $record->status === DocumentStatus::REJECTED)
-                            ->columnSpanFull()
-                            ->color('danger'),
-
-                        Infolists\Components\Grid::make(2)
-                            ->schema([
-                                Infolists\Components\TextEntry::make('linker.name')
-                                    ->label('Linked By')
-                                    ->placeholder('Not linked'),
-                                Infolists\Components\TextEntry::make('linked_at')
-                                    ->label('Linked At')
-                                    ->dateTime()
-                                    ->placeholder('Not linked'),
-                            ]),
-
-                        Infolists\Components\TextEntry::make('lease.reference_number')
-                            ->label('Linked Lease')
-                            ->placeholder('Not linked')
-                            ->url(fn ($record) => $record->lease_id
-                                ? route('filament.admin.resources.leases.view', $record->lease_id)
-                                : null
-                            ),
-                    ]),
-
-                Infolists\Components\Section::make('Notes')
-                    ->schema([
-                        Infolists\Components\TextEntry::make('notes')
-                            ->label('')
-                            ->placeholder('No notes')
-                            ->columnSpanFull(),
-                    ])
-                    ->collapsed(),
-            ]);
+        // Log view action
+        $this->record->logAudit(
+            DocumentAudit::ACTION_VIEW,
+            'Document viewed by ' . auth()->user()->name
+        );
     }
 }
