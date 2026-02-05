@@ -18,6 +18,7 @@ class OTPService
      * @param Lease $lease The lease requiring signature
      * @param string $phone Phone number to send OTP to
      * @param string $purpose Purpose of OTP (default: digital_signing)
+     * @param bool $checkFingerprint Whether to check device fingerprint for suspicious activity
      *
      * @throws OTPRateLimitException If too many OTP requests
      * @throws OTPSendingException If OTP sending fails
@@ -26,6 +27,7 @@ class OTPService
         Lease $lease,
         string $phone,
         string $purpose = 'digital_signing',
+        bool $checkFingerprint = true,
     ): OTPVerification {
         // Check rate limiting (max attempts per hour per lease)
         $maxAttempts = config('lease.otp.max_attempts_per_hour', 3);
@@ -37,6 +39,26 @@ class OTPService
             throw new OTPRateLimitException($maxAttempts);
         }
 
+        // Collect device fingerprint for security analysis
+        $fingerprint = null;
+        $suspiciousActivity = null;
+
+        if ($checkFingerprint) {
+            $fingerprint = DeviceFingerprintService::generate();
+            $suspiciousActivity = DeviceFingerprintService::isSuspicious($fingerprint, 'otp');
+
+            // Log suspicious activity but don't block (for monitoring)
+            if ($suspiciousActivity['is_suspicious']) {
+                Log::warning('Suspicious OTP request detected', [
+                    'lease_id' => $lease->id,
+                    'phone_masked' => PhoneFormatter::mask($phone),
+                    'risk_score' => $suspiciousActivity['risk_score'],
+                    'reasons' => $suspiciousActivity['reasons'],
+                    'ip' => $fingerprint['ip_address'] ?? 'unknown',
+                ]);
+            }
+        }
+
         // Generate cryptographically secure OTP code
         $code = self::generateCode();
 
@@ -44,7 +66,7 @@ class OTPService
         $expiryMinutes = config('lease.otp.expiry_minutes', 10);
         $expiresAt = now()->addMinutes($expiryMinutes);
 
-        // Create OTP record
+        // Create OTP record with fingerprint data
         $otp = OTPVerification::create([
             'lease_id' => $lease->id,
             'phone' => $phone,
@@ -52,7 +74,19 @@ class OTPService
             'purpose' => $purpose,
             'sent_at' => now(),
             'expires_at' => $expiresAt,
+            'device_fingerprint' => $fingerprint ? json_encode([
+                'hash' => $fingerprint['hash'] ?? null,
+                'device_info' => $fingerprint['device_info'] ?? null,
+                'ip_address' => $fingerprint['ip_address'] ?? null,
+                'user_agent' => $fingerprint['user_agent'] ?? null,
+            ]) : null,
+            'risk_score' => $suspiciousActivity['risk_score'] ?? null,
         ]);
+
+        // Store fingerprint for later comparison during verification
+        if ($fingerprint) {
+            DeviceFingerprintService::store('otp', $otp->id, $fingerprint);
+        }
 
         // Send OTP via SMS
         try {
@@ -71,6 +105,7 @@ class OTPService
                 'lease_id' => $lease->id,
                 'phone_masked' => PhoneFormatter::mask($phone),
                 'otp_id' => $otp->id,
+                'risk_score' => $suspiciousActivity['risk_score'] ?? 0,
             ]);
         } catch (Exception $e) {
             // Mark OTP as expired if sending failed
@@ -90,9 +125,18 @@ class OTPService
 
     /**
      * Verify OTP code for a lease.
+     *
+     * @param Lease $lease The lease to verify
+     * @param string $code The OTP code to verify
+     * @param string|null $ipAddress IP address of the verifier
+     * @param bool $checkFingerprint Whether to compare device fingerprints
      */
-    public static function verify(Lease $lease, string $code, ?string $ipAddress = null): bool
-    {
+    public static function verify(
+        Lease $lease,
+        string $code,
+        ?string $ipAddress = null,
+        bool $checkFingerprint = true,
+    ): bool {
         // Find the most recent valid OTP for this lease
         $otp = OTPVerification::forLease($lease->id)
             ->valid()
@@ -107,6 +151,30 @@ class OTPService
             return false;
         }
 
+        // Check device fingerprint similarity
+        $fingerprintMatch = true;
+        $similarityScore = 100;
+
+        if ($checkFingerprint) {
+            $currentFingerprint = DeviceFingerprintService::generate();
+            $originalFingerprint = DeviceFingerprintService::retrieve('otp', $otp->id);
+
+            if ($originalFingerprint) {
+                $similarityScore = DeviceFingerprintService::compare($originalFingerprint, $currentFingerprint);
+                $fingerprintMatch = $similarityScore >= 50; // At least 50% similarity required
+
+                if (!$fingerprintMatch) {
+                    Log::warning('OTP verification from different device', [
+                        'lease_id' => $lease->id,
+                        'otp_id' => $otp->id,
+                        'similarity_score' => $similarityScore,
+                        'original_ip' => $originalFingerprint['ip_address'] ?? 'unknown',
+                        'current_ip' => $currentFingerprint['ip_address'] ?? 'unknown',
+                    ]);
+                }
+            }
+        }
+
         // Verify the code
         $verified = $otp->verify($code, $ipAddress);
 
@@ -114,6 +182,8 @@ class OTPService
             Log::info('OTP verified successfully', [
                 'lease_id' => $lease->id,
                 'otp_id' => $otp->id,
+                'fingerprint_match' => $fingerprintMatch,
+                'similarity_score' => $similarityScore,
             ]);
         } else {
             Log::warning('OTP verification failed', [
