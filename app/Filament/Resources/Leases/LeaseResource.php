@@ -9,6 +9,7 @@ use App\Filament\Resources\Leases\Pages\ViewLease;
 use App\Filament\Resources\Leases\Schemas\LeaseForm;
 use App\Filament\Resources\Leases\Schemas\LeaseInfolist;
 use App\Models\Lease;
+use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -16,6 +17,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class LeaseResource extends Resource
 {
@@ -23,9 +25,28 @@ class LeaseResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'reference_number';
 
-    public static function getNavigationIcon(): ?string
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
+
+    protected static ?string $navigationLabel = 'Lease Agreements';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Lease Portfolio';
+
+    protected static ?int $navigationSort = 1;
+
+    public static function getNavigationBadge(): ?string
     {
-        return 'heroicon-o-document-text';
+        $activeCount = static::getModel()::where('workflow_state', 'active')->count();
+        return $activeCount > 0 ? (string) $activeCount : null;
+    }
+
+    public static function getNavigationBadgeColor(): string|array|null
+    {
+        return 'success';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Active leases';
     }
 
     // Enable global search

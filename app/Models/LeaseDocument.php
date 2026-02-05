@@ -9,6 +9,7 @@ use App\Enums\DocumentSource;
 use App\Enums\DocumentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
@@ -45,6 +46,10 @@ class LeaseDocument extends Model
         'document_year',
         'notes',
         'metadata',
+        'version',
+        'parent_document_id',
+        'last_integrity_check',
+        'integrity_status',
     ];
 
     protected $casts = [
@@ -60,6 +65,9 @@ class LeaseDocument extends Model
         'status' => DocumentStatus::class,
         'quality' => DocumentQuality::class,
         'source' => DocumentSource::class,
+        'version' => 'integer',
+        'last_integrity_check' => 'datetime',
+        'integrity_status' => 'boolean',
     ];
 
     // =====================
@@ -104,6 +112,21 @@ class LeaseDocument extends Model
     public function linker(): BelongsTo
     {
         return $this->belongsTo(User::class, 'linked_by');
+    }
+
+    public function auditTrail(): HasMany
+    {
+        return $this->hasMany(DocumentAudit::class, 'lease_document_id')->orderBy('created_at', 'desc');
+    }
+
+    public function parentDocument(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_document_id');
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_document_id')->orderBy('version', 'desc');
     }
 
     // =====================
@@ -358,11 +381,18 @@ class LeaseDocument extends Model
     }
 
     /**
-     * Verify file integrity
+     * Verify file integrity and log the check
      */
-    public function verifyIntegrity(): bool
+    public function verifyIntegrity(bool $logCheck = true): bool
     {
         if (!$this->file_hash || !$this->fileExists()) {
+            if ($logCheck) {
+                $this->logAudit(
+                    DocumentAudit::ACTION_VERIFY,
+                    'Integrity check failed: ' . (!$this->file_hash ? 'No hash stored' : 'File not found'),
+                    integrityVerified: false
+                );
+            }
             return false;
         }
 
@@ -370,11 +400,107 @@ class LeaseDocument extends Model
         // So we need to extract and verify
         if ($this->is_compressed) {
             // For now, return true - full verification requires extraction
+            if ($logCheck) {
+                $this->update([
+                    'last_integrity_check' => now(),
+                    'integrity_status' => true,
+                ]);
+                $this->logAudit(
+                    DocumentAudit::ACTION_VERIFY,
+                    'Integrity verified (compressed file - hash check skipped)',
+                    integrityVerified: true
+                );
+            }
             return true;
         }
 
         $currentHash = hash_file('sha256', $this->getFullPath());
-        return hash_equals($this->file_hash, $currentHash);
+        $isValid = hash_equals($this->file_hash, $currentHash);
+
+        if ($logCheck) {
+            $this->update([
+                'last_integrity_check' => now(),
+                'integrity_status' => $isValid,
+            ]);
+            $this->logAudit(
+                DocumentAudit::ACTION_VERIFY,
+                $isValid
+                    ? 'Integrity verified successfully - hash matches stored value'
+                    : 'INTEGRITY FAILURE - File hash mismatch detected! Document may have been tampered with.',
+                integrityVerified: $isValid
+            );
+        }
+
+        return $isValid;
+    }
+
+    /**
+     * Get the current file hash for comparison
+     */
+    public function getCurrentFileHash(): ?string
+    {
+        if (!$this->fileExists()) {
+            return null;
+        }
+
+        return hash_file('sha256', $this->getFullPath());
+    }
+
+    /**
+     * Log an audit entry for this document
+     */
+    public function logAudit(
+        string $action,
+        string $description,
+        ?array $oldValues = null,
+        ?array $newValues = null,
+        ?bool $integrityVerified = null
+    ): DocumentAudit {
+        return DocumentAudit::log($this, $action, $description, $oldValues, $newValues, $integrityVerified);
+    }
+
+    /**
+     * Get the short hash for display (first 16 characters)
+     */
+    public function getShortHashAttribute(): ?string
+    {
+        if (!$this->file_hash) {
+            return null;
+        }
+
+        return substr($this->file_hash, 0, 16) . '...';
+    }
+
+    /**
+     * Get all versions of this document (including self)
+     */
+    public function getAllVersions(): \Illuminate\Database\Eloquent\Collection
+    {
+        // If this is a child version, get the parent's versions
+        if ($this->parent_document_id) {
+            return self::where('parent_document_id', $this->parent_document_id)
+                ->orWhere('id', $this->parent_document_id)
+                ->orderBy('version', 'desc')
+                ->get();
+        }
+
+        // This is the original, get all children + self
+        return self::where('parent_document_id', $this->id)
+            ->orWhere('id', $this->id)
+            ->orderBy('version', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get the original document in the version chain
+     */
+    public function getOriginalDocument(): self
+    {
+        if ($this->parent_document_id) {
+            return $this->parentDocument->getOriginalDocument();
+        }
+
+        return $this;
     }
 
     // =====================

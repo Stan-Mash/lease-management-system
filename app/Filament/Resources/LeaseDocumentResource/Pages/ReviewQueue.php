@@ -7,6 +7,7 @@ namespace App\Filament\Resources\LeaseDocumentResource\Pages;
 use App\Enums\DocumentQuality;
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\LeaseDocumentResource;
+use App\Filament\Resources\LeaseDocumentResource\Widgets\ReviewQueueStats;
 use App\Models\Lease;
 use App\Models\LeaseDocument;
 use Filament\Actions;
@@ -25,11 +26,14 @@ class ReviewQueue extends Page implements HasTable
 
     protected static string $resource = LeaseDocumentResource::class;
 
-    protected static string $view = 'filament.resources.lease-document-resource.pages.review-queue';
+    protected string $view = 'filament.resources.lease-document-resource.pages.review-queue';
 
     protected static ?string $title = 'Document Review Queue';
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-clipboard-document-check';
+    }
 
     public function table(Table $table): Table
     {
@@ -100,20 +104,20 @@ class ReviewQueue extends Page implements HasTable
                     ->toggle(),
             ])
             ->actions([
-                Tables\Actions\Action::make('preview')
+                Actions\Action::make('preview')
                     ->label('Preview')
                     ->icon('heroicon-o-eye')
                     ->url(fn (LeaseDocument $record): ?string => $record->getPreviewUrl())
                     ->openUrlInNewTab()
                     ->visible(fn (LeaseDocument $record): bool => $record->getPreviewUrl() !== null),
 
-                Tables\Actions\Action::make('download')
+                Actions\Action::make('download')
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->url(fn (LeaseDocument $record): ?string => $record->getDownloadUrl())
                     ->openUrlInNewTab(),
 
-                Tables\Actions\Action::make('approve')
+                Actions\Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -136,7 +140,7 @@ class ReviewQueue extends Page implements HasTable
                         }
                     }),
 
-                Tables\Actions\Action::make('reject')
+                Actions\Action::make('reject')
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
@@ -171,7 +175,7 @@ class ReviewQueue extends Page implements HasTable
                         }
                     }),
 
-                Tables\Actions\Action::make('quickLink')
+                Actions\Action::make('quickLink')
                     ->label('Approve & Link')
                     ->icon('heroicon-o-link')
                     ->color('primary')
@@ -226,7 +230,7 @@ class ReviewQueue extends Page implements HasTable
                     }),
             ])
             ->bulkActions([
-                Tables\Actions\BulkAction::make('bulkApprove')
+                Actions\BulkAction::make('bulkApprove')
                     ->label('Approve Selected')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -247,7 +251,7 @@ class ReviewQueue extends Page implements HasTable
                     })
                     ->deselectRecordsAfterCompletion(),
 
-                Tables\Actions\BulkAction::make('bulkReject')
+                Actions\BulkAction::make('bulkReject')
                     ->label('Reject Selected')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
@@ -308,7 +312,7 @@ class ReviewQueue extends Page implements HasTable
     protected function getHeaderWidgets(): array
     {
         return [
-            LeaseDocumentResource\Widgets\ReviewQueueStats::class,
+            ReviewQueueStats::class,
         ];
     }
 }

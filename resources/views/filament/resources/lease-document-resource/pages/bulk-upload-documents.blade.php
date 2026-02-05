@@ -1,8 +1,106 @@
 <x-filament-panels::page>
-    <x-filament-panels::form wire:submit="upload">
+    {{-- Upload Requirements Banner --}}
+    <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+        <div class="bg-primary-50 dark:bg-primary-900/20 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+                <x-heroicon-o-information-circle class="w-5 h-5" />
+                Upload Requirements & Limits
+            </h3>
+        </div>
+
+        <div class="p-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {{-- Accepted File Types --}}
+                <div class="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <x-heroicon-o-document-check class="w-5 h-5 text-success-500" />
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">Accepted File Types</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400">
+                            <x-heroicon-o-document class="w-3 h-3 mr-1" />
+                            PDF
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-info-100 text-info-700 dark:bg-info-900/30 dark:text-info-400">
+                            <x-heroicon-o-document-text class="w-3 h-3 mr-1" />
+                            DOC
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-info-100 text-info-700 dark:bg-info-900/30 dark:text-info-400">
+                            <x-heroicon-o-document-text class="w-3 h-3 mr-1" />
+                            DOCX
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400">
+                            <x-heroicon-o-photo class="w-3 h-3 mr-1" />
+                            JPG
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400">
+                            <x-heroicon-o-photo class="w-3 h-3 mr-1" />
+                            PNG
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+                            <x-heroicon-o-photo class="w-3 h-3 mr-1" />
+                            TIFF
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Size Limits --}}
+                <div class="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <x-heroicon-o-scale class="w-5 h-5 text-warning-500" />
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">Size Limits</span>
+                    </div>
+                    <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div class="flex items-center justify-between">
+                            <span>Per file:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">25 MB max</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Files per batch:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">50 files max</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
+                            <span>Auto-compress:</span>
+                            <span>Files > 5MB</span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Quick Stats --}}
+                <div class="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <x-heroicon-o-chart-bar class="w-5 h-5 text-info-500" />
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">Your Upload Stats</span>
+                    </div>
+                    @php
+                        $userId = auth()->id();
+                        $todayCount = \App\Models\LeaseDocument::where('uploaded_by', $userId)->whereDate('created_at', today())->count();
+                        $pendingCount = \App\Models\LeaseDocument::where('uploaded_by', $userId)->pendingReview()->count();
+                        $totalCount = \App\Models\LeaseDocument::where('uploaded_by', $userId)->count();
+                    @endphp
+                    <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div class="flex items-center justify-between">
+                            <span>Uploaded today:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">{{ $todayCount }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Pending review:</span>
+                            <span class="font-semibold {{ $pendingCount > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-gray-900 dark:text-white' }}">{{ $pendingCount }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Total uploads:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">{{ $totalCount }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form wire:submit="upload">
         {{ $this->form }}
 
-        <div class="mt-6">
+        <div class="mt-6 flex items-center gap-4">
             <x-filament::button
                 type="submit"
                 size="lg"
@@ -18,8 +116,14 @@
                     Processing...
                 </span>
             </x-filament::button>
+
+            <a href="{{ \App\Filament\Resources\LeaseDocumentResource::getUrl('my-uploads') }}"
+               class="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
+                <x-heroicon-o-folder-open class="w-4 h-4" />
+                View My Uploads
+            </a>
         </div>
-    </x-filament-panels::form>
+    </form>
 
     @if($successCount > 0 || $failedCount > 0)
         <div class="mt-6">
@@ -62,13 +166,23 @@
                 @endif
 
                 @if($successCount > 0)
-                    <div class="mt-4 flex justify-end">
+                    <div class="mt-4 flex gap-3 justify-end">
+                        <x-filament::button
+                            tag="a"
+                            href="{{ \App\Filament\Resources\LeaseDocumentResource::getUrl('my-uploads') }}"
+                            color="gray"
+                            outlined
+                        >
+                            <x-heroicon-o-folder-open class="w-4 h-4 mr-1" />
+                            View My Uploads
+                        </x-filament::button>
                         <x-filament::button
                             tag="a"
                             href="{{ \App\Filament\Resources\LeaseDocumentResource::getUrl('index', ['activeTab' => 'pending']) }}"
                             color="primary"
                             outlined
                         >
+                            <x-heroicon-o-clock class="w-4 h-4 mr-1" />
                             View Pending Documents
                         </x-filament::button>
                     </div>

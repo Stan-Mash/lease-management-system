@@ -8,6 +8,7 @@ use App\Filament\Widgets\LeaseStatsWidget;
 use App\Filament\Widgets\LeaseStatusChartWidget;
 use App\Filament\Widgets\RevenueChartWidget;
 use App\Filament\Widgets\SmsBalanceWidget;
+use App\Filament\Widgets\SystemPulseWidget;
 use App\Filament\Widgets\ZonePerformanceWidget;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -35,6 +36,7 @@ class CompanyDashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            SystemPulseWidget::class,
             DateRangeFilterWidget::class,
             LeaseStatsWidget::class,
             SmsBalanceWidget::class,

@@ -10,31 +10,44 @@ use App\Enums\DocumentStatus;
 use App\Filament\Resources\LeaseDocumentResource\Pages;
 use App\Models\LeaseDocument;
 use App\Models\Property;
-use App\Models\Zone;
-use Filament\Forms;
-use Filament\Forms\Form;
+use BackedEnum;
+use Filament\Actions;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class LeaseDocumentResource extends Resource
 {
     protected static ?string $model = LeaseDocument::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-arrow-up';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
 
-    protected static ?string $navigationLabel = 'Document Upload';
+    protected static ?string $navigationLabel = 'Document Vault';
 
-    protected static ?string $navigationGroup = 'Document Management';
+    protected static string|UnitEnum|null $navigationGroup = 'Lease Portfolio';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'title';
 
+    protected static ?string $slug = 'documents';
+
     public static function getNavigationBadge(): ?string
     {
-        return (string) static::getModel()::pendingReview()->count();
+        $pendingCount = static::getModel()::pendingReview()->count();
+        return $pendingCount > 0 ? (string) $pendingCount : null;
     }
 
     public static function getNavigationBadgeColor(): string|array|null
@@ -43,26 +56,31 @@ class LeaseDocumentResource extends Resource
         return $count > 10 ? 'danger' : ($count > 0 ? 'warning' : 'success');
     }
 
-    public static function form(Form $form): Form
+    public static function getNavigationBadgeTooltip(): ?string
     {
-        return $form
+        return 'Pending review';
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Document Information')
+                Section::make('Document Information')
                     ->schema([
-                        Forms\Components\Grid::make(2)
+                        Grid::make(2)
                             ->schema([
-                                Forms\Components\Select::make('zone_id')
+                                Select::make('zone_id')
                                     ->label('Zone')
                                     ->relationship('zone', 'name')
                                     ->searchable()
                                     ->preload()
                                     ->required()
                                     ->live()
-                                    ->afterStateUpdated(fn (Forms\Set $set) => $set('property_id', null)),
+                                    ->afterStateUpdated(fn (Set $set) => $set('property_id', null)),
 
-                                Forms\Components\Select::make('property_id')
+                                Select::make('property_id')
                                     ->label('Property')
-                                    ->options(function (Forms\Get $get) {
+                                    ->options(function (Get $get) {
                                         $zoneId = $get('zone_id');
                                         if (!$zoneId) {
                                             return [];
@@ -74,14 +92,14 @@ class LeaseDocumentResource extends Resource
                                     ->required(),
                             ]),
 
-                        Forms\Components\Grid::make(2)
+                        Grid::make(2)
                             ->schema([
-                                Forms\Components\Select::make('document_type')
+                                Select::make('document_type')
                                     ->label('Document Type')
                                     ->options(LeaseDocument::getDocumentTypes())
                                     ->required(),
 
-                                Forms\Components\TextInput::make('document_year')
+                                TextInput::make('document_year')
                                     ->label('Document Year')
                                     ->numeric()
                                     ->minValue(1990)
@@ -89,21 +107,21 @@ class LeaseDocumentResource extends Resource
                                     ->default(date('Y')),
                             ]),
 
-                        Forms\Components\TextInput::make('title')
+                        TextInput::make('title')
                             ->label('Document Title')
                             ->required()
                             ->maxLength(255)
                             ->placeholder('e.g., Lease Agreement - John Doe - Unit 5A'),
 
-                        Forms\Components\Textarea::make('description')
+                        Textarea::make('description')
                             ->label('Description')
                             ->rows(2)
                             ->placeholder('Optional notes about this document'),
                     ]),
 
-                Forms\Components\Section::make('Upload')
+                Section::make('Upload')
                     ->schema([
-                        Forms\Components\FileUpload::make('file_path')
+                        FileUpload::make('file_path')
                             ->label('Document File')
                             ->required()
                             ->acceptedFileTypes([
@@ -121,29 +139,29 @@ class LeaseDocumentResource extends Resource
                             ->openable()
                             ->helperText('Accepted: PDF, DOC, DOCX, JPG, PNG, TIFF. Max size: 25MB'),
 
-                        Forms\Components\Grid::make(2)
+                        Grid::make(2)
                             ->schema([
-                                Forms\Components\Select::make('quality')
+                                Select::make('quality')
                                     ->label('Document Quality')
                                     ->options(DocumentQuality::class)
                                     ->required()
                                     ->helperText('Rate the scan quality'),
 
-                                Forms\Components\Select::make('source')
+                                Select::make('source')
                                     ->label('Source')
                                     ->options(DocumentSource::class)
                                     ->default(DocumentSource::SCANNED)
                                     ->required(),
                             ]),
 
-                        Forms\Components\DatePicker::make('document_date')
+                        DatePicker::make('document_date')
                             ->label('Date on Document')
                             ->helperText('The date shown on the physical document'),
                     ]),
 
-                Forms\Components\Section::make('Additional Notes')
+                Section::make('Additional Notes')
                     ->schema([
-                        Forms\Components\Textarea::make('notes')
+                        Textarea::make('notes')
                             ->label('Notes')
                             ->rows(3)
                             ->placeholder('Any additional notes for the reviewer'),
@@ -207,7 +225,20 @@ class LeaseDocumentResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Uploaded')
                     ->dateTime('M j, Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (LeaseDocument $record): string => $record->created_at->diffForHumans()),
+
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->label('Last Updated')
+                    ->since()
+                    ->sortable()
+                    ->badge()
+                    ->color(fn (LeaseDocument $record): string =>
+                        $record->updated_at->isToday() ? 'success' :
+                        ($record->updated_at->isCurrentWeek() ? 'info' : 'gray')
+                    )
+                    ->tooltip(fn (LeaseDocument $record): string => $record->updated_at->format('M j, Y H:i:s'))
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('lease.reference_number')
                     ->label('Linked Lease')
@@ -255,31 +286,29 @@ class LeaseDocumentResource extends Resource
                     ->toggle(),
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
-                    Tables\Actions\EditAction::make()
-                        ->visible(fn (LeaseDocument $record): bool => $record->can_edit),
+                Actions\ViewAction::make(),
+                Actions\EditAction::make()
+                    ->visible(fn (LeaseDocument $record): bool => $record->can_edit),
 
-                    Tables\Actions\Action::make('download')
-                        ->label('Download')
-                        ->icon('heroicon-o-arrow-down-tray')
-                        ->url(fn (LeaseDocument $record): ?string => $record->getDownloadUrl())
-                        ->openUrlInNewTab(),
+                Actions\Action::make('download')
+                    ->label('Download')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->url(fn (LeaseDocument $record): ?string => $record->getDownloadUrl())
+                    ->openUrlInNewTab(),
 
-                    Tables\Actions\Action::make('preview')
-                        ->label('Preview')
-                        ->icon('heroicon-o-eye')
-                        ->url(fn (LeaseDocument $record): ?string => $record->getPreviewUrl())
-                        ->openUrlInNewTab()
-                        ->visible(fn (LeaseDocument $record): bool => $record->getPreviewUrl() !== null),
+                Actions\Action::make('preview')
+                    ->label('Preview')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn (LeaseDocument $record): ?string => $record->getPreviewUrl())
+                    ->openUrlInNewTab()
+                    ->visible(fn (LeaseDocument $record): bool => $record->getPreviewUrl() !== null),
 
-                    Tables\Actions\DeleteAction::make()
-                        ->visible(fn (LeaseDocument $record): bool => $record->can_delete),
-                ]),
+                Actions\DeleteAction::make()
+                    ->visible(fn (LeaseDocument $record): bool => $record->can_delete),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make()
                         ->visible(fn (): bool => auth()->user()?->hasAnyRole(['super_admin', 'admin'])),
                 ]),
             ])
@@ -298,11 +327,11 @@ class LeaseDocumentResource extends Resource
     {
         return [
             'index' => Pages\ListLeaseDocuments::route('/'),
-            'create' => Pages\CreateLeaseDocument::route('/create'),
+            'my-uploads' => Pages\MyUploads::route('/my-uploads'),
+            'upload' => Pages\DocumentUploadCenter::route('/upload'),
+            'review' => Pages\ReviewQueue::route('/review'),
             'view' => Pages\ViewLeaseDocument::route('/{record}'),
             'edit' => Pages\EditLeaseDocument::route('/{record}/edit'),
-            'upload' => Pages\BulkUploadDocuments::route('/bulk-upload'),
-            'review' => Pages\ReviewQueue::route('/review'),
         ];
     }
 
