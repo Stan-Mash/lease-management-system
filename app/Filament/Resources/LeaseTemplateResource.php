@@ -114,14 +114,36 @@ class LeaseTemplateResource extends Resource
                                 Forms\Components\Textarea::make('blade_content')
                                     ->label('Blade Template Code')
                                     ->required()
-                                    ->rows(20)
+                                    ->rows(30)
                                     ->columnSpanFull()
-                                    ->helperText('Edit the Blade template code. Use {{ $variable }} syntax for dynamic content.')
-                                    ->extraAttributes(['style' => 'font-family: monospace; font-size: 12px;']),
+                                    ->helperText('Edit the Blade template code. Use {{ $variable }} syntax for dynamic content. Variables are auto-detected on save.')
+                                    ->extraAttributes(['style' => 'font-family: "Courier New", Courier, monospace; font-size: 12px; line-height: 1.5; tab-size: 4;'])
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, \Filament\Schemas\Components\Utilities\Set $set) {
+                                        // Auto-detect variables from template content
+                                        if ($state) {
+                                            preg_match_all('/\{\{\s*\$([a-zA-Z0-9_>-]+)\s*\}\}/', $state, $matches);
+                                            $variables = array_unique($matches[1] ?? []);
+                                            sort($variables);
+                                            $set('available_variables', $variables);
+                                        }
+                                    }),
 
-                                Forms\Components\Placeholder::make('variables_help')
-                                    ->label('Available Variables')
-                                    ->content('$lease, $tenant, $property, $unit, $landlord, $today, $qr_code')
+                                Forms\Components\Placeholder::make('variables_reference')
+                                    ->label('Variable Reference')
+                                    ->content(fn () => new \Illuminate\Support\HtmlString('
+                                        <div class="text-sm space-y-1">
+                                            <p class="font-semibold text-gray-700 dark:text-gray-300">Available Data Objects:</p>
+                                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-600 dark:text-gray-400">
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$lease</code> — Lease model (reference_number, start_date, end_date, monthly_rent, deposit_amount, lease_type, workflow_state)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$tenant</code> — Tenant model (full_name, id_number, phone, email, address, next_of_kin)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$property</code> — Property model (name, address, city)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$unit</code> — Unit model (unit_number, type, floor)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$landlord</code> — Landlord model (name, phone, email)</div>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-2">Tip: Use <code>{{ $variable ?? \'fallback\' }}</code> for optional values. Use <code>@if/$endif</code> for conditional sections.</p>
+                                        </div>
+                                    '))
                                     ->columnSpanFull(),
                             ]),
 
@@ -252,6 +274,13 @@ class LeaseTemplateResource extends Resource
                     ->label('Default'),
             ])
             ->actions([
+                Action::make('previewPdf')
+                    ->label('Preview PDF')
+                    ->icon('heroicon-o-document')
+                    ->color('success')
+                    ->url(fn ($record) => route('templates.preview-pdf', ['template' => $record]))
+                    ->openUrlInNewTab()
+                    ->tooltip('Preview with sample data'),
                 Action::make('view')
                     ->label('View')
                     ->icon('heroicon-o-eye')

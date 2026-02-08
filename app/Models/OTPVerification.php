@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Hash;
 
 class OTPVerification extends Model
 {
@@ -63,20 +65,14 @@ class OTPVerification extends Model
     ];
 
     /**
-     * Get the masked version of the OTP code for display.
-     * Only shows first and last digit, e.g., "1****6"
+     * Get a masked code representation for display.
+     *
+     * Since the code is now hashed, we can only show a fixed-length mask.
      */
     protected function maskedCode(): Attribute
     {
         return Attribute::make(
-            get: function (): string {
-                $code = $this->attributes['code'] ?? '';
-                if (strlen($code) < 2) {
-                    return str_repeat('*', strlen($code));
-                }
-
-                return $code[0] . str_repeat('*', strlen($code) - 2) . $code[strlen($code) - 1];
-            }
+            get: fn (): string => str_repeat('*', (int) config('lease.otp.code_length', 6)),
         );
     }
 
@@ -86,7 +82,7 @@ class OTPVerification extends Model
     protected function hiddenCode(): Attribute
     {
         return Attribute::make(
-            get: fn (): string => str_repeat('*', strlen($this->attributes['code'] ?? ''))
+            get: fn (): string => str_repeat('*', (int) config('lease.otp.code_length', 6)),
         );
     }
 
@@ -175,21 +171,20 @@ class OTPVerification extends Model
     }
 
     /**
-     * Verify the provided code matches this OTP.
+     * Verify the provided code matches this OTP (plaintext comparison).
+     *
+     * @deprecated Use verifyHashed() instead. This method is retained for
+     *             backward compatibility with any OTPs stored before hashing was introduced.
      */
     public function verify(string $code, ?string $ipAddress = null): bool
     {
-        // Check if OTP is still valid
         if (! $this->isValid()) {
             return false;
         }
 
-        // Increment attempts
         $this->incrementAttempts();
 
-        // Check if code matches
         if ($this->code !== $code) {
-            // Mark as expired if max attempts reached
             if ($this->maxAttemptsReached()) {
                 $this->markAsExpired();
             }
@@ -197,7 +192,42 @@ class OTPVerification extends Model
             return false;
         }
 
-        // Success - mark as verified
+        $this->markAsVerified($ipAddress);
+
+        return true;
+    }
+
+    /**
+     * Verify the provided plaintext code against the stored hash.
+     *
+     * Uses Hash::check() for constant-time comparison, preventing
+     * timing attacks. Falls back to plaintext comparison for legacy
+     * OTPs that were stored before hashing was introduced.
+     */
+    public function verifyHashed(string $plaintextCode, ?string $ipAddress = null): bool
+    {
+        if (! $this->isValid()) {
+            return false;
+        }
+
+        $this->incrementAttempts();
+
+        // Check if the stored code is a bcrypt hash (starts with $2y$)
+        $storedCode = $this->attributes['code'] ?? '';
+        $isHashed = str_starts_with($storedCode, '$2y$');
+
+        $matches = $isHashed
+            ? Hash::check($plaintextCode, $storedCode)
+            : $storedCode === $plaintextCode; // Legacy fallback
+
+        if (! $matches) {
+            if ($this->maxAttemptsReached()) {
+                $this->markAsExpired();
+            }
+
+            return false;
+        }
+
         $this->markAsVerified($ipAddress);
 
         return true;
@@ -206,18 +236,20 @@ class OTPVerification extends Model
     /**
      * Scope to get valid OTPs.
      */
-    public function scopeValid($query)
+    public function scopeValid(Builder $query): Builder
     {
+        $maxVerifyAttempts = (int) config('lease.otp.max_verification_attempts', 3);
+
         return $query->where('is_verified', false)
             ->where('is_expired', false)
             ->where('expires_at', '>', now())
-            ->where('attempts', '<', 3);
+            ->where('attempts', '<', $maxVerifyAttempts);
     }
 
     /**
      * Scope to get verified OTPs.
      */
-    public function scopeVerified($query)
+    public function scopeVerified(Builder $query): Builder
     {
         return $query->where('is_verified', true);
     }
@@ -225,9 +257,9 @@ class OTPVerification extends Model
     /**
      * Scope to get expired OTPs.
      */
-    public function scopeExpired($query)
+    public function scopeExpired(Builder $query): Builder
     {
-        return $query->where(function ($q) {
+        return $query->where(function (Builder $q): void {
             $q->where('is_expired', true)
                 ->orWhere('expires_at', '<=', now());
         });
@@ -236,15 +268,15 @@ class OTPVerification extends Model
     /**
      * Scope to get OTPs for a specific lease.
      */
-    public function scopeForLease($query, int $leaseId)
+    public function scopeForLease(Builder $query, int $leaseId): Builder
     {
         return $query->where('lease_id', $leaseId);
     }
 
     /**
-     * Scope to get recent OTPs (last 24 hours).
+     * Scope to get recent OTPs (last N hours).
      */
-    public function scopeRecent($query, int $hours = 24)
+    public function scopeRecent(Builder $query, int $hours = 24): Builder
     {
         return $query->where('sent_at', '>=', now()->subHours($hours));
     }

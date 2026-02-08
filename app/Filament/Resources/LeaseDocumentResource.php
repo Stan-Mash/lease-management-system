@@ -8,15 +8,19 @@ use App\Enums\DocumentQuality;
 use App\Enums\DocumentSource;
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\LeaseDocumentResource\Pages;
+use App\Models\DocumentAudit;
+use App\Models\Lease;
 use App\Models\LeaseDocument;
 use App\Models\Property;
 use BackedEnum;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -26,6 +30,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use UnitEnum;
 
 class LeaseDocumentResource extends Resource
@@ -184,11 +189,13 @@ class LeaseDocumentResource extends Resource
                 Tables\Columns\TextColumn::make('zone.name')
                     ->label('Zone')
                     ->sortable()
+                    ->searchable()
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('property.name')
                     ->label('Property')
                     ->sortable()
+                    ->searchable()
                     ->limit(20)
                     ->toggleable(),
 
@@ -220,6 +227,7 @@ class LeaseDocumentResource extends Resource
                 Tables\Columns\TextColumn::make('uploader.name')
                     ->label('Uploaded By')
                     ->sortable()
+                    ->searchable()
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
@@ -242,8 +250,20 @@ class LeaseDocumentResource extends Resource
 
                 Tables\Columns\TextColumn::make('lease.reference_number')
                     ->label('Linked Lease')
+                    ->searchable()
                     ->placeholder('Not linked')
                     ->toggleable(),
+
+                // Full-text search columns (hidden but searchable)
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Description')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('original_filename')
+                    ->label('Original File')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
@@ -284,6 +304,29 @@ class LeaseDocumentResource extends Resource
                     ->query(fn (Builder $query): Builder => $query->where('uploaded_by', auth()->id()))
                     ->label('My Uploads')
                     ->toggle(),
+
+                Tables\Filters\Filter::make('date_range')
+                    ->form([
+                        DatePicker::make('uploaded_from')
+                            ->label('Uploaded From'),
+                        DatePicker::make('uploaded_until')
+                            ->label('Uploaded Until'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['uploaded_from'], fn (Builder $q, $date) => $q->whereDate('created_at', '>=', $date))
+                            ->when($data['uploaded_until'], fn (Builder $q, $date) => $q->whereDate('created_at', '<=', $date));
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+                        if ($data['uploaded_from'] ?? null) {
+                            $indicators[] = 'From ' . $data['uploaded_from'];
+                        }
+                        if ($data['uploaded_until'] ?? null) {
+                            $indicators[] = 'Until ' . $data['uploaded_until'];
+                        }
+                        return $indicators;
+                    }),
             ])
             ->actions([
                 Actions\ViewAction::make(),
@@ -296,11 +339,21 @@ class LeaseDocumentResource extends Resource
                     ->url(fn (LeaseDocument $record): ?string => $record->getDownloadUrl())
                     ->openUrlInNewTab(),
 
+                // Inline preview modal — shows document in an iframe within a slide-over
                 Actions\Action::make('preview')
                     ->label('Preview')
                     ->icon('heroicon-o-eye')
-                    ->url(fn (LeaseDocument $record): ?string => $record->getPreviewUrl())
-                    ->openUrlInNewTab()
+                    ->color('info')
+                    ->modalHeading(fn (LeaseDocument $record): string => 'Preview: ' . $record->title)
+                    ->modalContent(fn (LeaseDocument $record) => view('filament.resources.lease-document-resource.components.inline-preview', [
+                        'previewUrl' => $record->getPreviewUrl(),
+                        'mimeType' => $record->mime_type,
+                        'filename' => $record->original_filename,
+                    ]))
+                    ->modalWidth('7xl')
+                    ->slideOver()
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
                     ->visible(fn (LeaseDocument $record): bool => $record->getPreviewUrl() !== null),
 
                 Actions\DeleteAction::make()
@@ -308,12 +361,107 @@ class LeaseDocumentResource extends Resource
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
+                    // Bulk link to lease — select approved documents and link them all to a lease
+                    Actions\BulkAction::make('bulkLinkToLease')
+                        ->label('Link to Lease')
+                        ->icon('heroicon-o-link')
+                        ->color('primary')
+                        ->deselectRecordsAfterCompletion()
+                        ->requiresConfirmation()
+                        ->modalHeading('Link Selected Documents to Lease')
+                        ->modalDescription('Select a lease to link the chosen documents to. Only approved documents will be linked.')
+                        ->form([
+                            Select::make('lease_id')
+                                ->label('Select Lease')
+                                ->options(function () {
+                                    return Lease::query()
+                                        ->with(['tenant', 'unit'])
+                                        ->latest()
+                                        ->limit(200)
+                                        ->get()
+                                        ->mapWithKeys(fn ($lease) => [
+                                            $lease->id => $lease->reference_number . ' - ' .
+                                                ($lease->tenant?->full_name ?? 'Unknown') . ' - ' .
+                                                ($lease->unit?->unit_number ?? 'Unknown'),
+                                        ]);
+                                })
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $lease = Lease::find($data['lease_id']);
+                            if (!$lease) {
+                                Notification::make()
+                                    ->title('Lease not found')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            $linked = 0;
+                            $skipped = 0;
+
+                            foreach ($records as $document) {
+                                if ($document->status === DocumentStatus::APPROVED) {
+                                    if ($document->linkToLease($lease, auth()->user())) {
+                                        $document->logAudit(
+                                            DocumentAudit::ACTION_LINK,
+                                            'Bulk linked to lease ' . $lease->reference_number . ' by ' . auth()->user()->name,
+                                            newValues: ['lease_id' => $lease->id]
+                                        );
+                                        $linked++;
+                                    } else {
+                                        $skipped++;
+                                    }
+                                } else {
+                                    $skipped++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title("Bulk Link Complete")
+                                ->body("{$linked} document(s) linked to lease {$lease->reference_number}." .
+                                    ($skipped > 0 ? " {$skipped} skipped (not approved or already linked)." : ''))
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (): bool => auth()->user()?->hasAnyRole(['super_admin', 'admin', 'manager'])),
+
+                    // Bulk approve
+                    Actions\BulkAction::make('bulkApprove')
+                        ->label('Approve Selected')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->deselectRecordsAfterCompletion()
+                        ->requiresConfirmation()
+                        ->modalHeading('Approve Selected Documents')
+                        ->modalDescription('Are you sure you want to approve all selected documents?')
+                        ->action(function (Collection $records): void {
+                            $approved = 0;
+                            foreach ($records as $document) {
+                                if ($document->canBeReviewedBy(auth()->user()) && $document->approve(auth()->user())) {
+                                    $document->logAudit(
+                                        DocumentAudit::ACTION_APPROVE,
+                                        'Bulk approved by ' . auth()->user()->name
+                                    );
+                                    $approved++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title("{$approved} document(s) approved")
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (): bool => auth()->user()?->hasAnyRole(['super_admin', 'admin', 'it_officer'])),
+
                     Actions\DeleteBulkAction::make()
                         ->visible(fn (): bool => auth()->user()?->hasAnyRole(['super_admin', 'admin'])),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
-            ->poll('30s');
+            ->poll('30s')
+            ->searchPlaceholder('Search by title, description, filename, property, uploader, or lease reference...');
     }
 
     public static function getRelations(): array

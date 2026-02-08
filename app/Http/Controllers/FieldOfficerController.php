@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
-use App\Models\Landlord;
+use App\Http\Resources\PendingLeaseResource;
 use App\Models\Lease;
 use App\Models\LeaseApproval;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -13,10 +17,8 @@ class FieldOfficerController extends Controller
 {
     /**
      * API: Get approval overview dashboard data.
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function dashboard(Request $request)
+    public function dashboard(Request $request): JsonResponse
     {
         try {
             $baseLeaseQuery = $this->scopedLeaseQuery()
@@ -29,14 +31,16 @@ class FieldOfficerController extends Controller
                 ->where('created_at', '<', now()->subHours(24))
                 ->count();
 
-            // Consolidate approval stats into a single query
+            // PostgreSQL-compatible approval stats query
+            // Uses EXTRACT(EPOCH FROM ...) instead of MySQL's TIMESTAMPDIFF
             $approvalStats = DB::table('lease_approvals')
                 ->selectRaw("
-                    COUNT(CASE WHEN decision = 'approved' AND DATE(reviewed_at) = ? THEN 1 END) as approved_today,
-                    COUNT(CASE WHEN decision = 'rejected' AND DATE(reviewed_at) = ? THEN 1 END) as rejected_today,
+                    COUNT(CASE WHEN decision = 'approved' AND reviewed_at::date = ? THEN 1 END) as approved_today,
+                    COUNT(CASE WHEN decision = 'rejected' AND reviewed_at::date = ? THEN 1 END) as rejected_today,
                     COUNT(CASE WHEN decision = 'approved' AND reviewed_at >= ? THEN 1 END) as approved_last_7_days,
                     COUNT(CASE WHEN decision = 'rejected' AND reviewed_at >= ? THEN 1 END) as rejected_last_7_days,
-                    AVG(CASE WHEN decision = 'approved' AND reviewed_at IS NOT NULL AND created_at >= ? THEN TIMESTAMPDIFF(HOUR, created_at, reviewed_at) END) as avg_hours
+                    AVG(CASE WHEN decision = 'approved' AND reviewed_at IS NOT NULL AND created_at >= ?
+                        THEN EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 3600 END) as avg_hours
                 ", [today(), today(), now()->subDays(7), now()->subDays(7), now()->subDays(30)])
                 ->first();
 
@@ -49,7 +53,7 @@ class FieldOfficerController extends Controller
                     'rejected_today' => (int) ($approvalStats->rejected_today ?? 0),
                     'approved_last_7_days' => (int) ($approvalStats->approved_last_7_days ?? 0),
                     'rejected_last_7_days' => (int) ($approvalStats->rejected_last_7_days ?? 0),
-                    'avg_approval_time_hours' => $approvalStats->avg_hours ? round($approvalStats->avg_hours, 1) : null,
+                    'avg_approval_time_hours' => $approvalStats->avg_hours ? round((float) $approvalStats->avg_hours, 1) : null,
                 ],
             ]);
         } catch (Exception $e) {
@@ -61,50 +65,25 @@ class FieldOfficerController extends Controller
     }
 
     /**
-     * API: Get all pending approvals.
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * API: Get all pending approvals with pagination.
      */
-    public function pendingApprovals(Request $request)
+    public function pendingApprovals(Request $request): JsonResponse
     {
         try {
+            $perPage = min((int) $request->get('per_page', 20), 100);
+
             $pendingLeases = $this->scopedLeaseQuery()
                 ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
-                ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email', 'approvals' => function ($query) {
+                ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email', 'approvals' => function ($query): void {
                     $query->latest()->limit(1);
                 }])
                 ->orderBy('created_at', 'asc')
-                ->get()
-                ->map(function ($lease) {
-                    return [
-                        'id' => $lease->id,
-                        'reference_number' => $lease->reference_number,
-                        'landlord' => [
-                            'id' => $lease->landlord->id,
-                            'name' => $lease->landlord->name,
-                            'phone' => $lease->landlord->phone,
-                            'email' => $lease->landlord->email,
-                        ],
-                        'tenant' => [
-                            'name' => $lease->tenant->name,
-                            'phone' => $lease->tenant->phone,
-                            'email' => $lease->tenant->email,
-                        ],
-                        'lease_type' => ucfirst(str_replace('_', ' ', $lease->lease_type)),
-                        'monthly_rent' => $lease->monthly_rent,
-                        'currency' => $lease->currency ?? 'KES',
-                        'submitted_at' => $lease->created_at->toISOString(),
-                        'pending_hours' => $lease->created_at->diffInHours(now()),
-                        'is_overdue' => $lease->created_at < now()->subHours(24),
-                    ];
-                });
+                ->paginate($perPage);
 
-            return response()->json([
-                'success' => true,
-                'pending_count' => $pendingLeases->count(),
-                'leases' => $pendingLeases,
-            ]);
+            return PendingLeaseResource::collection($pendingLeases)
+                ->additional(['success' => true])
+                ->response();
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -115,16 +94,17 @@ class FieldOfficerController extends Controller
 
     /**
      * API: Get pending approvals grouped by landlord.
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function pendingByLandlord(Request $request)
+    public function pendingByLandlord(Request $request): JsonResponse
     {
         try {
+            $limit = min((int) $request->get('limit', 500), 1000);
+
             $leasesByLandlord = $this->scopedLeaseQuery()
                 ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
                 ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email'])
+                ->limit($limit)
                 ->get()
                 ->groupBy('landlord_id')
                 ->map(function ($leases) {
@@ -170,43 +150,44 @@ class FieldOfficerController extends Controller
     }
 
     /**
-     * API: Get overdue approvals (>24 hours).
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * API: Get overdue approvals (>24 hours) with pagination.
      */
-    public function overdueApprovals(Request $request)
+    public function overdueApprovals(Request $request): JsonResponse
     {
         try {
+            $perPage = min((int) $request->get('per_page', 20), 100);
+
             $overdueLeases = $this->scopedLeaseQuery()
                 ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
                 ->where('created_at', '<', now()->subHours(24))
                 ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email'])
                 ->orderBy('created_at', 'asc')
-                ->get()
-                ->map(function ($lease) {
-                    return [
-                        'id' => $lease->id,
-                        'reference_number' => $lease->reference_number,
-                        'landlord' => [
-                            'id' => $lease->landlord->id,
-                            'name' => $lease->landlord->name,
-                            'phone' => $lease->landlord->phone,
-                        ],
-                        'tenant' => [
-                            'name' => $lease->tenant->name,
-                            'phone' => $lease->tenant->phone,
-                        ],
-                        'monthly_rent' => $lease->monthly_rent,
-                        'submitted_at' => $lease->created_at->toISOString(),
-                        'overdue_hours' => $lease->created_at->diffInHours(now()),
-                        'overdue_days' => $lease->created_at->diffInDays(now()),
-                    ];
-                });
+                ->paginate($perPage);
+
+            $overdueLeases->getCollection()->transform(function ($lease) {
+                return [
+                    'id' => $lease->id,
+                    'reference_number' => $lease->reference_number,
+                    'landlord' => [
+                        'id' => $lease->landlord->id,
+                        'name' => $lease->landlord->name,
+                        'phone' => $lease->landlord->phone,
+                    ],
+                    'tenant' => [
+                        'name' => $lease->tenant->name,
+                        'phone' => $lease->tenant->phone,
+                    ],
+                    'monthly_rent' => $lease->monthly_rent,
+                    'submitted_at' => $lease->created_at->toISOString(),
+                    'overdue_hours' => $lease->created_at->diffInHours(now()),
+                    'overdue_days' => $lease->created_at->diffInDays(now()),
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'overdue_count' => $overdueLeases->count(),
+                'overdue_count' => $overdueLeases->total(),
                 'leases' => $overdueLeases,
             ]);
         } catch (Exception $e) {
@@ -218,45 +199,50 @@ class FieldOfficerController extends Controller
     }
 
     /**
-     * API: Get approval history.
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * API: Get approval history with pagination.
      */
-    public function approvalHistory(Request $request)
+    public function approvalHistory(Request $request): JsonResponse
     {
         try {
-            $request->validate(['days' => 'nullable|integer|min:1|max:365']);
+            $request->validate([
+                'days' => 'nullable|integer|min:1|max:365',
+                'per_page' => 'nullable|integer|min:1|max:100',
+            ]);
             $days = (int) $request->get('days', 7);
+            $perPage = min((int) $request->get('per_page', 20), 100);
 
-            $approvals = LeaseApproval::whereNotNull('decision')
+            $query = LeaseApproval::whereNotNull('decision')
                 ->where('reviewed_at', '>=', now()->subDays($days))
                 ->with(['lease:id,reference_number,monthly_rent,landlord_id,tenant_id',
                     'lease.landlord:id,name',
                     'lease.tenant:id,name'])
-                ->orderBy('reviewed_at', 'desc')
-                ->get()
-                ->map(function ($approval) {
-                    return [
-                        'id' => $approval->id,
-                        'lease_reference' => $approval->lease->reference_number,
-                        'landlord_name' => $approval->lease->landlord->name,
-                        'tenant_name' => $approval->lease->tenant->name,
-                        'monthly_rent' => $approval->lease->monthly_rent,
-                        'decision' => $approval->decision,
-                        'comments' => $approval->comments,
-                        'rejection_reason' => $approval->rejection_reason,
-                        'reviewed_at' => $approval->reviewed_at->toISOString(),
-                        'approval_time_hours' => $approval->created_at->diffInHours($approval->reviewed_at),
-                    ];
-                });
+                ->orderBy('reviewed_at', 'desc');
 
-            $approvedCount = $approvals->where('decision', 'approved')->count();
-            $rejectedCount = $approvals->where('decision', 'rejected')->count();
+            // Get summary counts from the full query (before pagination)
+            $approvedCount = (clone $query)->where('decision', 'approved')->count();
+            $rejectedCount = (clone $query)->where('decision', 'rejected')->count();
+
+            $approvals = $query->paginate($perPage);
+
+            $approvals->getCollection()->transform(function ($approval) {
+                return [
+                    'id' => $approval->id,
+                    'lease_reference' => $approval->lease->reference_number,
+                    'landlord_name' => $approval->lease->landlord->name,
+                    'tenant_name' => $approval->lease->tenant->name,
+                    'monthly_rent' => $approval->lease->monthly_rent,
+                    'decision' => $approval->decision,
+                    'comments' => $approval->comments,
+                    'rejection_reason' => $approval->rejection_reason,
+                    'reviewed_at' => $approval->reviewed_at->toISOString(),
+                    'approval_time_hours' => $approval->created_at->diffInHours($approval->reviewed_at),
+                ];
+            });
 
             return response()->json([
                 'success' => true,
                 'period_days' => $days,
-                'total_count' => $approvals->count(),
+                'total_count' => $approvals->total(),
                 'approved_count' => $approvedCount,
                 'rejected_count' => $rejectedCount,
                 'history' => $approvals,
@@ -271,10 +257,8 @@ class FieldOfficerController extends Controller
 
     /**
      * API: Get lease approval status details.
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function leaseApprovalStatus(Request $request, int $leaseId)
+    public function leaseApprovalStatus(Request $request, int $leaseId): JsonResponse
     {
         try {
             $lease = $this->scopedLeaseQuery()
@@ -330,7 +314,7 @@ class FieldOfficerController extends Controller
     /**
      * Scope lease queries to the authenticated field officer's assignments.
      */
-    private function scopedLeaseQuery()
+    private function scopedLeaseQuery(): Builder
     {
         $user = auth()->user();
 

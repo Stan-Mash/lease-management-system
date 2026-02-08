@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Models\Landlord;
@@ -240,7 +242,7 @@ class LandlordApprovalController extends Controller
                         'name' => $lease->tenant->name,
                         'phone' => $lease->tenant->phone,
                         'email' => $lease->tenant->email,
-                        'id_number' => $lease->tenant->id_number,
+                        // id_number intentionally excluded — PII must not be exposed in API responses
                     ],
                     'guarantors' => $lease->guarantors->map(function ($g) {
                         return [

@@ -1,37 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Enums\DisputeReason;
 use App\Enums\LeaseWorkflowState;
+use App\Http\Requests\RejectLeaseRequest;
+use App\Http\Requests\SubmitSignatureRequest;
+use App\Http\Requests\VerifyOTPRequest;
 use App\Models\Lease;
-use App\Models\Tenant;
-use App\Notifications\LeaseDisputedNotification;
 use App\Services\DigitalSigningService;
+use App\Services\LeaseDisputeService;
 use App\Services\OTPService;
-use App\Services\TenantEventService;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
 
 class TenantSigningController extends Controller
 {
     /**
      * Display the signing portal for a tenant.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function show(Request $request, Lease $lease)
+    public function show(Request $request, Lease $lease): View
     {
-        // Verify the signed URL is valid
-        if (! $request->hasValidSignature()) {
-            abort(403, 'This signing link has expired or is invalid.');
-        }
-
-        // Verify tenant ID matches
-        if ((int) $request->get('tenant') !== $lease->tenant_id) {
-            abort(403, 'Unauthorized access.');
-        }
+        $this->verifySignedUrlAndTenant($request, $lease);
 
         // Check if already signed
         if ($lease->hasDigitalSignature()) {
@@ -50,21 +46,12 @@ class TenantSigningController extends Controller
 
     /**
      * Request OTP for signing.
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function requestOTP(Request $request, Lease $lease)
+    public function requestOTP(Request $request, Lease $lease): JsonResponse
     {
-        // Verify the signed URL
-        if (! $request->hasValidSignature()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired link.',
-            ], 403);
-        }
+        $this->verifySignedUrlAndTenant($request, $lease);
 
         try {
-            // Generate and send OTP
             $otp = OTPService::generateAndSend(
                 $lease,
                 $lease->tenant->phone,
@@ -78,7 +65,7 @@ class TenantSigningController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'OTP sent to your phone.',
-                'expires_in_minutes' => 10,
+                'expires_in_minutes' => config('lease.otp.expiry_minutes', 10),
             ]);
         } catch (Exception $e) {
             Log::error('OTP request failed', [
@@ -95,34 +82,21 @@ class TenantSigningController extends Controller
 
     /**
      * Verify OTP code.
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function verifyOTP(Request $request, Lease $lease)
+    public function verifyOTP(VerifyOTPRequest $request, Lease $lease): JsonResponse
     {
-        // Verify the signed URL
-        if (! $request->hasValidSignature()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired link.',
-            ], 403);
-        }
-
-        $request->validate([
-            'code' => 'required|string|size:4',
-        ]);
+        $this->verifySignedUrlAndTenant($request, $lease);
 
         try {
             $verified = OTPService::verify(
                 $lease,
-                $request->code,
+                $request->validated('code'),
                 $request->ip(),
             );
 
             if ($verified) {
-                // Update lease state to pending_otp -> verified
-                if ($lease->workflow_state === 'sent_digital') {
-                    $lease->transitionTo('pending_otp');
+                if ($lease->workflow_state === LeaseWorkflowState::SENT_DIGITAL->value) {
+                    $lease->transitionTo(LeaseWorkflowState::PENDING_OTP);
                 }
 
                 return response()->json([
@@ -151,56 +125,41 @@ class TenantSigningController extends Controller
     /**
      * Submit digital signature.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * Uses DB::transaction with lockForUpdate to prevent race conditions
+     * where concurrent requests could submit duplicate signatures.
      */
-    public function submitSignature(Request $request, Lease $lease)
+    public function submitSignature(SubmitSignatureRequest $request, Lease $lease): JsonResponse
     {
-        // Verify the signed URL
-        if (! $request->hasValidSignature()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired link.',
-            ], 403);
-        }
-
-        // Check if can sign (OTP verified)
-        if (! DigitalSigningService::canSign($lease)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please verify your OTP before signing.',
-            ], 400);
-        }
-
-        // Check if already signed
-        if ($lease->hasDigitalSignature()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This lease has already been signed.',
-            ], 400);
-        }
-
-        $request->validate([
-            'signature_data' => 'required|string',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-        ]);
+        $this->verifySignedUrlAndTenant($request, $lease);
 
         try {
-            // Get latest OTP for reference
-            $latestOTP = OTPService::getLatestOTP($lease);
+            $signature = DB::transaction(function () use ($request, $lease) {
+                // Lock the lease row to prevent concurrent signature submissions
+                $lockedLease = Lease::lockForUpdate()->findOrFail($lease->id);
 
-            // Capture signature
-            $signature = DigitalSigningService::captureSignature($lease, [
-                'signature_data' => $request->signature_data,
-                'signature_type' => 'canvas',
-                'latitude' => $request->latitude,
-                'longitude' => $request->longitude,
-                'otp_verification_id' => $latestOTP?->id,
-                'metadata' => [
-                    'browser' => $request->userAgent(),
-                    'screen_resolution' => $request->input('screen_resolution'),
-                ],
-            ]);
+                // Re-check inside transaction with locked row
+                if (! DigitalSigningService::canSign($lockedLease)) {
+                    throw new Exception('Please verify your OTP before signing.');
+                }
+
+                if ($lockedLease->hasDigitalSignature()) {
+                    throw new Exception('This lease has already been signed.');
+                }
+
+                $latestOTP = OTPService::getLatestOTP($lockedLease);
+
+                return DigitalSigningService::captureSignature($lockedLease, [
+                    'signature_data' => $request->validated('signature_data'),
+                    'signature_type' => 'canvas',
+                    'latitude' => $request->validated('latitude'),
+                    'longitude' => $request->validated('longitude'),
+                    'otp_verification_id' => $latestOTP?->id,
+                    'metadata' => [
+                        'browser' => $request->userAgent(),
+                        'screen_resolution' => $request->input('screen_resolution'),
+                    ],
+                ]);
+            });
 
             Log::info('Signature submitted successfully', [
                 'lease_id' => $lease->id,
@@ -221,138 +180,39 @@ class TenantSigningController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to submit signature. Please try again.',
+                'message' => $e->getMessage(),
             ], 400);
         }
     }
 
     /**
      * Display lease PDF for review.
-     *
-     * @return \Illuminate\Http\Response
      */
-    public function viewLease(Request $request, Lease $lease)
+    public function viewLease(Request $request, Lease $lease): View
     {
-        // Verify the signed URL
-        if (! $request->hasValidSignature()) {
-            abort(403, 'Invalid or expired link.');
-        }
+        $this->verifySignedUrlAndTenant($request, $lease);
 
-        // Return lease PDF or view
         return view('tenant.signing.lease-preview', compact('lease'));
     }
 
     /**
      * Reject/Dispute a lease.
      *
-     * Allows tenants to raise a dispute about the lease terms.
-     * Transitions the lease to DISPUTED state and notifies the Zone Manager.
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * Delegates to LeaseDisputeService for all dispute business logic.
      */
-    public function rejectLease(Request $request, Lease $lease)
+    public function rejectLease(RejectLeaseRequest $request, Lease $lease): JsonResponse
     {
-        // Verify the signed URL
-        if (! $request->hasValidSignature()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired link.',
-            ], 403);
-        }
+        $this->verifySignedUrlAndTenant($request, $lease);
 
-        // Validate request
-        $validated = $request->validate([
-            'reason' => 'required|string|in:rent_too_high,wrong_dates,incorrect_details,terms_disagreement,not_my_lease,other',
-            'comment' => 'nullable|string|max:1000',
-        ]);
-
-        // Check if lease can be disputed (must be in signing-related states)
-        $allowedStates = [
-            LeaseWorkflowState::SENT_DIGITAL->value,
-            LeaseWorkflowState::PENDING_OTP->value,
-            LeaseWorkflowState::PENDING_TENANT_SIGNATURE->value,
-        ];
-
-        if (! in_array($lease->workflow_state, $allowedStates)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This lease cannot be disputed at this stage.',
-            ], 400);
-        }
-
-        // Check if already signed - cannot dispute after signing
-        if ($lease->hasDigitalSignature()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This lease has already been signed and cannot be disputed.',
-            ], 400);
-        }
+        $reason = DisputeReason::from($request->validated('reason'));
 
         try {
-            DB::transaction(function () use ($lease, $validated) {
-                // Store dispute details in lease metadata
-                $disputeData = [
-                    'reason' => $validated['reason'],
-                    'comment' => $validated['comment'] ?? null,
-                    'disputed_at' => now()->toIso8601String(),
-                    'disputed_from_state' => $lease->workflow_state,
-                    'tenant_ip' => request()->ip(),
-                ];
-
-                // Update lease notes with dispute info
-                $existingNotes = $lease->notes ?? '';
-                $disputeNote = sprintf(
-                    "\n\n--- DISPUTE RAISED [%s] ---\nReason: %s\nComment: %s\n---",
-                    now()->format('Y-m-d H:i:s'),
-                    $this->getReasonLabel($validated['reason']),
-                    $validated['comment'] ?? 'No comment provided'
-                );
-
-                $lease->update([
-                    'notes' => $existingNotes . $disputeNote,
-                ]);
-
-                // Transition to DISPUTED state
-                $lease->transitionTo(LeaseWorkflowState::DISPUTED);
-
-                // Log the dispute event in tenant timeline
-                TenantEventService::logDispute(
-                    tenant: $lease->tenant,
-                    title: 'Lease Disputed',
-                    description: sprintf(
-                        'Tenant disputed lease %s. Reason: %s. %s',
-                        $lease->reference_number,
-                        $this->getReasonLabel($validated['reason']),
-                        $validated['comment'] ?? ''
-                    ),
-                    category: 'lease_dispute',
-                    followUpAt: now()->addDays(2)  // Follow up within 2 days
-                );
-
-                // Also log as a lease event
-                TenantEventService::logLeaseEvent(
-                    tenant: $lease->tenant,
-                    action: 'Disputed',
-                    lease: $lease,
-                    details: [
-                        'reason' => $validated['reason'],
-                        'reason_label' => $this->getReasonLabel($validated['reason']),
-                        'comment' => $validated['comment'] ?? null,
-                        'previous_state' => $disputeData['disputed_from_state'],
-                    ]
-                );
-
-                // Notify the Zone Manager
-                $this->notifyZoneManager($lease, $validated['reason'], $validated['comment'] ?? null);
-
-                Log::info('Lease disputed by tenant', [
-                    'lease_id' => $lease->id,
-                    'tenant_id' => $lease->tenant_id,
-                    'reference_number' => $lease->reference_number,
-                    'reason' => $validated['reason'],
-                    'previous_state' => $disputeData['disputed_from_state'],
-                ]);
-            });
+            app(LeaseDisputeService::class)->dispute(
+                lease: $lease,
+                reason: $reason,
+                comment: $request->validated('comment'),
+                ipAddress: $request->ip(),
+            );
 
             return response()->json([
                 'success' => true,
@@ -363,7 +223,6 @@ class TenantSigningController extends Controller
                 'lease_id' => $lease->id,
                 'tenant_id' => $lease->tenant_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -374,52 +233,19 @@ class TenantSigningController extends Controller
     }
 
     /**
-     * Notify the Zone Manager about the lease dispute.
+     * Verify both the signed URL and tenant ownership on every request.
+     *
+     * Prevents IDOR where a valid signed URL for one lease could be
+     * used to interact with a different lease's signing endpoints.
      */
-    protected function notifyZoneManager(Lease $lease, string $reason, ?string $comment): void
+    private function verifySignedUrlAndTenant(Request $request, Lease $lease): void
     {
-        // Get Zone Manager from the lease's zone
-        $zoneManager = $lease->assignedZone?->zoneManager;
-
-        if ($zoneManager) {
-            $zoneManager->notify(new LeaseDisputedNotification($lease, $reason, $comment));
-
-            Log::info('Zone Manager notified of lease dispute', [
-                'lease_id' => $lease->id,
-                'zone_manager_id' => $zoneManager->id,
-                'zone_manager_email' => $zoneManager->email,
-            ]);
-        } else {
-            // Fallback: notify all admins if no zone manager
-            $admins = \App\Models\User::whereHas('roles', function ($query) {
-                $query->whereIn('name', ['super_admin', 'admin']);
-            })->get();
-
-            foreach ($admins as $admin) {
-                $admin->notify(new LeaseDisputedNotification($lease, $reason, $comment));
-            }
-
-            Log::warning('No Zone Manager found for lease dispute, notified admins instead', [
-                'lease_id' => $lease->id,
-                'zone_id' => $lease->zone_id,
-                'admin_count' => $admins->count(),
-            ]);
+        if (! $request->hasValidSignature()) {
+            abort(403, 'This signing link has expired or is invalid.');
         }
-    }
 
-    /**
-     * Get human-readable label for dispute reason.
-     */
-    protected function getReasonLabel(string $reason): string
-    {
-        return match ($reason) {
-            'rent_too_high' => 'Rent Amount Too High',
-            'wrong_dates' => 'Incorrect Lease Dates',
-            'incorrect_details' => 'Incorrect Personal/Property Details',
-            'terms_disagreement' => 'Disagreement with Terms & Conditions',
-            'not_my_lease' => 'This is Not My Lease',
-            'other' => 'Other Reason',
-            default => ucfirst(str_replace('_', ' ', $reason)),
-        };
+        if ((int) $request->get('tenant') !== $lease->tenant_id) {
+            abort(403, 'Unauthorized access.');
+        }
     }
 }

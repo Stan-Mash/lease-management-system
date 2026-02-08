@@ -4,33 +4,38 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentAudit;
 use App\Models\LeaseDocument;
 use App\Services\DocumentCompressionService;
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeaseDocumentController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(
-        private DocumentCompressionService $compressionService
+        private readonly DocumentCompressionService $compressionService
     ) {}
 
     /**
-     * Download document
+     * Download document with policy-based authorization and audit logging.
      */
     public function download(LeaseDocument $leaseDocument): BinaryFileResponse|Response
     {
-        // Check if user has access (for now, any authenticated user)
-        if (!auth()->check()) {
-            abort(403, 'Unauthorized');
-        }
+        $this->authorize('download', $leaseDocument);
 
         if (!$leaseDocument->fileExists()) {
             abort(404, 'Document file not found');
         }
+
+        // Log the download action
+        $leaseDocument->logAudit(
+            DocumentAudit::ACTION_DOWNLOAD,
+            'Document downloaded by ' . auth()->user()->name
+        );
 
         $filePath = $leaseDocument->getFullPath();
         $downloadName = $leaseDocument->original_filename;
@@ -43,7 +48,6 @@ class LeaseDocumentController extends Controller
                 abort(500, 'Failed to extract compressed file');
             }
 
-            // Return extracted file and clean up after
             return response()->download($extractedPath, $downloadName)->deleteFileAfterSend(true);
         }
 
@@ -51,14 +55,11 @@ class LeaseDocumentController extends Controller
     }
 
     /**
-     * Preview document (inline display)
+     * Preview document inline with policy-based authorization.
      */
     public function preview(LeaseDocument $leaseDocument): Response|BinaryFileResponse
     {
-        // Check if user has access
-        if (!auth()->check()) {
-            abort(403, 'Unauthorized');
-        }
+        $this->authorize('view', $leaseDocument);
 
         if (!$leaseDocument->fileExists()) {
             abort(404, 'Document file not found');
@@ -86,7 +87,6 @@ class LeaseDocumentController extends Controller
                 abort(500, 'Failed to extract compressed file');
             }
 
-            // Return file inline
             return response()->file($extractedPath, [
                 'Content-Type' => $leaseDocument->mime_type,
                 'Content-Disposition' => 'inline; filename="' . $leaseDocument->original_filename . '"',
@@ -100,13 +100,11 @@ class LeaseDocumentController extends Controller
     }
 
     /**
-     * Verify document integrity
+     * Verify document integrity with policy-based authorization.
      */
-    public function verifyIntegrity(LeaseDocument $leaseDocument): Response
+    public function verifyIntegrity(LeaseDocument $leaseDocument): JsonResponse
     {
-        if (!auth()->check()) {
-            abort(403, 'Unauthorized');
-        }
+        $this->authorize('view', $leaseDocument);
 
         $isValid = $leaseDocument->verifyIntegrity();
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Exceptions\OTPRateLimitException;
@@ -8,12 +10,22 @@ use App\Models\Lease;
 use App\Models\OTPVerification;
 use App\Support\PhoneFormatter;
 use Exception;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class OTPService
 {
     /**
+     * The time window (in minutes) within which a verified OTP remains valid
+     * for signing. After this window, a new OTP must be requested.
+     */
+    private const VERIFIED_OTP_VALIDITY_MINUTES = 30;
+
+    /**
      * Generate and send OTP for digital signing.
+     *
+     * The OTP code is hashed before storage to prevent plaintext exposure
+     * in case of database compromise. The plaintext code is only sent via SMS.
      *
      * @param Lease $lease The lease requiring signature
      * @param string $phone Phone number to send OTP to
@@ -30,7 +42,7 @@ class OTPService
         bool $checkFingerprint = true,
     ): OTPVerification {
         // Check rate limiting (max attempts per hour per lease)
-        $maxAttempts = config('lease.otp.max_attempts_per_hour', 3);
+        $maxAttempts = (int) config('lease.otp.max_attempts_per_hour', 3);
         $recentOTPs = OTPVerification::forLease($lease->id)
             ->recent(1)
             ->count();
@@ -60,17 +72,17 @@ class OTPService
         }
 
         // Generate cryptographically secure OTP code
-        $code = self::generateCode();
+        $plaintextCode = self::generateCode();
 
         // Set expiry time from config
-        $expiryMinutes = config('lease.otp.expiry_minutes', 10);
+        $expiryMinutes = (int) config('lease.otp.expiry_minutes', 10);
         $expiresAt = now()->addMinutes($expiryMinutes);
 
-        // Create OTP record with fingerprint data
+        // Create OTP record with HASHED code for security
         $otp = OTPVerification::create([
             'lease_id' => $lease->id,
             'phone' => $phone,
-            'code' => $code,
+            'code' => Hash::make($plaintextCode),
             'purpose' => $purpose,
             'sent_at' => now(),
             'expires_at' => $expiresAt,
@@ -88,11 +100,11 @@ class OTPService
             DeviceFingerprintService::store('otp', $otp->id, $fingerprint);
         }
 
-        // Send OTP via SMS
+        // Send OTP via SMS (plaintext code sent to tenant, NOT stored)
         try {
             $sent = SMSService::sendOTP(
                 $phone,
-                $code,
+                $plaintextCode,
                 $lease->reference_number,
                 $expiryMinutes,
             );
@@ -101,7 +113,7 @@ class OTPService
                 throw new Exception('SMS service returned failure');
             }
 
-            Log::info('OTP generated', [
+            Log::info('OTP generated and sent', [
                 'lease_id' => $lease->id,
                 'phone_masked' => PhoneFormatter::mask($phone),
                 'otp_id' => $otp->id,
@@ -126,8 +138,11 @@ class OTPService
     /**
      * Verify OTP code for a lease.
      *
+     * Uses Hash::check() to compare the provided plaintext code against
+     * the stored hash, preventing timing attacks and plaintext exposure.
+     *
      * @param Lease $lease The lease to verify
-     * @param string $code The OTP code to verify
+     * @param string $code The plaintext OTP code to verify
      * @param string|null $ipAddress IP address of the verifier
      * @param bool $checkFingerprint Whether to compare device fingerprints
      */
@@ -161,9 +176,9 @@ class OTPService
 
             if ($originalFingerprint) {
                 $similarityScore = DeviceFingerprintService::compare($originalFingerprint, $currentFingerprint);
-                $fingerprintMatch = $similarityScore >= 50; // At least 50% similarity required
+                $fingerprintMatch = $similarityScore >= 50;
 
-                if (!$fingerprintMatch) {
+                if (! $fingerprintMatch) {
                     Log::warning('OTP verification from different device', [
                         'lease_id' => $lease->id,
                         'otp_id' => $otp->id,
@@ -175,8 +190,8 @@ class OTPService
             }
         }
 
-        // Verify the code
-        $verified = $otp->verify($code, $ipAddress);
+        // Verify the code using hash comparison
+        $verified = $otp->verifyHashed($code, $ipAddress);
 
         if ($verified) {
             Log::info('OTP verified successfully', [
@@ -197,12 +212,19 @@ class OTPService
     }
 
     /**
-     * Check if a lease has a verified OTP.
+     * Check if a lease has a recently verified OTP.
+     *
+     * Enforces a time window to prevent replay attacks where a previously
+     * verified OTP could be used to sign much later. The OTP must have been
+     * verified within the configured validity window (default: 30 minutes).
      */
     public static function hasVerifiedOTP(Lease $lease): bool
     {
+        $validityMinutes = self::VERIFIED_OTP_VALIDITY_MINUTES;
+
         return OTPVerification::forLease($lease->id)
             ->verified()
+            ->where('verified_at', '>=', now()->subMinutes($validityMinutes))
             ->exists();
     }
 
@@ -247,11 +269,11 @@ class OTPService
     }
 
     /**
-     * Generate a cryptographically secure 6-digit OTP code.
+     * Generate a cryptographically secure OTP code.
      */
     private static function generateCode(): string
     {
-        $length = config('lease.otp.code_length', 6);
+        $length = (int) config('lease.otp.code_length', 6);
         $max = (int) str_repeat('9', $length);
 
         return str_pad((string) random_int(0, $max), $length, '0', STR_PAD_LEFT);
