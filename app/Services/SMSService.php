@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PreferredLanguage;
+use App\Jobs\SendSMSJob;
 use App\Models\Tenant;
 use App\Support\PhoneFormatter;
 use Exception;
@@ -109,6 +110,18 @@ class SMSService
         }
     }
 
+    /**
+     * Dispatch an SMS to be sent asynchronously via the queue.
+     *
+     * @param  string  $phone  The recipient phone number
+     * @param  string  $message  The message to send
+     * @param  array  $context  Additional context for logging
+     */
+    public static function sendQueued(string $phone, string $message, array $context = []): void
+    {
+        SendSMSJob::dispatch($phone, $message, $context);
+    }
+
     // =========================================================================
     // LOCALIZATION HELPERS
     // =========================================================================
@@ -126,18 +139,23 @@ class SMSService
         Tenant $tenant,
         string $key,
         array $replace = [],
-        array $context = []
+        array $context = [],
+        bool $queued = true,
     ): bool {
         $message = self::translateForTenant($tenant, $key, $replace);
 
-        return self::send(
-            $tenant->phone_number,
-            $message,
-            array_merge($context, [
-                'tenant_id' => $tenant->id,
-                'language' => $tenant->preferred_language?->value ?? 'en',
-            ])
-        );
+        $mergedContext = array_merge($context, [
+            'tenant_id' => $tenant->id,
+            'language' => $tenant->preferred_language?->value ?? 'en',
+        ]);
+
+        if ($queued) {
+            self::sendQueued($tenant->phone_number, $message, $mergedContext);
+
+            return true;
+        }
+
+        return self::send($tenant->phone_number, $message, $mergedContext);
     }
 
     /**
@@ -205,7 +223,8 @@ class SMSService
                 'minutes' => $expiryMinutes,
                 'reference' => $reference,
             ],
-            ['type' => 'otp', 'reference' => $reference]
+            ['type' => 'otp', 'reference' => $reference],
+            queued: false, // OTP must be sent synchronously — user is waiting
         );
     }
 
@@ -296,7 +315,9 @@ class SMSService
             'rent' => number_format($monthlyRent),
         ]);
 
-        return self::send($phone, $message, ['type' => 'approval_request', 'reference' => $reference]);
+        self::sendQueued($phone, $message, ['type' => 'approval_request', 'reference' => $reference]);
+
+        return true;
     }
 
     /**
@@ -318,7 +339,9 @@ class SMSService
         // Fallback to English
         $message = self::translateWithLocale('en', 'sms.lease_approved', ['reference' => $reference]);
 
-        return self::send($phone, $message, ['type' => 'approval_notification', 'reference' => $reference]);
+        self::sendQueued($phone, $message, ['type' => 'approval_notification', 'reference' => $reference]);
+
+        return true;
     }
 
     /**
@@ -343,7 +366,9 @@ class SMSService
             'reason' => $reason,
         ]);
 
-        return self::send($phone, $message, ['type' => 'rejection_notification', 'reference' => $reference]);
+        self::sendQueued($phone, $message, ['type' => 'rejection_notification', 'reference' => $reference]);
+
+        return true;
     }
 
     /**
@@ -409,7 +434,9 @@ class SMSService
             'hours' => 72,
         ]);
 
-        return self::send($phone, $message, ['type' => 'signing_link', 'reference' => $reference]);
+        self::sendQueued($phone, $message, ['type' => 'signing_link', 'reference' => $reference]);
+
+        return true;
     }
 
     /**

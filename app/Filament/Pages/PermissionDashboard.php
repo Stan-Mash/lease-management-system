@@ -8,6 +8,7 @@ use App\Models\RoleAuditLog;
 use App\Models\User;
 use BackedEnum;
 use Filament\Pages\Page;
+use UnitEnum;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
@@ -15,7 +16,7 @@ use Spatie\Permission\Models\Role;
 
 class PermissionDashboard extends Page
 {
-    protected static string|UnitEnum|null $navigationIcon = 'heroicon-o-shield-check';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
 
     protected static ?string $navigationLabel = 'Permission Dashboard';
 

@@ -35,7 +35,13 @@ class LeaseResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $activeCount = static::getModel()::where('workflow_state', 'active')->count();
+        // Cache count for 5 minutes to avoid running COUNT(*) on every page load
+        $activeCount = cache()->remember(
+            'lease_navigation_badge_count',
+            now()->addMinutes(5),
+            fn () => static::getModel()::where('workflow_state', 'active')->count(),
+        );
+
         return $activeCount > 0 ? (string) $activeCount : null;
     }
 
@@ -183,7 +189,7 @@ class LeaseResource extends Resource
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getEloquentQuery()
-            ->with(['tenant', 'property', 'unit', 'landlord']); // Eager load relationships
+            ->with(['tenant', 'property', 'unit', 'landlord', 'approvals']); // Eager load relationships + approvals for N+1 fix
 
         $user = auth()->user();
 

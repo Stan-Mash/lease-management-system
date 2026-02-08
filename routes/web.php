@@ -17,21 +17,26 @@ Route::get('/', function () {
 Route::get('/verify/lease', [LeaseVerificationController::class, 'show'])
     ->name('lease.verify');
 Route::get('/api/verify/lease', [LeaseVerificationController::class, 'api'])
+    ->middleware('throttle:10,1')
     ->name('lease.verify.api');
 
-// Tenant signing portal routes (secured by signed URLs)
-Route::prefix('tenant')->name('tenant.')->group(function () {
+// Tenant signing portal routes (secured by signed URLs + rate limiting)
+Route::prefix('tenant')->name('tenant.')->middleware('throttle:30,1')->group(function () {
     Route::get('/sign/{lease}', [TenantSigningController::class, 'show'])
         ->name('sign-lease');
     Route::post('/sign/{lease}/request-otp', [TenantSigningController::class, 'requestOTP'])
+        ->middleware('throttle:5,1') // Stricter limit on OTP requests: 5 per minute
         ->name('request-otp');
     Route::post('/sign/{lease}/verify-otp', [TenantSigningController::class, 'verifyOTP'])
+        ->middleware('throttle:10,1') // 10 verification attempts per minute
         ->name('verify-otp');
     Route::post('/sign/{lease}/submit-signature', [TenantSigningController::class, 'submitSignature'])
+        ->middleware('throttle:3,1') // Very strict: 3 signature submissions per minute
         ->name('submit-signature');
     Route::get('/sign/{lease}/view', [TenantSigningController::class, 'viewLease'])
         ->name('view-lease');
     Route::post('/sign/{lease}/reject', [TenantSigningController::class, 'rejectLease'])
+        ->middleware('throttle:5,1')
         ->name('reject-lease');
 });
 
@@ -62,25 +67,24 @@ Route::middleware(['auth:sanctum'])->prefix('api/field-officer')->name('api.fiel
 });
 
 Route::middleware(['auth'])->group(function () {
-    // Lease PDF Generation
-    Route::get('/leases/{lease}/download', DownloadLeaseController::class)
-        ->name('lease.download');
-    Route::get('/leases/{lease}/preview', [DownloadLeaseController::class, 'preview'])
-        ->name('lease.preview');
-    Route::get('/leases/{lease}/pdf', DownloadLeaseController::class)
-        ->name('leases.pdf');
+    // Lease PDF Generation — rate limited to prevent abuse of CPU-intensive PDF rendering
+    Route::middleware('throttle:30,1')->group(function () {
+        Route::get('/leases/{lease}/download', DownloadLeaseController::class)
+            ->name('lease.download');
+        Route::get('/leases/{lease}/preview', [DownloadLeaseController::class, 'preview'])
+            ->name('lease.preview');
+        Route::get('/leases/{lease}/pdf', DownloadLeaseController::class)
+            ->name('leases.pdf');
+    });
 
-    // Scanned Document Download
-    Route::get('/documents/{document}/download', function (\App\Models\LeaseDocument $document) {
-        $path = storage_path('app/' . $document->file_path);
-        if (!file_exists($path)) {
-            abort(404, 'Document not found');
-        }
-        return response()->download($path, $document->original_filename);
-    })->name('document.download');
+    // Scanned Document Download — uses policy for zone-based authorization
+    Route::get('/documents/{document}/download', [LeaseDocumentController::class, 'download'])
+        ->name('document.download')
+        ->middleware('throttle:60,1')
+        ->can('download', 'document');
 
-    // Template Preview Routes (Admin Only)
-    Route::prefix('templates')->name('templates.')->group(function () {
+    // Template Preview Routes — restricted to admin roles, rate limited
+    Route::prefix('templates')->name('templates.')->middleware(['can:viewAny,App\Models\LeaseTemplate', 'throttle:20,1'])->group(function () {
         Route::get('/{template}/preview-pdf', [TemplatePreviewController::class, 'previewPdf'])
             ->name('preview-pdf');
         Route::get('/{template}/preview-html', [TemplatePreviewController::class, 'previewHtml'])
@@ -89,8 +93,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('preview-direct');
     });
 
-    // Lease Document Routes
-    Route::prefix('lease-documents')->name('lease-documents.')->group(function () {
+    // Lease Document Routes — uses policy for authorization, rate limited
+    Route::prefix('lease-documents')->name('lease-documents.')->middleware('throttle:60,1')->group(function () {
         Route::get('/{leaseDocument}/download', [LeaseDocumentController::class, 'download'])
             ->name('download');
         Route::get('/{leaseDocument}/preview', [LeaseDocumentController::class, 'preview'])
