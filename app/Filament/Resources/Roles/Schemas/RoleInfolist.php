@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources\Roles\Schemas;
 
-use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\IconEntry;
-use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\DB;
 
 class RoleInfolist
 {
@@ -18,22 +19,19 @@ class RoleInfolist
                     Grid::make(3)->schema([
                         TextEntry::make('name')
                             ->weight('bold')
-                            ->size('lg'),
-
-                        TextEntry::make('key')
-                            ->label('Role Key')
+                            ->size('lg')
                             ->copyable()
-                            ->fontFamily('mono')
+                            ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
+
+                        TextEntry::make('guard_name')
+                            ->label('Guard')
+                            ->badge()
                             ->color('gray'),
 
                         TextEntry::make('color')
                             ->badge()
                             ->color(fn (string $state): string => $state)
                             ->formatStateUsing(fn (string $state): string => ucfirst($state)),
-
-                        TextEntry::make('description')
-                            ->placeholder('-')
-                            ->columnSpanFull(),
 
                         TextEntry::make('sort_order')
                             ->label('Display Order'),
@@ -48,17 +46,21 @@ class RoleInfolist
                     ]),
                 ]),
 
-            Section::make('Permissions')
+            Section::make('Spatie Permissions')
                 ->schema([
-                    TextEntry::make('permissions')
-                        ->listWithLineBreaks()
-                        ->bulleted()
-                        ->placeholder('No permissions defined')
-                        ->formatStateUsing(
-                            fn (?array $state): ?string => $state && count($state) > 0
-                                ? implode("\n", array_column($state, 'permission'))
-                                : null,
-                        ),
+                    TextEntry::make('spatie_permissions')
+                        ->label('Assigned Permissions')
+                        ->state(function ($record) {
+                            $permissions = DB::table('role_has_permissions')
+                                ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
+                                ->where('role_has_permissions.role_id', $record->id)
+                                ->pluck('permissions.name')
+                                ->sort()
+                                ->toArray();
+
+                            return ! empty($permissions) ? implode(', ', $permissions) : 'No permissions assigned';
+                        })
+                        ->placeholder('No permissions assigned'),
                 ]),
 
             Section::make('Statistics')

@@ -8,6 +8,7 @@ use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
+use Filament\Actions\Action;
 use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -105,7 +106,7 @@ class PrintLogReport extends Page implements HasForms, HasTable
                     }),
             ])
             ->actions([
-                Tables\Actions\Action::make('view_lease')
+                Action::make('view_lease')
                     ->label('View Lease')
                     ->url(fn (LeasePrintLog $record) => route('filament.admin.resources.leases.view', $record->lease_id))
                     ->icon('heroicon-o-eye'),

@@ -27,7 +27,7 @@ class SystemPulse extends Page
 
     public function getTitle(): string
     {
-        return 'System Pulse - Health & Monitoring';
+        return 'System Pulse';
     }
 
     public static function canAccess(): bool

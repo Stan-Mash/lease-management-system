@@ -21,6 +21,7 @@ class LeaseDocument extends Model
         'property_id',
         'tenant_id',
         'unit_id',
+        'unit_code',
         'document_type',
         'status',
         'quality',

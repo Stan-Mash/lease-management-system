@@ -10,6 +10,7 @@ use App\Models\Lease;
 use App\Models\LeaseDocument;
 use BackedEnum;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use UnitEnum;
 
@@ -39,42 +40,56 @@ class LeasePortfolio extends Page
             $zoneFilter = $user->zone_id;
         }
 
-        // Lease Statistics
-        $leaseQuery = Lease::query();
-        if ($zoneFilter) {
-            $leaseQuery->where('zone_id', $zoneFilter);
-        }
+        $cacheKey = 'lease_portfolio:' . ($zoneFilter ?? 'all') . ':' . auth()->id();
 
-        $leaseStats = [
-            'total' => (clone $leaseQuery)->count(),
-            'active' => (clone $leaseQuery)->where('workflow_state', 'active')->count(),
-            'pending' => (clone $leaseQuery)->where('workflow_state', 'pending_landlord_approval')->count(),
-            'draft' => (clone $leaseQuery)->where('workflow_state', 'draft')->count(),
-            'expiring_soon' => (clone $leaseQuery)->where('workflow_state', 'active')
-                ->whereBetween('end_date', [now(), now()->addDays(30)])->count(),
-            'expired' => (clone $leaseQuery)->where('workflow_state', 'expired')->count(),
-        ];
+        // Cache heavy statistics (5-min TTL) — consolidates 16+ queries into 2 cached blocks
+        $leaseStats = Cache::remember($cacheKey . ':lease_stats', now()->addMinutes(5), function () use ($zoneFilter) {
+            $q = Lease::query()->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter));
+            $todayStr = now()->toDateString();
+            $thirtyDays = now()->addDays(30)->toDateString();
 
-        // Document Statistics
-        $docQuery = LeaseDocument::query();
-        if ($zoneFilter) {
-            $docQuery->where('zone_id', $zoneFilter);
-        }
+            $stats = (clone $q)->selectRaw("
+                COUNT(*) as total,
+                COUNT(CASE WHEN workflow_state = 'active' THEN 1 END) as active,
+                COUNT(CASE WHEN workflow_state = 'pending_landlord_approval' THEN 1 END) as pending,
+                COUNT(CASE WHEN workflow_state = 'draft' THEN 1 END) as draft,
+                COUNT(CASE WHEN workflow_state = 'active' AND end_date >= ? AND end_date <= ? THEN 1 END) as expiring_soon,
+                COUNT(CASE WHEN workflow_state = 'expired' THEN 1 END) as expired
+            ", [$todayStr, $thirtyDays])->first();
 
-        $documentStats = [
-            'total' => (clone $docQuery)->count(),
-            'pending_review' => (clone $docQuery)->pendingReview()->count(),
-            'approved' => (clone $docQuery)->approved()->count(),
-            'linked' => (clone $docQuery)->linked()->count(),
-            'unlinked' => (clone $docQuery)->whereNull('lease_id')->count(),
-            'quality_issues' => (clone $docQuery)->needsAttention()->count(),
-        ];
+            return [
+                'total' => (int) $stats->total,
+                'active' => (int) $stats->active,
+                'pending' => (int) $stats->pending,
+                'draft' => (int) $stats->draft,
+                'expiring_soon' => (int) $stats->expiring_soon,
+                'expired' => (int) $stats->expired,
+            ];
+        });
 
-        // User-specific stats
-        $myUploads = LeaseDocument::where('uploaded_by', auth()->id())->count();
-        $myPendingUploads = LeaseDocument::where('uploaded_by', auth()->id())->pendingReview()->count();
+        $documentStats = Cache::remember($cacheKey . ':doc_stats', now()->addMinutes(5), function () use ($zoneFilter) {
+            $q = LeaseDocument::query()->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter));
 
-        // Recent activity
+            return [
+                'total' => (clone $q)->count(),
+                'pending_review' => (clone $q)->pendingReview()->count(),
+                'approved' => (clone $q)->approved()->count(),
+                'linked' => (clone $q)->linked()->count(),
+                'unlinked' => (clone $q)->whereNull('lease_id')->count(),
+                'quality_issues' => (clone $q)->needsAttention()->count(),
+            ];
+        });
+
+        // User-specific stats (light queries, short cache)
+        $userId = auth()->id();
+        $myUploads = Cache::remember("lease_portfolio:my_uploads:{$userId}", now()->addMinutes(3), function () use ($userId) {
+            return LeaseDocument::where('uploaded_by', $userId)->count();
+        });
+        $myPendingUploads = Cache::remember("lease_portfolio:my_pending:{$userId}", now()->addMinutes(3), function () use ($userId) {
+            return LeaseDocument::where('uploaded_by', $userId)->pendingReview()->count();
+        });
+
+        // Recent activity (not cached — always fresh, but uses eager loading)
         $recentLeases = Lease::query()
             ->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter))
             ->with(['tenant', 'property', 'unit'])
@@ -89,24 +104,28 @@ class LeasePortfolio extends Page
             ->limit(5)
             ->get();
 
-        // Monthly trends (last 6 months) - PostgreSQL compatible
-        $monthlyLeases = Lease::query()
-            ->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter))
-            ->where('created_at', '>=', now()->subMonths(6))
-            ->select(DB::raw("to_char(created_at, 'YYYY-MM') as month"), DB::raw('count(*) as count'))
-            ->groupBy('month')
-            ->orderBy('month')
-            ->pluck('count', 'month')
-            ->toArray();
+        // Monthly trends (cached 5 min)
+        $monthlyLeases = Cache::remember($cacheKey . ':monthly_leases', now()->addMinutes(5), function () use ($zoneFilter) {
+            return Lease::query()
+                ->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter))
+                ->where('created_at', '>=', now()->subMonths(6))
+                ->select(DB::raw("to_char(created_at, 'YYYY-MM') as month"), DB::raw('count(*) as count'))
+                ->groupBy('month')
+                ->orderBy('month')
+                ->pluck('count', 'month')
+                ->toArray();
+        });
 
-        $monthlyDocuments = LeaseDocument::query()
-            ->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter))
-            ->where('created_at', '>=', now()->subMonths(6))
-            ->select(DB::raw("to_char(created_at, 'YYYY-MM') as month"), DB::raw('count(*) as count'))
-            ->groupBy('month')
-            ->orderBy('month')
-            ->pluck('count', 'month')
-            ->toArray();
+        $monthlyDocuments = Cache::remember($cacheKey . ':monthly_docs', now()->addMinutes(5), function () use ($zoneFilter) {
+            return LeaseDocument::query()
+                ->when($zoneFilter, fn ($q) => $q->where('zone_id', $zoneFilter))
+                ->where('created_at', '>=', now()->subMonths(6))
+                ->select(DB::raw("to_char(created_at, 'YYYY-MM') as month"), DB::raw('count(*) as count'))
+                ->groupBy('month')
+                ->orderBy('month')
+                ->pluck('count', 'month')
+                ->toArray();
+        });
 
         return [
             'leaseStats' => $leaseStats,

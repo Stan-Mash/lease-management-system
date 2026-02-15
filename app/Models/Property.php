@@ -17,11 +17,15 @@ class Property extends Model
         'zone',
         'location',
         'landlord_id',
-        'management_commission',
+        'commission',
+        'field_officer_id',
+        'zone_manager_id',
+        'date_created',
     ];
 
     protected $casts = [
-        'management_commission' => 'decimal:2',
+        'commission' => 'decimal:2',
+        'date_created' => 'datetime',
     ];
 
     public function landlord(): BelongsTo
@@ -37,5 +41,15 @@ class Property extends Model
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class);
+    }
+
+    public function fieldOfficer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'field_officer_id');
+    }
+
+    public function zoneManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'zone_manager_id');
     }
 }

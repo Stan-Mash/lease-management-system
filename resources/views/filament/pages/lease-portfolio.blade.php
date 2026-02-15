@@ -1,19 +1,18 @@
 <x-filament-panels::page>
     {{-- Hero Section --}}
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 p-8 text-white shadow-xl mb-8">
-        <div class="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,white)]"></div>
+    <div class="relative overflow-hidden rounded-2xl p-8 shadow-xl mb-8" style="background: linear-gradient(135deg, #1a365d 0%, #1e3a5f 50%, #162d50 100%); color: #ffffff;">
         <div class="relative">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Lease Portfolio</h1>
-                    <p class="mt-2 text-primary-100 text-lg">Unified management for all your lease agreements and documents</p>
+                    <h1 class="text-3xl font-bold tracking-tight" style="color: #ffffff;">Lease Portfolio</h1>
+                    <p class="mt-2 text-lg" style="color: #93c5fd;">Unified management for all your lease agreements and documents</p>
                 </div>
                 <div class="hidden md:flex items-center gap-3">
-                    <a href="{{ $createLeaseUrl }}" class="inline-flex items-center gap-2 rounded-lg bg-white/20 backdrop-blur-sm px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/30 transition-all duration-200 border border-white/20">
+                    <a href="{{ $createLeaseUrl }}" class="inline-flex items-center gap-2 rounded-lg backdrop-blur-sm px-4 py-2.5 text-sm font-semibold transition-all duration-200" style="background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.2);">
                         <x-heroicon-o-plus class="w-5 h-5" />
                         New Lease
                     </a>
-                    <a href="{{ $uploadDocumentUrl }}" class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-primary-700 hover:bg-primary-50 transition-all duration-200 shadow-lg">
+                    <a href="{{ $uploadDocumentUrl }}" class="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-200 shadow-lg" style="background: #DAA520; color: #1a365d;">
                         <x-heroicon-o-cloud-arrow-up class="w-5 h-5" />
                         Upload Documents
                     </a>

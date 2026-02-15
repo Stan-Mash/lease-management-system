@@ -195,11 +195,65 @@ class ViewLease extends ViewRecord
                 ->url(fn () => route('lease.download', $this->record))
                 ->openUrlInNewTab(),
 
+            // Send lease via email to tenant
+            Action::make('sendViaEmail')
+                ->label('Send via Email')
+                ->icon('heroicon-o-envelope')
+                ->color('info')
+                ->visible(fn () => $this->record->tenant?->email && auth()->user()?->canManageLeases())
+                ->form([
+                    Textarea::make('custom_message')
+                        ->label('Custom Message (optional)')
+                        ->placeholder('Add a personal message to the tenant...')
+                        ->rows(3),
+                    \Filament\Forms\Components\Toggle::make('attach_pdf')
+                        ->label('Attach Lease PDF')
+                        ->default(true),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Send Lease via Email')
+                ->modalDescription(fn () => 'This will send an email to ' . ($this->record->tenant?->full_name ?? 'the tenant') . ' at ' . ($this->record->tenant?->email ?? 'N/A') . '.')
+                ->action(function (array $data) {
+                    $tenant = $this->record->tenant;
+                    if (!$tenant || !$tenant->email) {
+                        Notification::make()
+                            ->title('No Email')
+                            ->body('This tenant does not have an email address.')
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+
+                    $tenant->notify(new \App\Notifications\LeaseDocumentEmailNotification(
+                        lease: $this->record,
+                        customMessage: $data['custom_message'] ?? '',
+                        attachPdf: $data['attach_pdf'] ?? true,
+                    ));
+
+                    // Log the event if TenantEventService exists
+                    if (class_exists(\App\Services\TenantEventService::class)) {
+                        \App\Services\TenantEventService::log(
+                            tenant: $tenant,
+                            type: 'email_sent',
+                            title: 'Lease emailed',
+                            description: 'Lease ' . ($this->record->reference_number ?? '') . ' sent via email by ' . auth()->user()->name,
+                            performedBy: auth()->user(),
+                        );
+                    }
+
+                    Notification::make()
+                        ->title('Email Sent')
+                        ->body('Lease document has been emailed to ' . $tenant->full_name . '.')
+                        ->success()
+                        ->send();
+                }),
+
             // Upload Scanned Physical Lease
             Action::make('uploadDocument')
-                ->label('Upload Scanned Lease')
+                ->label('Upload Documents')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('warning')
+                ->visible(fn () => auth()->user()?->canManageLeases())
                 ->form([
                     Select::make('document_type')
                         ->label('Document Type')
@@ -274,6 +328,11 @@ class ViewLease extends ViewRecord
                             $data['description'] ?? null,
                             $data['document_date'] ?? null
                         );
+
+                        // Tag the document with unit_code from the lease
+                        if ($this->record->unit_code) {
+                            $document->update(['unit_code' => $this->record->unit_code]);
+                        }
 
                         // Clean up temp file
                         @unlink($fullPath);

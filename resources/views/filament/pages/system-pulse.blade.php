@@ -1,267 +1,215 @@
 <x-filament-panels::page>
-    {{-- Auto-refresh indicator --}}
-    <div class="flex justify-between items-center mb-6" wire:poll.30s>
-        <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <x-heroicon-o-arrow-path class="w-4 h-4 animate-spin" wire:loading />
-            <span>Auto-refreshes every 30 seconds</span>
+    @php
+        $statusConfig = [
+            'healthy' => [
+                'bg' => 'bg-emerald-50 dark:bg-emerald-950/30',
+                'border' => 'border-emerald-200 dark:border-emerald-800',
+                'text' => 'text-emerald-700 dark:text-emerald-400',
+                'icon' => 'heroicon-o-check-circle',
+                'dot' => 'bg-emerald-500',
+                'badge' => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300',
+            ],
+            'warning' => [
+                'bg' => 'bg-amber-50 dark:bg-amber-950/30',
+                'border' => 'border-amber-200 dark:border-amber-800',
+                'text' => 'text-amber-700 dark:text-amber-400',
+                'icon' => 'heroicon-o-exclamation-triangle',
+                'dot' => 'bg-amber-500',
+                'badge' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
+            ],
+            'critical' => [
+                'bg' => 'bg-red-50 dark:bg-red-950/30',
+                'border' => 'border-red-200 dark:border-red-800',
+                'text' => 'text-red-700 dark:text-red-400',
+                'icon' => 'heroicon-o-x-circle',
+                'dot' => 'bg-red-500',
+                'badge' => 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+            ],
+        ];
+        $overall = $systemHealth['overall'];
+    @endphp
+
+    {{-- Top Bar --}}
+    <div class="flex items-center justify-between mb-6" wire:poll.30s>
+        <div class="flex items-center gap-2">
+            <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $statusConfig[$overall]['dot'] }} opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 {{ $statusConfig[$overall]['dot'] }}"></span>
+            </span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ $overall === 'healthy' ? 'All systems operational' : ($overall === 'warning' ? 'Systems degraded' : 'Issues detected') }}
+            </span>
         </div>
-        <x-filament::button size="sm" color="gray" wire:click="$refresh">
-            <x-heroicon-o-arrow-path class="w-4 h-4 mr-1" />
-            Refresh Now
+        <x-filament::button size="xs" color="gray" wire:click="$refresh" icon="heroicon-o-arrow-path">
+            Refresh
         </x-filament::button>
     </div>
 
-    {{-- System Health Overview --}}
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    {{-- Compact Status Cards --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         @php
-            $statusColors = [
-                'healthy' => 'bg-success-100 dark:bg-success-900/20 border-success-300 dark:border-success-700',
-                'warning' => 'bg-warning-100 dark:bg-warning-900/20 border-warning-300 dark:border-warning-700',
-                'critical' => 'bg-danger-100 dark:bg-danger-900/20 border-danger-300 dark:border-danger-700',
-            ];
-            $statusTextColors = [
-                'healthy' => 'text-success-700 dark:text-success-400',
-                'warning' => 'text-warning-700 dark:text-warning-400',
-                'critical' => 'text-danger-700 dark:text-danger-400',
-            ];
-            $statusIcons = [
-                'healthy' => 'heroicon-o-check-circle',
-                'warning' => 'heroicon-o-exclamation-triangle',
-                'critical' => 'heroicon-o-x-circle',
+            $cards = [
+                ['label' => 'System', 'value' => ucfirst($overall), 'sub' => collect($systemHealth['checks'])->where('status', 'healthy')->count() . '/' . count($systemHealth['checks']) . ' passing', 'status' => $overall],
+                ['label' => 'Queue', 'value' => number_format($queueStats['totalPending']), 'sub' => 'pending jobs', 'status' => $queueStats['status']],
+                ['label' => 'Failed 24h', 'value' => number_format($failedJobs['last24Hours']), 'sub' => number_format($failedJobs['total']) . ' total', 'status' => $failedJobs['status']],
+                ['label' => 'Disk', 'value' => $storageStats['usedPercentage'] . '%', 'sub' => $storageStats['used'] . ' / ' . $storageStats['total'], 'status' => $storageStats['status']],
             ];
         @endphp
 
-        {{-- Overall Health --}}
-        <div class="rounded-xl border-2 p-4 {{ $statusColors[$systemHealth['overall']] }}">
-            <div class="flex items-center gap-3">
-                <x-dynamic-component :component="$statusIcons[$systemHealth['overall']]" class="w-8 h-8 {{ $statusTextColors[$systemHealth['overall']] }}" />
-                <div>
-                    <div class="text-sm font-medium text-gray-600 dark:text-gray-300">System Status</div>
-                    <div class="text-xl font-bold {{ $statusTextColors[$systemHealth['overall']] }}">
-                        {{ ucfirst($systemHealth['overall']) }}
-                    </div>
+        @foreach($cards as $card)
+            <div class="rounded-lg border {{ $statusConfig[$card['status']]['border'] }} {{ $statusConfig[$card['status']]['bg'] }} px-4 py-3">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ $card['label'] }}</span>
+                    <x-dynamic-component :component="$statusConfig[$card['status']]['icon']" class="w-4 h-4 {{ $statusConfig[$card['status']]['text'] }}" />
                 </div>
+                <div class="text-lg font-bold {{ $statusConfig[$card['status']]['text'] }} leading-tight">{{ $card['value'] }}</div>
+                <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{{ $card['sub'] }}</div>
+            </div>
+        @endforeach
+    </div>
+
+    {{-- Main Content Grid --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+        {{-- Health Checks --}}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <x-heroicon-o-heart class="w-4 h-4 text-rose-500" />
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Health Checks</h3>
+            </div>
+            <div class="p-3 space-y-1">
+                @foreach($systemHealth['checks'] as $name => $check)
+                    @php $cs = $check['status']; @endphp
+                    <div class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                        <div class="flex items-center gap-2.5">
+                            <x-dynamic-component :component="$statusConfig[$cs]['icon']" class="w-4 h-4 {{ $statusConfig[$cs]['text'] }}" />
+                            <span class="text-sm text-gray-700 dark:text-gray-200 capitalize">{{ str_replace('_', ' ', $name) }}</span>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded-full {{ $statusConfig[$cs]['badge'] }}">{{ $check['message'] }}</span>
+                    </div>
+                @endforeach
             </div>
         </div>
 
-        {{-- Queue Status --}}
-        <div class="rounded-xl border-2 p-4 {{ $statusColors[$queueStats['status']] }}">
-            <div class="flex items-center gap-3">
-                <x-heroicon-o-queue-list class="w-8 h-8 {{ $statusTextColors[$queueStats['status']] }}" />
-                <div>
-                    <div class="text-sm font-medium text-gray-600 dark:text-gray-300">Queue Depth</div>
-                    <div class="text-xl font-bold {{ $statusTextColors[$queueStats['status']] }}">
-                        {{ number_format($queueStats['totalPending']) }} jobs
-                    </div>
-                </div>
+        {{-- Queue Breakdown --}}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <x-heroicon-o-queue-list class="w-4 h-4 text-blue-500" />
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Queue Breakdown</h3>
             </div>
-        </div>
-
-        {{-- Failed Jobs --}}
-        <div class="rounded-xl border-2 p-4 {{ $statusColors[$failedJobs['status']] }}">
-            <div class="flex items-center gap-3">
-                <x-heroicon-o-exclamation-circle class="w-8 h-8 {{ $statusTextColors[$failedJobs['status']] }}" />
-                <div>
-                    <div class="text-sm font-medium text-gray-600 dark:text-gray-300">Failed (24h)</div>
-                    <div class="text-xl font-bold {{ $statusTextColors[$failedJobs['status']] }}">
-                        {{ number_format($failedJobs['last24Hours']) }} jobs
+            <div class="p-3 space-y-1">
+                @foreach($queueStats['queues'] as $queue)
+                    @php $qs = $queue['status']; @endphp
+                    <div class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                        <div class="flex items-center gap-2.5">
+                            <x-dynamic-component :component="$statusConfig[$qs]['icon']" class="w-4 h-4 {{ $statusConfig[$qs]['text'] }}" />
+                            <span class="text-sm text-gray-700 dark:text-gray-200">{{ $queue['name'] }}</span>
+                        </div>
+                        <span class="text-xs font-mono px-2 py-0.5 rounded-full {{ $queue['pending'] > 0 ? $statusConfig[$qs]['badge'] : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }}">
+                            {{ number_format($queue['pending']) }}
+                        </span>
                     </div>
-                </div>
+                @endforeach
             </div>
         </div>
 
         {{-- Storage --}}
-        <div class="rounded-xl border-2 p-4 {{ $statusColors[$storageStats['status']] }}">
-            <div class="flex items-center gap-3">
-                <x-heroicon-o-server class="w-8 h-8 {{ $statusTextColors[$storageStats['status']] }}" />
-                <div>
-                    <div class="text-sm font-medium text-gray-600 dark:text-gray-300">Storage Used</div>
-                    <div class="text-xl font-bold {{ $statusTextColors[$storageStats['status']] }}">
-                        {{ $storageStats['usedPercentage'] }}%
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <x-heroicon-o-server-stack class="w-4 h-4 text-violet-500" />
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Storage</h3>
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+                    <span>{{ $storageStats['used'] }} used</span>
+                    <span>{{ $storageStats['free'] }} free</span>
+                </div>
+                <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden mb-4">
+                    @php $barColor = $storageStats['usedPercentage'] > 90 ? 'bg-red-500' : ($storageStats['usedPercentage'] > 75 ? 'bg-amber-500' : 'bg-emerald-500'); @endphp
+                    <div class="h-2 rounded-full transition-all {{ $barColor }}" style="width: {{ min($storageStats['usedPercentage'], 100) }}%"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="text-center p-2.5 rounded-md bg-gray-50 dark:bg-gray-800/50">
+                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ $storageStats['total'] }}</div>
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400">Total</div>
                     </div>
+                    <div class="text-center p-2.5 rounded-md bg-gray-50 dark:bg-gray-800/50">
+                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ $storageStats['documents'] }}</div>
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400">Documents</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Database --}}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <x-heroicon-o-circle-stack class="w-4 h-4 text-cyan-500" />
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Database</h3>
+                </div>
+                <span class="text-[11px] text-gray-400 font-mono">{{ $databaseStats['databaseSize'] }}</span>
+            </div>
+            <div class="p-3">
+                <div class="grid grid-cols-2 gap-1.5">
+                    @foreach($databaseStats['tables'] as $table => $count)
+                        <div class="flex items-center justify-between px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-800/40">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 capitalize">{{ str_replace('_', ' ', $table) }}</span>
+                            <span class="text-xs font-mono font-semibold text-gray-900 dark:text-white">{{ number_format($count) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="flex justify-between items-center px-3 pt-2.5 mt-2 border-t border-gray-100 dark:border-gray-800">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total</span>
+                    <span class="text-xs font-mono font-bold text-gray-900 dark:text-white">{{ number_format($databaseStats['totalRecords']) }}</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {{-- Health Checks --}}
-        <x-filament::section>
-            <x-slot name="heading">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-heart class="w-5 h-5" />
-                    Health Checks
-                </div>
-            </x-slot>
-
-            <div class="space-y-3">
-                @foreach($systemHealth['checks'] as $name => $check)
-                    <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                        <div class="flex items-center gap-3">
-                            <x-dynamic-component
-                                :component="$statusIcons[$check['status']]"
-                                class="w-5 h-5 {{ $statusTextColors[$check['status']] }}"
-                            />
-                            <span class="font-medium capitalize">{{ str_replace('_', ' ', $name) }}</span>
-                        </div>
-                        <span class="text-sm {{ $statusTextColors[$check['status']] }}">
-                            {{ $check['message'] }}
-                        </span>
-                    </div>
-                @endforeach
-            </div>
-        </x-filament::section>
-
-        {{-- Queue Stats by Queue --}}
-        <x-filament::section>
-            <x-slot name="heading">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-queue-list class="w-5 h-5" />
-                    Queue Breakdown
-                </div>
-            </x-slot>
-
-            <div class="space-y-3">
-                @foreach($queueStats['queues'] as $queue)
-                    <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                        <div class="flex items-center gap-3">
-                            <x-dynamic-component
-                                :component="$statusIcons[$queue['status']]"
-                                class="w-5 h-5 {{ $statusTextColors[$queue['status']] }}"
-                            />
-                            <span class="font-medium">{{ $queue['name'] }}</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-mono {{ $queue['pending'] > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-gray-500' }}">
-                                {{ number_format($queue['pending']) }} pending
-                            </span>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </x-filament::section>
-
-        {{-- Storage Details --}}
-        <x-filament::section>
-            <x-slot name="heading">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-server-stack class="w-5 h-5" />
-                    Storage
-                </div>
-            </x-slot>
-
-            <div class="space-y-4">
-                {{-- Storage Bar --}}
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span>{{ $storageStats['used'] }} used</span>
-                        <span>{{ $storageStats['free'] }} free</span>
-                    </div>
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                        <div
-                            class="h-4 rounded-full transition-all {{ $storageStats['usedPercentage'] > 90 ? 'bg-danger-500' : ($storageStats['usedPercentage'] > 75 ? 'bg-warning-500' : 'bg-success-500') }}"
-                            style="width: {{ $storageStats['usedPercentage'] }}%"
-                        ></div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 pt-2">
-                    <div class="text-center p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                        <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">{{ $storageStats['total'] }}</div>
-                        <div class="text-sm text-gray-500">Total Space</div>
-                    </div>
-                    <div class="text-center p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                        <div class="text-2xl font-bold text-info-600 dark:text-info-400">{{ $storageStats['documents'] }}</div>
-                        <div class="text-sm text-gray-500">Documents</div>
-                    </div>
-                </div>
-            </div>
-        </x-filament::section>
-
-        {{-- Database Stats --}}
-        <x-filament::section>
-            <x-slot name="heading">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-circle-stack class="w-5 h-5" />
-                    Database
-                </div>
-            </x-slot>
-
-            <div class="space-y-3">
-                <div class="grid grid-cols-2 gap-3">
-                    @foreach($databaseStats['tables'] as $table => $count)
-                        <div class="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-800">
-                            <span class="text-sm capitalize">{{ str_replace('_', ' ', $table) }}</span>
-                            <span class="font-mono text-sm font-medium">{{ number_format($count) }}</span>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="pt-2 border-t dark:border-gray-700">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">Database Size</span>
-                        <span class="font-medium">{{ $databaseStats['databaseSize'] }}</span>
-                    </div>
-                </div>
-            </div>
-        </x-filament::section>
-    </div>
-
-    {{-- Failed Jobs Section --}}
-    <x-filament::section class="mt-6">
-        <x-slot name="heading">
-            <div class="flex items-center justify-between w-full">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-danger-500" />
-                    Failed Jobs
-                    @if($failedJobs['total'] > 0)
-                        <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400">
-                            {{ $failedJobs['total'] }} total
-                        </span>
-                    @endif
-                </div>
+    {{-- Failed Jobs --}}
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <x-heroicon-o-exclamation-triangle class="w-4 h-4 text-red-500" />
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Failed Jobs</h3>
                 @if($failedJobs['total'] > 0)
-                    <div class="flex gap-2">
-                        <x-filament::button size="xs" color="warning" wire:click="retryAllFailedJobs">
-                            Retry All
-                        </x-filament::button>
-                        <x-filament::button size="xs" color="danger" wire:click="flushFailedJobs" wire:confirm="Are you sure you want to delete all failed jobs?">
-                            Clear All
-                        </x-filament::button>
-                    </div>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 font-medium">{{ $failedJobs['total'] }}</span>
                 @endif
             </div>
-        </x-slot>
+            @if($failedJobs['total'] > 0)
+                <div class="flex gap-1.5">
+                    <x-filament::button size="xs" color="warning" wire:click="retryAllFailedJobs" icon="heroicon-o-arrow-path">
+                        Retry All
+                    </x-filament::button>
+                    <x-filament::button size="xs" color="danger" wire:click="flushFailedJobs" wire:confirm="Delete all failed jobs? This cannot be undone." icon="heroicon-o-trash">
+                        Clear
+                    </x-filament::button>
+                </div>
+            @endif
+        </div>
 
         @if(count($failedJobs['jobs']) > 0)
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full">
                     <thead>
-                        <tr class="border-b dark:border-gray-700">
-                            <th class="text-left py-2 px-3 font-medium">Job</th>
-                            <th class="text-left py-2 px-3 font-medium">Queue</th>
-                            <th class="text-left py-2 px-3 font-medium">Failed At</th>
-                            <th class="text-left py-2 px-3 font-medium">Exception</th>
-                            <th class="text-right py-2 px-3 font-medium">Actions</th>
+                        <tr class="bg-gray-50/50 dark:bg-gray-800/30">
+                            <th class="text-left py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Job</th>
+                            <th class="text-left py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Queue</th>
+                            <th class="text-left py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-gray-400">When</th>
+                            <th class="text-left py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Error</th>
+                            <th class="text-right py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-gray-400"></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                         @foreach($failedJobs['jobs'] as $job)
-                            <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                                <td class="py-2 px-3 font-mono text-xs">{{ $job['job'] }}</td>
-                                <td class="py-2 px-3">
-                                    <span class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-700">
-                                        {{ $job['queue'] }}
-                                    </span>
-                                </td>
-                                <td class="py-2 px-3 text-gray-500">
-                                    {{ \Carbon\Carbon::parse($job['failed_at'])->diffForHumans() }}
-                                </td>
-                                <td class="py-2 px-3 text-xs text-danger-600 dark:text-danger-400 max-w-xs truncate" title="{{ $job['exception'] }}">
-                                    {{ $job['exception'] }}
-                                </td>
-                                <td class="py-2 px-3 text-right">
-                                    <x-filament::button size="xs" color="gray" wire:click="retryFailedJob('{{ $job['id'] }}')">
+                            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
+                                <td class="py-2 px-4 font-mono text-xs text-gray-900 dark:text-gray-100">{{ $job['job'] }}</td>
+                                <td class="py-2 px-4"><span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">{{ $job['queue'] }}</span></td>
+                                <td class="py-2 px-4 text-xs text-gray-500 whitespace-nowrap">{{ \Carbon\Carbon::parse($job['failed_at'])->diffForHumans() }}</td>
+                                <td class="py-2 px-4 text-xs text-red-600 dark:text-red-400 max-w-xs truncate" title="{{ $job['exception'] }}">{{ $job['exception'] }}</td>
+                                <td class="py-2 px-4 text-right">
+                                    <x-filament::button size="xs" color="gray" wire:click="retryFailedJob('{{ $job['id'] }}')" icon="heroicon-o-arrow-path">
                                         Retry
                                     </x-filament::button>
                                 </td>
@@ -271,47 +219,46 @@
                 </table>
             </div>
         @else
-            <div class="text-center py-8 text-gray-500">
-                <x-heroicon-o-check-badge class="w-12 h-12 mx-auto mb-2 text-success-500" />
-                <p>No failed jobs. Everything is running smoothly!</p>
+            <div class="py-8 text-center">
+                <x-heroicon-o-check-badge class="w-8 h-8 mx-auto mb-2 text-emerald-500" />
+                <p class="text-xs font-medium text-gray-900 dark:text-gray-100">No failed jobs</p>
+                <p class="text-[11px] text-gray-500 mt-0.5">Everything running smoothly</p>
             </div>
         @endif
-    </x-filament::section>
+    </div>
 
-    {{-- Recent Job Batches --}}
+    {{-- Job Batches --}}
     @if(count($recentActivity['batches']) > 0)
-        <x-filament::section class="mt-6">
-            <x-slot name="heading">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-rectangle-stack class="w-5 h-5" />
-                    Recent Job Batches
-                </div>
-            </x-slot>
-
-            <div class="space-y-3">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mt-4">
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <x-heroicon-o-rectangle-stack class="w-4 h-4 text-indigo-500" />
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Recent Batches</h3>
+            </div>
+            <div class="p-3 space-y-2">
                 @foreach($recentActivity['batches'] as $batch)
-                    <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                    <div class="px-3 py-2.5 rounded-md bg-gray-50 dark:bg-gray-800/40">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="font-medium">{{ $batch['name'] }}</span>
-                            <span class="text-sm text-gray-500">
-                                {{ \Carbon\Carbon::parse($batch['created_at'])->diffForHumans() }}
-                            </span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $batch['name'] }}</span>
+                            <span class="text-[11px] text-gray-400">{{ \Carbon\Carbon::parse($batch['created_at'])->diffForHumans() }}</span>
                         </div>
-                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
-                            <div
-                                class="h-2 rounded-full {{ $batch['failed_jobs'] > 0 ? 'bg-danger-500' : 'bg-success-500' }}"
-                                style="width: {{ $batch['progress'] }}%"
-                            ></div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden mb-1.5">
+                            <div class="h-1.5 rounded-full {{ $batch['failed_jobs'] > 0 ? 'bg-red-500' : 'bg-emerald-500' }}" style="width: {{ $batch['progress'] }}%"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-gray-500">
-                            <span>{{ $batch['total_jobs'] - $batch['pending_jobs'] }}/{{ $batch['total_jobs'] }} completed</span>
+                        <div class="flex justify-between text-[11px] text-gray-500">
+                            <span>{{ $batch['total_jobs'] - $batch['pending_jobs'] }}/{{ $batch['total_jobs'] }} ({{ $batch['progress'] }}%)</span>
                             @if($batch['failed_jobs'] > 0)
-                                <span class="text-danger-600">{{ $batch['failed_jobs'] }} failed</span>
+                                <span class="text-red-500 font-medium">{{ $batch['failed_jobs'] }} failed</span>
                             @endif
                         </div>
                     </div>
                 @endforeach
             </div>
-        </x-filament::section>
+        </div>
     @endif
+
+    {{-- SMS Balance & CHIPS Database Widgets --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        @livewire(\App\Filament\Widgets\SmsBalanceWidget::class)
+        @livewire(\App\Filament\Widgets\ChipsDatabaseWidget::class)
+    </div>
 </x-filament-panels::page>

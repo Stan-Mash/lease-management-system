@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class PendingApprovalsOverview extends BaseWidget
@@ -12,13 +13,15 @@ class PendingApprovalsOverview extends BaseWidget
 
     protected function getStats(): array
     {
-        $stats = DB::table('lease_approvals')
-            ->selectRaw("
-                COUNT(CASE WHEN decision IS NULL THEN 1 END) as pending,
-                COUNT(CASE WHEN decision = 'approved' AND DATE(reviewed_at) = ? THEN 1 END) as approved_today,
-                COUNT(CASE WHEN decision = 'rejected' AND DATE(reviewed_at) = ? THEN 1 END) as rejected_today
-            ", [today(), today()])
-            ->first();
+        $stats = Cache::remember('pending_approvals_stats:' . today()->toDateString(), now()->addMinutes(5), function () {
+            return DB::table('lease_approvals')
+                ->selectRaw("
+                    COUNT(CASE WHEN decision IS NULL THEN 1 END) as pending,
+                    COUNT(CASE WHEN decision = 'approved' AND DATE(reviewed_at) = ? THEN 1 END) as approved_today,
+                    COUNT(CASE WHEN decision = 'rejected' AND DATE(reviewed_at) = ? THEN 1 END) as rejected_today
+                ", [today(), today()])
+                ->first();
+        });
 
         return [
             Stat::make('Pending Approvals', (int) ($stats->pending ?? 0))

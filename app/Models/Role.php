@@ -11,9 +11,8 @@ class Role extends Model
     use HasFactory;
 
     protected $fillable = [
-        'key',
         'name',
-        'description',
+        'guard_name',
         'color',
         'permissions',
         'sort_order',
@@ -32,7 +31,7 @@ class Role extends Model
      */
     public function users(): HasMany
     {
-        return $this->hasMany(User::class, 'role', 'key');
+        return $this->hasMany(User::class, 'role', 'name');
     }
 
     /**

@@ -55,16 +55,23 @@ class ExactLeaseTemplateSeeder extends Seeder
                 'css_styles' => $this->getDefaultCssStyles(),
                 'is_active' => true,
                 'is_default' => true,
+                'version_number' => 1,
                 'created_by' => 1,
                 'updated_by' => 1,
             ]
         );
 
+        // Ensure version_number is set (for freshly created templates)
+        if (!$template->version_number) {
+            $template->update(['version_number' => 1]);
+            $template->refresh();
+        }
+
         // Update or create the latest version record (avoids unique constraint violations)
         LeaseTemplateVersion::updateOrCreate(
             [
                 'lease_template_id' => $template->id,
-                'version_number' => $template->version_number,
+                'version_number' => $template->version_number ?? 1,
             ],
             [
                 'blade_content' => $content,

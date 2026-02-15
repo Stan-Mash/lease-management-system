@@ -12,13 +12,16 @@ class TemplateRenderService
     /**
      * Render a lease template with the lease data.
      *
+     * Accepts either a real Lease model or a stdClass mock object
+     * (used by TemplatePreviewController for sample data previews).
+     *
      * @param  LeaseTemplate  $template
-     * @param  Lease  $lease
+     * @param  Lease|object  $lease  Real Lease model or stdClass mock for previews
      * @return string
      *
      * @throws Exception
      */
-    public function render(LeaseTemplate $template, Lease $lease): string
+    public function render(LeaseTemplate $template, object $lease): string
     {
         // 1. Get the content - try versions first, then fall back to template's blade_content
         $templateContent = null;
@@ -57,7 +60,7 @@ class TemplateRenderService
             'tenant' => $lease->tenant,
             'unit' => $lease->unit,
             'property' => $lease->property,
-            'landlord' => $lease->landlord ?? $lease->property->landlord ?? null,
+            'landlord' => $lease->landlord ?? ($lease->property->landlord ?? null),
         ];
 
         // 3. Render the HTML string using Laravel's Blade engine

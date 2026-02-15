@@ -4,12 +4,16 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\Users\Pages;
 use App\Models\User;
-use BackedEnum; // Components are still here
-use Filament\Forms\Components\TextInput; // UPDATED: Replaces Filament\Forms\Form
+use BackedEnum;
+use Filament\Forms\Components\TextInput;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class UserResource extends Resource
 {
@@ -19,9 +23,11 @@ class UserResource extends Resource
 
     protected static ?string $navigationLabel = 'Users';
 
+    protected static string|UnitEnum|null $navigationGroup = 'Directory';
+
     protected static ?string $modelLabel = 'User';
 
-    protected static ?int $navigationSort = 100;
+    protected static ?int $navigationSort = 5;
 
     // FIX: Updated signature to use Schema instead of Form
     public static function form(Schema $schema): Schema
@@ -60,11 +66,11 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
