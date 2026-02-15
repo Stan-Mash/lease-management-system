@@ -25,12 +25,12 @@ return new class extends Migration
 
         // ─── 2. Create 6 zones: AB (A+B combined), C, D, E, F, G ───
         $zones = [
-            ['name' => 'Zone AB', 'code' => 'ZN-AB', 'description' => 'Zone A and B combined', 'zone_manager_id' => 14], // Zipporah
-            ['name' => 'Zone C',  'code' => 'ZN-C',  'description' => 'Zone C',               'zone_manager_id' => 16], // Salivan
-            ['name' => 'Zone D',  'code' => 'ZN-D',  'description' => 'Zone D',               'zone_manager_id' => 20], // Florence Mutei
-            ['name' => 'Zone E',  'code' => 'ZN-E',  'description' => 'Zone E',               'zone_manager_id' => 27], // Florence Karimi
-            ['name' => 'Zone F',  'code' => 'ZN-F',  'description' => 'Zone F',               'zone_manager_id' => 45], // Dennis Mawira
-            ['name' => 'Zone G',  'code' => 'ZN-G',  'description' => 'Zone G',               'zone_manager_id' => 18], // Sheila
+            ['name' => 'Zone AB', 'code' => 'ZN-AB', 'description' => 'Zone A and B combined', 'zone_manager_id' => null], // Zipporah
+            ['name' => 'Zone C',  'code' => 'ZN-C',  'description' => 'Zone C',               'zone_manager_id' => null], // Salivan
+            ['name' => 'Zone D',  'code' => 'ZN-D',  'description' => 'Zone D',               'zone_manager_id' => null], // Florence Mutei
+            ['name' => 'Zone E',  'code' => 'ZN-E',  'description' => 'Zone E',               'zone_manager_id' => null], // Florence Karimi
+            ['name' => 'Zone F',  'code' => 'ZN-F',  'description' => 'Zone F',               'zone_manager_id' => null], // Dennis Mawira
+            ['name' => 'Zone G',  'code' => 'ZN-G',  'description' => 'Zone G',               'zone_manager_id' => null], // Sheila
         ];
 
         $zoneIds = [];
