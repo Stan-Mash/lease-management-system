@@ -87,6 +87,10 @@ class Lease extends Model
         'verification_url',
         'notes',
         'created_by',
+        'lease_reference_number',
+        'unit_code',
+        'zone_manager_id',
+        'date_created',
     ];
 
     protected $casts = [
@@ -100,6 +104,7 @@ class Lease extends Model
         'requires_lawyer' => 'boolean',
         'requires_guarantor' => 'boolean',
         'qr_generated_at' => 'datetime',
+        'date_created' => 'datetime',
     ];
 
     /*
@@ -131,6 +136,11 @@ class Lease extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function zoneManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'zone_manager_id');
     }
 
     public function edits(): HasMany

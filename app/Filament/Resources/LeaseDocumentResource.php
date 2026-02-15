@@ -460,6 +460,8 @@ class LeaseDocumentResource extends Resource
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->poll('30s')
             ->searchPlaceholder('Search by title, description, filename, property, uploader, or lease reference...');
     }
@@ -487,12 +489,39 @@ class LeaseDocumentResource extends Resource
     {
         $query = parent::getEloquentQuery();
 
-        // Zone managers can only see their zone's documents
         $user = auth()->user();
-        if ($user && $user->hasRole('zone_manager') && $user->zone_id) {
-            $query->where('zone_id', $user->zone_id);
+        if (!$user) {
+            return $query;
+        }
+
+        // Field officers: only see documents for their assigned leases
+        if ($user->role === 'field_officer') {
+            return $query->whereHas('lease', fn ($q) => $q->where('assigned_field_officer_id', $user->id));
+        }
+
+        // Zone-restricted users: filter by zone
+        if ($user->hasZoneRestriction() && $user->zone_id) {
+            return $query->where('zone_id', $user->zone_id);
         }
 
         return $query;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        return $user && !in_array($user->role, ['auditor', 'internal_auditor']);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        return $user && $user->role !== 'field_officer' && !in_array($user->role, ['auditor', 'internal_auditor']);
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        return $user && in_array($user->role, ['super_admin', 'admin', 'property_manager']);
     }
 }

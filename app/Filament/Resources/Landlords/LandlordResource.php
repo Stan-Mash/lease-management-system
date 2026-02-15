@@ -15,12 +15,17 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class LandlordResource extends Resource
 {
     protected static ?string $model = Landlord::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Directory';
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -62,6 +67,47 @@ class LandlordResource extends Resource
     public static function table(Table $table): Table
     {
         return LandlordsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery()
+            ->withCount('properties');
+
+        $user = auth()->user();
+        if (!$user) {
+            return $query;
+        }
+
+        // Field officers: only see landlords with properties allocated to them
+        if ($user->role === 'field_officer') {
+            return $query->whereHas('properties', fn ($q) => $q->where('field_officer_id', $user->id));
+        }
+
+        // Zone-restricted users: filter by zone
+        if ($user->hasZoneRestriction() && $user->zone_id) {
+            return $query->where('zone_id', $user->zone_id);
+        }
+
+        return $query;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        return $user && $user->role !== 'field_officer' && !in_array($user->role, ['auditor', 'internal_auditor']);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        return $user && $user->role !== 'field_officer' && !in_array($user->role, ['auditor', 'internal_auditor']);
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        return $user && in_array($user->role, ['super_admin', 'admin', 'property_manager']);
     }
 
     public static function getRelations(): array

@@ -46,6 +46,12 @@ class UserForm
                             ->searchable()
                             ->native(false),
 
+                        TextInput::make('employee_number')
+                            ->label('Employee Number')
+                            ->maxLength(50)
+                            ->unique(ignoreRecord: true)
+                            ->placeholder('e.g. EMP-001'),
+
                         TextInput::make('phone')
                             ->tel()
                             ->maxLength(20),

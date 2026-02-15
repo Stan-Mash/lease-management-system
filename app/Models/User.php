@@ -23,6 +23,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'employee_number',
         'password',
         'role',
         'zone_id',
@@ -32,6 +33,10 @@ class User extends Authenticatable
         'last_login_at',
         'department',
         'bio',
+        'availability_status',
+        'backup_officer_id',
+        'acting_for_user_id',
+        'date_created',
     ];
 
     /**
@@ -65,7 +70,10 @@ class User extends Authenticatable
      */
     public function canManageLeases(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'manager', 'agent']);
+        return in_array($this->role, [
+            'super_admin', 'admin', 'property_manager', 'asst_property_manager',
+            'zone_manager', 'senior_field_officer',
+        ]);
     }
 
     /**
@@ -74,15 +82,79 @@ class User extends Authenticatable
     public function getRoleDisplayName(): string
     {
         return match ($this->role) {
-            'super_admin' => 'Super Administrator',
-            'admin' => 'Administrator',
+            'super_admin' => 'Super Admin',
+            'admin' => 'Admin',
+            'property_manager' => 'Property Manager',
+            'asst_property_manager' => 'Asst. Property Manager',
+            'accountant' => 'Accountant',
+            'auditor' => 'Auditor',
+            'internal_auditor' => 'Internal Auditor',
+            'office_administrator' => 'Office Administrator',
+            'office_admin_assistant' => 'Office Admin Assistant',
+            'office_assistant' => 'Office Assistant',
             'zone_manager' => 'Zone Manager',
+            'senior_field_officer' => 'Senior Field Officer',
             'field_officer' => 'Field Officer',
-            'manager' => 'Manager',
-            'agent' => 'Agent',
-            'viewer' => 'Viewer',
             default => ucfirst(str_replace('_', ' ', $this->role)),
         };
+    }
+
+    /**
+     * Check if user is a senior field officer.
+     */
+    public function isSeniorFieldOfficer(): bool
+    {
+        return $this->role === 'senior_field_officer';
+    }
+
+    /**
+     * Check if user is currently acting for a zone manager.
+     */
+    public function isActingForSomeone(): bool
+    {
+        return $this->acting_for_user_id !== null;
+    }
+
+    /**
+     * Get the user this officer is a backup for.
+     */
+    public function backupFor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'backup_officer_id');
+    }
+
+    /**
+     * Get the user this person is currently acting for.
+     */
+    public function actingFor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'acting_for_user_id');
+    }
+
+    /**
+     * Get the backup officer assigned to this zone manager.
+     */
+    public function backupOfficer(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(User::class, 'backup_officer_id');
+    }
+
+    /**
+     * Check availability status.
+     */
+    public function isAvailable(): bool
+    {
+        return $this->availability_status === 'available';
+    }
+
+    public function isOnLeave(): bool
+    {
+        return $this->availability_status === 'on_leave';
+    }
+
+    public function isAway(): bool
+    {
+        return $this->availability_status === 'away';
     }
 
     /**
@@ -118,19 +190,37 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is a field officer.
+     * Check if user is an internal auditor (sees all zones, read-only).
+     */
+    public function isInternalAuditor(): bool
+    {
+        return $this->role === 'internal_auditor';
+    }
+
+    /**
+     * Check if user is an auditor (zone-restricted) or internal auditor.
+     */
+    public function isAuditor(): bool
+    {
+        return in_array($this->role, ['auditor', 'internal_auditor']);
+    }
+
+    /**
+     * Check if user is a field officer (regular or senior).
      */
     public function isFieldOfficer(): bool
     {
-        return $this->role === 'field_officer';
+        return in_array($this->role, ['field_officer', 'senior_field_officer']);
     }
 
     /**
      * Check if user has zone-restricted access.
+     * Internal auditor does NOT have zone restriction (sees all zones).
+     * Regular auditor IS zone-restricted.
      */
     public function hasZoneRestriction(): bool
     {
-        return in_array($this->role, ['zone_manager', 'field_officer']);
+        return in_array($this->role, ['zone_manager', 'field_officer', 'senior_field_officer', 'auditor']);
     }
 
     /**
@@ -138,8 +228,13 @@ class User extends Authenticatable
      */
     public function canAccessZone(int $zoneId): bool
     {
-        // Super admins and regular admins can access all zones
-        if ($this->isAdmin()) {
+        // Super admins, admins, and internal auditors can access all zones
+        if ($this->isAdmin() || $this->isInternalAuditor()) {
+            return true;
+        }
+
+        // Property managers and asst PMs can access all zones
+        if (in_array($this->role, ['property_manager', 'asst_property_manager'])) {
             return true;
         }
 
@@ -198,6 +293,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'date_created' => 'datetime',
         ];
     }
 }

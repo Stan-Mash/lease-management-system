@@ -71,20 +71,15 @@ class RoleResource extends Resource
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable()
-                    ->weight('bold'),
-
-                TextColumn::make('key')
-                    ->label('Role Key')
-                    ->searchable()
-                    ->sortable()
+                    ->weight('bold')
                     ->copyable()
-                    ->fontFamily('mono')
-                    ->color('gray'),
+                    ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
 
-                TextColumn::make('description')
-                    ->limit(50)
-                    ->searchable()
-                    ->toggleable(),
+                TextColumn::make('guard_name')
+                    ->label('Guard')
+                    ->badge()
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('color')
                     ->badge()

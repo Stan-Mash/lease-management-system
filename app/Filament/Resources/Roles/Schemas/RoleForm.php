@@ -5,13 +5,11 @@ namespace App\Filament\Resources\Roles\Schemas;
 use App\Models\Role;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Str;
 
 class RoleForm
 {
@@ -24,31 +22,18 @@ class RoleForm
                     Grid::make(2)->schema([
                         TextInput::make('name')
                             ->required()
-                            ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function ($state, $set, $context) {
-                                // Auto-generate key from name only on create
-                                if ($context === 'create') {
-                                    $set('key', Str::slug(Str::lower($state), '_'));
-                                }
-                            })
-                            ->helperText('Display name shown to users'),
-
-                        TextInput::make('key')
-                            ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
                             ->regex('/^[a-z0-9_]+$/')
                             ->disabled(fn ($context, $record) => $context === 'edit' && $record?->is_system)
                             ->helperText('Unique identifier used in code (lowercase, underscores only)')
-                            ->dehydrated()
-                            ->columnSpan(1),
+                            ->dehydrated(),
 
-                        Textarea::make('description')
-                            ->rows(3)
-                            ->maxLength(500)
-                            ->helperText('Describe what this role can do')
-                            ->columnSpanFull(),
+                        TextInput::make('guard_name')
+                            ->default('web')
+                            ->required()
+                            ->maxLength(255)
+                            ->helperText('Guard name for this role'),
 
                         Select::make('color')
                             ->options(Role::getAvailableColors())

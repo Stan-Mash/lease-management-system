@@ -8,6 +8,7 @@ use App\Models\Lease;
 use App\Models\Unit;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 
@@ -35,54 +36,65 @@ class LeaseStatsWidget extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        // Base query with zone/FO/date filtering
-        $baseQuery = $this->getFilteredQuery();
+        $cacheKey = 'lease_stats_widget:' . ($this->zoneId ?? 'all') . ':' . ($this->fieldOfficerId ?? 'all') . ':' . ($this->dateFilter ?? 'none') . ':' . ($this->startDate ?? '') . ':' . ($this->endDate ?? '');
 
-        // Consolidate 6 separate lease queries into a single aggregation query.
-        // This reduces dashboard DB roundtrips from ~8 to ~2.
-        $oneMonthAgo = now()->subMonth();
-        $todayStr = now()->toDateString();
-        $thirtyDaysFromNow = now()->addDays(30)->toDateString();
+        $cached = Cache::remember($cacheKey, now()->addMinutes(5), function () {
+            $baseQuery = $this->getFilteredQuery();
+            $oneMonthAgo = now()->subMonth();
+            $todayStr = now()->toDateString();
+            $thirtyDaysFromNow = now()->addDays(30)->toDateString();
 
-        $leaseStats = (clone $baseQuery)
-            ->selectRaw("
-                COUNT(CASE WHEN workflow_state = 'active' THEN 1 END) as active_count,
-                COUNT(CASE WHEN workflow_state = 'active' AND created_at < ? THEN 1 END) as last_month_active,
-                COALESCE(SUM(CASE WHEN workflow_state = 'active' THEN monthly_rent END), 0) as total_revenue,
-                COALESCE(SUM(CASE WHEN workflow_state = 'active' AND updated_at < ? THEN monthly_rent END), 0) as last_month_revenue,
-                COUNT(CASE WHEN workflow_state IN ('draft','pending_landlord_approval','pending_tenant_signature','pending_deposit') THEN 1 END) as pending_count,
-                COUNT(CASE WHEN workflow_state = 'active' AND end_date >= ? AND end_date <= ? THEN 1 END) as expiring_soon
-            ", [$oneMonthAgo, $oneMonthAgo, $todayStr, $thirtyDaysFromNow])
-            ->first();
+            $leaseStats = (clone $baseQuery)
+                ->selectRaw("
+                    COUNT(CASE WHEN workflow_state = 'active' THEN 1 END) as active_count,
+                    COUNT(CASE WHEN workflow_state = 'active' AND created_at < ? THEN 1 END) as last_month_active,
+                    COALESCE(SUM(CASE WHEN workflow_state = 'active' THEN monthly_rent END), 0) as total_revenue,
+                    COALESCE(SUM(CASE WHEN workflow_state = 'active' AND updated_at < ? THEN monthly_rent END), 0) as last_month_revenue,
+                    COUNT(CASE WHEN workflow_state IN ('draft','pending_landlord_approval','pending_tenant_signature','pending_deposit') THEN 1 END) as pending_count,
+                    COUNT(CASE WHEN workflow_state = 'active' AND end_date >= ? AND end_date <= ? THEN 1 END) as expiring_soon
+                ", [$oneMonthAgo, $oneMonthAgo, $todayStr, $thirtyDaysFromNow])
+                ->first();
 
-        $activeLeases = (int) $leaseStats->active_count;
-        $lastMonthActive = (int) $leaseStats->last_month_active;
+            $unitQuery = Unit::query();
+            if ($this->zoneId) {
+                $unitQuery->whereHas('property', fn ($q) => $q->where('zone_id', $this->zoneId));
+            }
+            $unitStats = (clone $unitQuery)
+                ->selectRaw("
+                    COUNT(*) as total_units,
+                    SUM(CASE WHEN status = 'occupied' THEN 1 ELSE 0 END) as occupied_units
+                ")
+                ->first();
+
+            return [
+                'active_count' => (int) $leaseStats->active_count,
+                'last_month_active' => (int) $leaseStats->last_month_active,
+                'total_revenue' => (float) $leaseStats->total_revenue,
+                'last_month_revenue' => (float) $leaseStats->last_month_revenue,
+                'pending_count' => (int) $leaseStats->pending_count,
+                'expiring_soon' => (int) $leaseStats->expiring_soon,
+                'total_units' => (int) $unitStats->total_units,
+                'occupied_units' => (int) $unitStats->occupied_units,
+            ];
+        });
+
+        $activeLeases = $cached['active_count'];
+        $lastMonthActive = $cached['last_month_active'];
         $activeChange = $lastMonthActive > 0
             ? round((($activeLeases - $lastMonthActive) / $lastMonthActive) * 100, 1)
             : 0;
 
-        $totalRevenue = (float) $leaseStats->total_revenue;
-        $lastMonthRevenue = (float) $leaseStats->last_month_revenue;
+        $totalRevenue = $cached['total_revenue'];
+        $lastMonthRevenue = $cached['last_month_revenue'];
         $revenueChange = $lastMonthRevenue > 0
             ? round((($totalRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
             : 0;
 
-        $pendingLeases = (int) $leaseStats->pending_count;
-        $expiringSoon = (int) $leaseStats->expiring_soon;
+        $pendingLeases = $cached['pending_count'];
+        $expiringSoon = $cached['expiring_soon'];
 
-        // Occupancy Rate — consolidated 2 unit queries into 1 (zone-specific if zoneId is set)
-        $unitQuery = Unit::query();
-        if ($this->zoneId) {
-            $unitQuery->whereHas('property', fn ($q) => $q->where('zone_id', $this->zoneId));
-        }
-        $unitStats = (clone $unitQuery)
-            ->selectRaw("
-                COUNT(*) as total_units,
-                SUM(CASE WHEN status = 'occupied' THEN 1 ELSE 0 END) as occupied_units
-            ")
-            ->first();
-        $totalUnits = (int) $unitStats->total_units;
-        $occupiedUnits = (int) $unitStats->occupied_units;
+        $totalUnits = $cached['total_units'];
+        $occupiedUnits = $cached['occupied_units'];
         $occupancyRate = $totalUnits > 0
             ? round(($occupiedUnits / $totalUnits) * 100, 1)
             : 0;
@@ -95,7 +107,7 @@ class LeaseStatsWidget extends StatsOverviewWidget
                 ->chart([7, 3, 4, 5, 6, 3, 5, 3])
                 ->url($this->getFilteredUrl(['workflow_state' => 'active'])),
 
-            Stat::make('Monthly Revenue', '$' . number_format($totalRevenue, 2))
+            Stat::make('Monthly Revenue', 'KES ' . number_format($totalRevenue, 2))
                 ->description($revenueChange >= 0 ? "+{$revenueChange}% from last month" : "{$revenueChange}% from last month")
                 ->descriptionIcon($revenueChange >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
                 ->color($revenueChange >= 0 ? 'success' : 'danger')

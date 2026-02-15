@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\RentEscalation;
+use Filament\Actions\Action;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -69,7 +70,7 @@ class UpcomingRentEscalationsWidget extends BaseWidget
                     ->boolean(),
             ])
             ->actions([
-                Tables\Actions\Action::make('notify')
+                Action::make('notify')
                     ->label('Send Notification')
                     ->icon('heroicon-o-bell')
                     ->requiresConfirmation()

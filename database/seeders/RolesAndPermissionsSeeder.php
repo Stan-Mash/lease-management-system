@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -103,16 +104,39 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->createAudit();
     }
 
+    /**
+     * Attach permissions to a role, working around the 'permissions' column
+     * on the roles table that conflicts with Spatie's permissions relationship.
+     */
+    private function assignPermissions(Role $role, array|Collection $permissions): void
+    {
+        // Detach all existing permissions first
+        $role->permissions()->detach();
+
+        // Resolve permission IDs
+        if ($permissions instanceof Collection) {
+            $permissionIds = $permissions->pluck('id')->toArray();
+        } else {
+            $permissionIds = Permission::whereIn('name', $permissions)->pluck('id')->toArray();
+        }
+
+        // Attach via the pivot table directly
+        $role->permissions()->attach($permissionIds);
+
+        // Reset Spatie's permission cache
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    }
+
     private function createSuperUser(): void
     {
         $role = Role::firstOrCreate(['name' => 'super_admin']);
-        $role->syncPermissions(Permission::all());
+        $this->assignPermissions($role, Permission::all());
     }
 
     private function createSystemAdmin(): void
     {
         $role = Role::firstOrCreate(['name' => 'system_admin']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases', 'view_any_lease', 'create_leases', 'update_leases',
             'print_leases', 'transition_lease_state',
             'approve_leases', 'reject_leases', 'request_approval',
@@ -134,7 +158,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createPropertyManager(): void
     {
         $role = Role::firstOrCreate(['name' => 'property_manager']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases', 'view_any_lease', 'create_leases', 'update_leases',
             'print_leases', 'transition_lease_state',
             'edit_landlord_leases', 'upload_landlord_documents',
@@ -156,7 +180,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createAssistantPropertyManager(): void
     {
         $role = Role::firstOrCreate(['name' => 'asst_property_manager']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases', 'view_any_lease', 'create_leases', 'update_leases',
             'print_leases', 'transition_lease_state',
             'edit_landlord_leases', 'upload_landlord_documents',
@@ -177,7 +201,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createZoneManager(): void
     {
         $role = Role::firstOrCreate(['name' => 'zone_manager']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases', 'create_leases', 'update_leases',
             'print_leases', 'transition_lease_state',
             'request_approval',
@@ -197,7 +221,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createSeniorFieldOfficer(): void
     {
         $role = Role::firstOrCreate(['name' => 'senior_field_officer']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases', 'create_leases', 'update_leases',
             'transition_lease_state',
             'request_approval',
@@ -215,7 +239,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createFieldOfficer(): void
     {
         $role = Role::firstOrCreate(['name' => 'field_officer']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases',
             'transition_lease_state',
             'checkout_leases', 'checkin_leases',
@@ -231,7 +255,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createAudit(): void
     {
         $role = Role::firstOrCreate(['name' => 'audit']);
-        $role->givePermissionTo([
+        $this->assignPermissions($role, [
             'view_leases', 'view_any_lease',
             'view_tenants',
             'view_landlords',

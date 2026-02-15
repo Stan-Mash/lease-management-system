@@ -23,10 +23,10 @@ class RoleService
 
             $roles = [];
             foreach ($dbRoles as $role) {
-                $roles[$role->key] = [
-                    'name' => $role->name,
-                    'description' => $role->description,
-                    'color' => $role->color,
+                $roles[$role->name] = [
+                    'name' => ucwords(str_replace('_', ' ', $role->name)),
+                    'description' => $role->description ?? '',
+                    'color' => $role->color ?? 'gray',
                     'permissions' => $role->permissions ?? [],
                 ];
             }
@@ -103,14 +103,14 @@ class RoleService
      */
     public static function getDefaultRole(): string
     {
-        // Try to get first active role from database
-        $firstRole = Role::active()->ordered()->first();
-        if ($firstRole) {
-            return $firstRole->key;
+        // Return the lowest-privilege role (highest sort_order) as default
+        $lastRole = Role::active()->orderByDesc('sort_order')->first();
+        if ($lastRole && $lastRole->name) {
+            return $lastRole->name;
         }
 
         // Fall back to config
-        return Config::get('roles.default_role', 'staff');
+        return Config::get('roles.default_role', 'field_officer');
     }
 
     /**

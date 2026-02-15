@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Lease;
+use Filament\Actions\Action;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -65,7 +66,7 @@ class UpcomingExpirationsWidget extends BaseWidget
                     ->badge(),
             ])
             ->actions([
-                Tables\Actions\Action::make('view')
+                Action::make('view')
                     ->url(fn (Lease $record) => route('filament.admin.resources.leases.view', $record))
                     ->icon('heroicon-o-eye'),
             ])
