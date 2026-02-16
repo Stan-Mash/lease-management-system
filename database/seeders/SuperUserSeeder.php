@@ -14,6 +14,29 @@ class SuperUserSeeder extends Seeder
         // Ensure super_admin role exists
         $role = Role::firstOrCreate(['name' => 'super_admin']);
 
+        // Remove any default admin user
+        User::where('email', 'admin@admin.com')
+            ->orWhere('email', 'admin@example.com')
+            ->orWhere('username', 'admin')
+            ->delete();
+
+        // Stanley Mash - Super Super Admin
+        $stanley = User::updateOrCreate(
+            ['email' => 'stanley.mash@chabrinagencies.co.ke'],
+            [
+                'name' => 'Stanley Mash',
+                'username' => 'stanley.mash',
+                'password' => Hash::make('Chabrin@2026!'),
+                'block' => false,
+                'sendEmail' => true,
+                'registerDate' => now(),
+                'activation' => '',
+                'resetCount' => 0,
+                'requireReset' => false,
+            ]
+        );
+        $stanley->syncRoles(['super_admin']);
+
         // Kimathi - Super Admin
         $kimathi = User::updateOrCreate(
             ['email' => 'kimathiw@chabrinagencies.co.ke'],
@@ -48,8 +71,10 @@ class SuperUserSeeder extends Seeder
         );
         $mark->syncRoles(['super_admin']);
 
+        $this->command->info('Default admin user removed.');
         $this->command->info('Super users created:');
-        $this->command->info('  Kimathi  | kimathiw@chabrinagencies.co.ke  | password: Chabrin@2026!');
-        $this->command->info('  Mark     | mark.nyaga@chabrinagencies.co.ke | password: Chabrin@2026!');
+        $this->command->info('  Stanley  | stanley.mash@chabrinagencies.co.ke | password: Chabrin@2026!');
+        $this->command->info('  Kimathi  | kimathiw@chabrinagencies.co.ke     | password: Chabrin@2026!');
+        $this->command->info('  Mark     | mark.nyaga@chabrinagencies.co.ke   | password: Chabrin@2026!');
     }
 }
