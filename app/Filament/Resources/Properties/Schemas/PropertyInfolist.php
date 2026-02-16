@@ -11,21 +11,23 @@ class PropertyInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('name'),
-                TextEntry::make('property_code'),
-                TextEntry::make('zone'),
-                TextEntry::make('location')
-                    ->placeholder('-'),
-                TextEntry::make('landlord_id')
-                    ->numeric(),
-                TextEntry::make('management_commission')
-                    ->numeric(),
-                TextEntry::make('created_at')
-                    ->dateTime()
-                    ->placeholder('-'),
-                TextEntry::make('updated_at')
-                    ->dateTime()
-                    ->placeholder('-'),
+                TextEntry::make('date_time')->dateTime()->placeholder('-'),
+                TextEntry::make('client.names')->label('Client')->placeholder('-'),
+                TextEntry::make('reference_number')->placeholder('-'),
+                TextEntry::make('description')->placeholder('-'),
+                TextEntry::make('lat_long')->placeholder('-'),
+                TextEntry::make('property_name')->placeholder('-'),
+                TextEntry::make('lr_number')->placeholder('-'),
+                TextEntry::make('usage_type_id')->placeholder('-'),
+                TextEntry::make('current_status_id')->placeholder('-'),
+                TextEntry::make('acquisition_date')->date()->placeholder('-'),
+                TextEntry::make('bank_account_id')->placeholder('-'),
+                TextEntry::make('fieldOfficer.name')->label('Field Officer')->placeholder('-'),
+                TextEntry::make('zoneSupervisor.name')->label('Zone Supervisor')->placeholder('-'),
+                TextEntry::make('zoneManager.name')->label('Zone Manager')->placeholder('-'),
+                TextEntry::make('parent_property_id')->placeholder('-'),
+                TextEntry::make('created_at')->dateTime()->placeholder('-'),
+                TextEntry::make('updated_at')->dateTime()->placeholder('-'),
             ]);
     }
 }

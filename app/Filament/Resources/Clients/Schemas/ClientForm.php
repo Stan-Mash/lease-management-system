@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Tenants\Schemas;
+namespace App\Filament\Resources\Clients\Schemas;
 
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
@@ -9,7 +9,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
-class TenantForm
+class ClientForm
 {
     public static function configure(Schema $schema): Schema
     {
@@ -42,7 +42,7 @@ class TenantForm
                 TextInput::make('national_id'),
                 TextInput::make('passport_number'),
                 TextInput::make('client_type_id')->numeric(),
-                FileUpload::make('photo')->image()->directory('tenant-photos'),
+                FileUpload::make('photo')->image()->directory('client-photos'),
                 Textarea::make('documents'),
                 TextInput::make('current_status_id')->numeric(),
                 TextInput::make('client_status_id')->numeric(),

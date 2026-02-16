@@ -1,30 +1,30 @@
 <?php
 
-namespace App\Filament\Resources\Tenants;
+namespace App\Filament\Resources\Clients;
 
-use App\Filament\Resources\Tenants\Pages\CreateTenant;
-use App\Filament\Resources\Tenants\Pages\EditTenant;
-use App\Filament\Resources\Tenants\Pages\ListTenants;
-use App\Filament\Resources\Tenants\Pages\ViewTenant;
-use App\Filament\Resources\Tenants\Schemas\TenantForm;
-use App\Filament\Resources\Tenants\Schemas\TenantInfolist;
-use App\Filament\Resources\Tenants\Tables\TenantsTable;
-use App\Models\Tenant;
+use App\Filament\Resources\Clients\Pages\CreateClient;
+use App\Filament\Resources\Clients\Pages\EditClient;
+use App\Filament\Resources\Clients\Pages\ListClients;
+use App\Filament\Resources\Clients\Pages\ViewClient;
+use App\Filament\Resources\Clients\Schemas\ClientForm;
+use App\Filament\Resources\Clients\Schemas\ClientInfolist;
+use App\Filament\Resources\Clients\Tables\ClientsTable;
+use App\Models\Client;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class TenantResource extends Resource
+class ClientResource extends Resource
 {
-    protected static ?string $model = Tenant::class;
+    protected static ?string $model = Client::class;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
 
     protected static string|UnitEnum|null $navigationGroup = 'Directory';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'names';
 
@@ -35,7 +35,7 @@ class TenantResource extends Resource
 
     public static function getGlobalSearchResultTitle($record): string
     {
-        return $record->names ?? 'Unknown Tenant';
+        return $record->names ?? 'Unknown Client';
     }
 
     public static function getGlobalSearchResultDetails($record): array
@@ -49,17 +49,17 @@ class TenantResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return TenantForm::configure($schema);
+        return ClientForm::configure($schema);
     }
 
     public static function infolist(Schema $schema): Schema
     {
-        return TenantInfolist::configure($schema);
+        return ClientInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
     {
-        return TenantsTable::configure($table);
+        return ClientsTable::configure($table);
     }
 
     public static function getRelations(): array
@@ -70,10 +70,10 @@ class TenantResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListTenants::route('/'),
-            'create' => CreateTenant::route('/create'),
-            'view' => ViewTenant::route('/{record}'),
-            'edit' => EditTenant::route('/{record}/edit'),
+            'index' => ListClients::route('/'),
+            'create' => CreateClient::route('/create'),
+            'view' => ViewClient::route('/{record}'),
+            'edit' => EditClient::route('/{record}/edit'),
         ];
     }
 }

@@ -12,25 +12,35 @@ class Property extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
-        'property_code',
-        'zone',
-        'location',
-        'landlord_id',
-        'commission',
+        'date_time',
+        'client_id',
+        'reference_number',
+        'description',
+        'lat_long',
+        'photos_and_documents',
+        'zone_id',
+        'zone_area_id',
+        'property_name',
+        'lr_number',
+        'usage_type_id',
+        'current_status_id',
+        'acquisition_date',
+        'created_by',
+        'bank_account_id',
         'field_officer_id',
+        'zone_supervisor_id',
         'zone_manager_id',
-        'date_created',
+        'parent_property_id',
     ];
 
     protected $casts = [
-        'commission' => 'decimal:2',
-        'date_created' => 'datetime',
+        'date_time' => 'datetime',
+        'acquisition_date' => 'date',
     ];
 
-    public function landlord(): BelongsTo
+    public function client(): BelongsTo
     {
-        return $this->belongsTo(Landlord::class);
+        return $this->belongsTo(Client::class);
     }
 
     public function units(): HasMany
@@ -48,8 +58,33 @@ class Property extends Model
         return $this->belongsTo(User::class, 'field_officer_id');
     }
 
+    public function zoneSupervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'zone_supervisor_id');
+    }
+
     public function zoneManager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'zone_manager_id');
+    }
+
+    public function createdByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function parentProperty(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'parent_property_id');
+    }
+
+    public function childProperties(): HasMany
+    {
+        return $this->hasMany(Property::class, 'parent_property_id');
+    }
+
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class);
     }
 }

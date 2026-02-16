@@ -6,12 +6,9 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DatePicker;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class UnitsTable
 {
@@ -19,9 +16,9 @@ class UnitsTable
     {
         return $table
             ->columns([
-                TextColumn::make('date_created')
-                    ->label('Date Created')
-                    ->dateTime('d/m/Y')
+                TextColumn::make('date_time')
+                    ->label('Date/Time')
+                    ->dateTime('d/m/Y H:i')
                     ->sortable(),
 
                 TextColumn::make('unit_code')
@@ -31,135 +28,53 @@ class UnitsTable
                     ->copyable()
                     ->weight('bold'),
 
+                TextColumn::make('unit_name')
+                    ->label('Unit Name')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('unit_number')
                     ->label('Unit No.')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('property.name')
+                TextColumn::make('property.property_name')
                     ->label('Property')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('property.property_code')
-                    ->label('Property Code')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('type')
-                    ->label('Type')
-                    ->badge()
-                    ->formatStateUsing(fn (?string $state): string => ucfirst($state ?? 'N/A'))
-                    ->sortable(),
-
-                TextColumn::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'available' => 'success',
-                        'occupied' => 'primary',
-                        'maintenance' => 'warning',
-                        default => 'gray',
-                    })
-                    ->sortable(),
-
-                TextColumn::make('market_rent')
-                    ->label('Market Rent')
-                    ->money('KES')
-                    ->sortable(),
-
-                TextColumn::make('deposit_required')
-                    ->label('Deposit')
-                    ->money('KES')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('fieldOfficer.name')
-                    ->label('Field Officer')
-                    ->sortable()
+                TextColumn::make('client.names')
+                    ->label('Client')
                     ->searchable()
                     ->toggleable(),
 
-                TextColumn::make('zoneManager.name')
-                    ->label('Zone Manager')
-                    ->sortable()
-                    ->searchable()
+                TextColumn::make('rent_amount')
+                    ->label('Rent')
+                    ->money('KES')
+                    ->sortable(),
+
+                IconColumn::make('vat_able')
+                    ->label('VAT')
+                    ->boolean()
                     ->toggleable(),
+
+                TextColumn::make('description')
+                    ->label('Description')
+                    ->limit(40)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('initial_water_meter_reading')
+                    ->label('Water Meter')
+                    ->numeric()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
                     ->label('System Created')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('updated_at')
-                    ->label('Updated')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                SelectFilter::make('status')
-                    ->label('Status')
-                    ->options([
-                        'available' => 'Available',
-                        'occupied' => 'Occupied',
-                        'maintenance' => 'Maintenance',
-                    ])
-                    ->multiple(),
-
-                SelectFilter::make('type')
-                    ->label('Type')
-                    ->options(fn () => \App\Models\Unit::query()
-                        ->whereNotNull('type')
-                        ->distinct()
-                        ->pluck('type', 'type')
-                        ->map(fn ($v) => ucfirst($v))
-                        ->toArray()
-                    ),
-
-                SelectFilter::make('property_id')
-                    ->label('Property')
-                    ->relationship('property', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                SelectFilter::make('field_officer_id')
-                    ->label('Field Officer')
-                    ->relationship('fieldOfficer', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                SelectFilter::make('zone_manager_id')
-                    ->label('Zone Manager')
-                    ->relationship('zoneManager', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                Filter::make('date_created')
-                    ->form([
-                        DatePicker::make('from')
-                            ->label('Date Created From'),
-                        DatePicker::make('until')
-                            ->label('Date Created Until'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when($data['from'], fn (Builder $q, $date) => $q->whereDate('date_created', '>=', $date))
-                            ->when($data['until'], fn (Builder $q, $date) => $q->whereDate('date_created', '<=', $date));
-                    })
-                    ->indicateUsing(function (array $data): array {
-                        $indicators = [];
-                        if ($data['from'] ?? null) {
-                            $indicators['from'] = 'From ' . \Carbon\Carbon::parse($data['from'])->format('d/m/Y');
-                        }
-                        if ($data['until'] ?? null) {
-                            $indicators['until'] = 'Until ' . \Carbon\Carbon::parse($data['until'])->format('d/m/Y');
-                        }
-                        return $indicators;
-                    }),
-            ])
-            ->filtersFormColumns(3)
+            ->filters([])
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),

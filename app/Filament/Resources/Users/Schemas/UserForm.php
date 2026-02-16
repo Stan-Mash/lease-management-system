@@ -2,14 +2,9 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
-use App\Services\RoleService;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Hash;
 
@@ -18,65 +13,44 @@ class UserForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('User Information')
-                ->schema([
-                    Grid::make(2)->schema([
-                        TextInput::make('name')
-                            ->required()
-                            ->maxLength(255),
+            TextInput::make('name')
+                ->required()
+                ->maxLength(255),
 
-                        TextInput::make('email')
-                            ->email()
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(255),
+            TextInput::make('username')
+                ->maxLength(255),
 
-                        TextInput::make('password')
-                            ->password()
-                            ->required(fn ($context) => $context === 'create')
-                            ->dehydrateStateUsing(fn ($state) => $state ? Hash::make($state) : null)
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->maxLength(255),
+            TextInput::make('email')
+                ->email()
+                ->required()
+                ->unique(ignoreRecord: true)
+                ->maxLength(255),
 
-                        Select::make('role')
-                            ->options(fn () => RoleService::getFilteredRoleOptions())
-                            ->required()
-                            ->default(RoleService::getDefaultRole())
-                            ->helperText('Roles are configured in config/roles.php')
-                            ->searchable()
-                            ->native(false),
+            TextInput::make('password')
+                ->password()
+                ->required(fn ($context) => $context === 'create')
+                ->dehydrateStateUsing(fn ($state) => $state ? Hash::make($state) : null)
+                ->dehydrated(fn ($state) => filled($state))
+                ->maxLength(255),
 
-                        TextInput::make('employee_number')
-                            ->label('Employee Number')
-                            ->maxLength(50)
-                            ->unique(ignoreRecord: true)
-                            ->placeholder('e.g. EMP-001'),
+            Toggle::make('block')
+                ->label('Blocked'),
 
-                        TextInput::make('phone')
-                            ->tel()
-                            ->maxLength(20),
+            Toggle::make('sendEmail')
+                ->label('Send Email'),
 
-                        TextInput::make('department')
-                            ->maxLength(100),
+            TextInput::make('activation'),
 
-                        Toggle::make('is_active')
-                            ->label('Active')
-                            ->default(true),
-                    ]),
-                ]),
+            Textarea::make('params'),
 
-            Section::make('Additional Information')
-                ->schema([
-                    FileUpload::make('avatar_path')
-                        ->label('Avatar')
-                        ->image()
-                        ->directory('avatars')
-                        ->columnSpanFull(),
+            TextInput::make('resetCount')
+                ->numeric()
+                ->default(0),
 
-                    Textarea::make('bio')
-                        ->rows(3)
-                        ->columnSpanFull(),
-                ]),
+            TextInput::make('otpKey'),
+
+            Toggle::make('requireReset')
+                ->label('Require Password Reset'),
         ]);
     }
 }
