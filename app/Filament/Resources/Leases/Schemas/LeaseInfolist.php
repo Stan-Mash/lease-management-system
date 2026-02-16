@@ -41,10 +41,10 @@ class LeaseInfolist
             Section::make('Property & Tenant Details')
                 ->schema([
                     Grid::make(2)->schema([
-                        TextEntry::make('tenant.full_name')->label('Tenant Name'),
+                        TextEntry::make('tenant.names')->label('Tenant Name'),
                         TextEntry::make('unit.unit_number')->label('Unit Number'),
-                        TextEntry::make('property.name')->label('Property'),
-                        TextEntry::make('landlord.name')->label('Landlord'),
+                        TextEntry::make('property.property_name')->label('Property'),
+                        TextEntry::make('client.names')->label('Client'),
                     ]),
                 ]),
 
@@ -115,7 +115,7 @@ class LeaseInfolist
                         )
                         ->columnSpanFull(),
                 ])
-                ->visible(fn ($record) => $record->landlord_id !== null)
+                ->visible(fn ($record) => $record->client_id !== null)
                 ->collapsible(),
 
             Section::make('Scanned Physical Leases & Documents')

@@ -136,10 +136,10 @@ class LeaseTemplateResource extends Resource
                                             <p class="font-semibold text-gray-700 dark:text-gray-300">Available Data Objects:</p>
                                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-600 dark:text-gray-400">
                                                 <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$lease</code> — Lease model (reference_number, start_date, end_date, monthly_rent, deposit_amount, lease_type, workflow_state)</div>
-                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$tenant</code> — Tenant model (full_name, id_number, phone, email, address, next_of_kin)</div>
-                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$property</code> — Property model (name, address, city)</div>
-                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$unit</code> — Unit model (unit_number, type, floor)</div>
-                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$landlord</code> — Landlord model (name, phone, email)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$tenant</code> — Tenant model (names, national_id, mobile_number, email_address, address)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$property</code> — Property model (property_name, description, lr_number)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$unit</code> — Unit model (unit_number, unit_name, unit_code)</div>
+                                                <div><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">$client</code> — Client model (names, mobile_number, email_address)</div>
                                             </div>
                                             <p class="text-xs text-gray-500 mt-2">Tip: Use <code>{{ $variable ?? \'fallback\' }}</code> for optional values. Use <code>@if/$endif</code> for conditional sections.</p>
                                         </div>

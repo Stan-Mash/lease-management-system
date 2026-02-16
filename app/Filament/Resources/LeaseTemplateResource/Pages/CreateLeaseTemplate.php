@@ -76,13 +76,13 @@ class CreateLeaseTemplate extends CreateRecord
         // Replace common patterns with Blade variables
         $replacements = [
             // Tenant info
-            '/Tenant[:\s]+([A-Z][a-zA-Z\s]+)/' => 'Tenant: {{ $tenant->full_name }}',
-            '/ID\s*No[:\s]+(\d+)/' => 'ID No: {{ $tenant->id_number }}',
-            '/Tel[:\s]+([\d\-\+\s]+)/' => 'Tel: {{ $tenant->phone }}',
-            '/Email[:\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/' => 'Email: {{ $tenant->email }}',
+            '/Tenant[:\s]+([A-Z][a-zA-Z\s]+)/' => 'Tenant: {{ $tenant->names }}',
+            '/ID\s*No[:\s]+(\d+)/' => 'ID No: {{ $tenant->national_id }}',
+            '/Tel[:\s]+([\d\-\+\s]+)/' => 'Tel: {{ $tenant->mobile_number }}',
+            '/Email[:\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/' => 'Email: {{ $tenant->email_address }}',
 
-            // Landlord info
-            '/Landlord[:\s]+([A-Z][a-zA-Z\s]+)/' => 'Landlord: {{ $landlord->name }}',
+            // Client info
+            '/Landlord[:\s]+([A-Z][a-zA-Z\s]+)/' => 'Client: {{ $client->names }}',
 
             // Property info
             '/Plot\s*No[:\s]+([\w\-\/]+)/' => 'Plot No: {{ $property->plot_number }}',
@@ -185,13 +185,13 @@ BLADE;
 
     <div class="section">
         <div class="section-title">PARTIES</div>
-        <p><strong>Landlord:</strong> {{ \$landlord->name }}</p>
-        <p><strong>Tenant:</strong> {{ \$tenant->full_name }} (ID: {{ \$tenant->id_number }})</p>
+        <p><strong>Client:</strong> {{ \$client->names }}</p>
+        <p><strong>Tenant:</strong> {{ \$tenant->names }} (ID: {{ \$tenant->national_id }})</p>
     </div>
 
     <div class="section">
         <div class="section-title">PROPERTY DETAILS</div>
-        <p><strong>Property:</strong> {{ \$property->name }}</p>
+        <p><strong>Property:</strong> {{ \$property->property_name }}</p>
         <p><strong>Plot Number:</strong> {{ \$property->plot_number }}</p>
         <p><strong>Unit:</strong> {{ \$unit->unit_number }}</p>
     </div>
@@ -206,7 +206,7 @@ BLADE;
 
     <div class="section">
         <div class="section-title">SIGNATURES</div>
-        <p>Landlord: ___________________ Date: ___________</p>
+        <p>Client: ___________________ Date: ___________</p>
         <p>Tenant: ___________________ Date: ___________</p>
     </div>
 

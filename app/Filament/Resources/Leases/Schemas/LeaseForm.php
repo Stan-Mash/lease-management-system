@@ -84,7 +84,7 @@ class LeaseForm
 
                 // --- Property & Tenant ---
                 Forms\Components\Select::make('tenant_id')
-                    ->relationship('tenant', 'full_name')
+                    ->relationship('tenant', 'names')
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -92,22 +92,22 @@ class LeaseForm
                 // Smart Unit Search
                 Forms\Components\Select::make('unit_id')
                     ->label('Unit')
-                    ->options(Unit::where('status', 'VACANT')->pluck('unit_number', 'id'))
+                    ->options(Unit::pluck('unit_number', 'id'))
                     ->searchable()
                     ->required()
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set) {
-                        $unit = Unit::with('property.landlord')->find($state);
+                        $unit = Unit::with('property.client')->find($state);
                         if ($unit) {
-                            $set('monthly_rent', $unit->market_rent ?? 0);
+                            $set('monthly_rent', $unit->rent_amount ?? 0);
                             $set('property_id', $unit->property_id);
-                            $set('landlord_id', $unit->property?->landlord_id);
+                            $set('client_id', $unit->property?->client_id);
                         }
                     }),
 
                 // Hidden fields
                 Forms\Components\Hidden::make('property_id'),
-                Forms\Components\Hidden::make('landlord_id'),
+                Forms\Components\Hidden::make('client_id'),
                 Forms\Components\Hidden::make('zone')->default('A'),
 
                 // --- Financials ---
