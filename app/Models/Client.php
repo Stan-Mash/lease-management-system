@@ -6,14 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Notifications\Notifiable;
 
-class Tenant extends Model
+class Client extends Model
 {
     use HasFactory;
-    use Notifiable;
 
-    protected $table = 'tenants';
+    protected $table = 'clients';
 
     protected $fillable = [
         'date_time',
@@ -74,14 +72,9 @@ class Tenant extends Model
         'overdraft_penalty' => 'decimal:2',
     ];
 
-    public function routeNotificationForMail(): ?string
+    public function ownedProperties(): HasMany
     {
-        return $this->email_address;
-    }
-
-    public function leases(): HasMany
-    {
-        return $this->hasMany(Lease::class);
+        return $this->hasMany(Property::class, 'client_id');
     }
 
     public function property(): BelongsTo

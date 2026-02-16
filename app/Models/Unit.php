@@ -12,43 +12,44 @@ class Unit extends Model
     use HasFactory;
 
     protected $fillable = [
+        'date_time',
+        'client_id',
         'property_id',
-        'zone_id',
-        'unit_number',
+        'unit_type_id',
+        'usage_type_id',
         'unit_code',
-        'type',
-        'market_rent',
-        'deposit_required',
-        'status',
-        'field_officer_id',
-        'zone_manager_id',
-        'date_created',
+        'description',
+        'created_by_id',
+        'unit_uploads',
+        'zone_id',
+        'occupancy_status_id',
+        'unit_name',
+        'unit_condition_id',
+        'category_id',
+        'rent_amount',
+        'vat_able',
+        'current_status_id',
+        'unit_number',
+        'initial_water_meter_reading',
+        'topology_id',
+        'block_owner_tenant_id',
     ];
 
     protected $casts = [
-        'market_rent' => 'decimal:2',
-        'deposit_required' => 'decimal:2',
-        'date_created' => 'datetime',
+        'date_time' => 'datetime',
+        'rent_amount' => 'decimal:2',
+        'vat_able' => 'boolean',
+        'initial_water_meter_reading' => 'decimal:2',
     ];
-
-    /**
-     * Boot the model — auto-generate unit_code on create.
-     */
-    protected static function booted(): void
-    {
-        static::creating(function (Unit $unit) {
-            if (empty($unit->unit_code) && $unit->property_id && $unit->unit_number) {
-                $property = Property::find($unit->property_id);
-                if ($property) {
-                    $unit->unit_code = $property->property_code . '-' . $unit->unit_number;
-                }
-            }
-        });
-    }
 
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function leases(): HasMany
@@ -56,18 +57,18 @@ class Unit extends Model
         return $this->hasMany(Lease::class);
     }
 
-    public function fieldOfficer(): BelongsTo
+    public function createdByUser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'field_officer_id');
-    }
-
-    public function zoneManager(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'zone_manager_id');
+        return $this->belongsTo(User::class, 'created_by_id');
     }
 
     public function zone(): BelongsTo
     {
         return $this->belongsTo(Zone::class);
+    }
+
+    public function blockOwnerTenant(): BelongsTo
+    {
+        return $this->belongsTo(Client::class, 'block_owner_tenant_id');
     }
 }

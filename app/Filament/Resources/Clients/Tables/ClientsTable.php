@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Properties\Tables;
+namespace App\Filament\Resources\Clients\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -9,7 +9,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class PropertiesTable
+class ClientsTable
 {
     public static function configure(Table $table): Table
     {
@@ -26,48 +26,60 @@ class PropertiesTable
                     ->sortable()
                     ->copyable(),
 
-                TextColumn::make('property_name')
-                    ->label('Property Name')
+                TextColumn::make('names')
+                    ->label('Names')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
 
-                TextColumn::make('client.names')
-                    ->label('Client')
-                    ->searchable()
-                    ->sortable(),
-
-                TextColumn::make('lr_number')
-                    ->label('LR Number')
+                TextColumn::make('second_name')
+                    ->label('Second Name')
                     ->searchable()
                     ->toggleable(),
 
-                TextColumn::make('description')
-                    ->label('Description')
-                    ->limit(50)
+                TextColumn::make('last_name')
+                    ->label('Last Name')
+                    ->searchable()
+                    ->toggleable(),
+
+                TextColumn::make('mobile_number')
+                    ->label('Mobile')
+                    ->searchable()
+                    ->copyable(),
+
+                TextColumn::make('email_address')
+                    ->label('Email')
+                    ->searchable()
+                    ->toggleable(),
+
+                TextColumn::make('national_id')
+                    ->label('National ID')
+                    ->searchable()
+                    ->toggleable(),
+
+                TextColumn::make('pin_number')
+                    ->label('PIN')
+                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('acquisition_date')
-                    ->label('Acquisition Date')
-                    ->date('d/m/Y')
-                    ->sortable()
-                    ->toggleable(),
+                TextColumn::make('vat_number')
+                    ->label('VAT')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('fieldOfficer.name')
-                    ->label('Field Officer')
-                    ->sortable()
-                    ->toggleable(),
+                TextColumn::make('account_name')
+                    ->label('Account Name')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('zoneManager.name')
-                    ->label('Zone Manager')
-                    ->sortable()
-                    ->toggleable(),
+                TextColumn::make('account_number')
+                    ->label('Account No.')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('units_count')
-                    ->counts('units')
-                    ->label('Units')
+                TextColumn::make('rent_amount')
+                    ->label('Rent Amount')
+                    ->money('KES')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
                     ->label('System Created')
