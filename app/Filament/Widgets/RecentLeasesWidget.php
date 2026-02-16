@@ -39,12 +39,12 @@ class RecentLeasesWidget extends TableWidget
                     ->sortable()
                     ->weight('bold'),
 
-                TextColumn::make('tenant.full_name')
+                TextColumn::make('tenant.names')
                     ->label('Tenant')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('property.name')
+                TextColumn::make('property.property_name')
                     ->label('Property')
                     ->searchable()
                     ->sortable()

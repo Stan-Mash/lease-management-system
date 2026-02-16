@@ -31,11 +31,11 @@ class UpcomingExpirationsWidget extends BaseWidget
                     ->label('Reference')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('tenant.name')
+                Tables\Columns\TextColumn::make('tenant.names')
                     ->label('Tenant')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('unit.property.name')
+                Tables\Columns\TextColumn::make('unit.property.property_name')
                     ->label('Property'),
 
                 Tables\Columns\TextColumn::make('unit.unit_number')

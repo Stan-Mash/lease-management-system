@@ -325,7 +325,7 @@ class ViewLeaseDocument extends ViewRecord
                                 ->get()
                                 ->mapWithKeys(fn ($lease) => [
                                     $lease->id => $lease->reference_number . ' - ' .
-                                        ($lease->tenant?->full_name ?? 'Unknown') . ' - ' .
+                                        ($lease->tenant?->names ?? 'Unknown') . ' - ' .
                                         ($lease->unit?->unit_number ?? 'Unknown')
                                 ]);
                         })

@@ -36,7 +36,7 @@ class ViewLease extends ViewRecord
                 ->visible(
                     fn () => $this->record->workflow_state === 'draft' &&
                     ! $this->record->hasPendingApproval() &&
-                    $this->record->landlord_id,
+                    $this->record->client_id,
                 )
                 ->requiresConfirmation()
                 ->modalHeading('Request Landlord Approval')
@@ -200,7 +200,7 @@ class ViewLease extends ViewRecord
                 ->label('Send via Email')
                 ->icon('heroicon-o-envelope')
                 ->color('info')
-                ->visible(fn () => $this->record->tenant?->email && auth()->user()?->canManageLeases())
+                ->visible(fn () => $this->record->tenant?->email_address && auth()->user()?->canManageLeases())
                 ->form([
                     Textarea::make('custom_message')
                         ->label('Custom Message (optional)')
@@ -212,10 +212,10 @@ class ViewLease extends ViewRecord
                 ])
                 ->requiresConfirmation()
                 ->modalHeading('Send Lease via Email')
-                ->modalDescription(fn () => 'This will send an email to ' . ($this->record->tenant?->full_name ?? 'the tenant') . ' at ' . ($this->record->tenant?->email ?? 'N/A') . '.')
+                ->modalDescription(fn () => 'This will send an email to ' . ($this->record->tenant?->names ?? 'the tenant') . ' at ' . ($this->record->tenant?->email_address ?? 'N/A') . '.')
                 ->action(function (array $data) {
                     $tenant = $this->record->tenant;
-                    if (!$tenant || !$tenant->email) {
+                    if (!$tenant || !$tenant->email_address) {
                         Notification::make()
                             ->title('No Email')
                             ->body('This tenant does not have an email address.')
@@ -243,7 +243,7 @@ class ViewLease extends ViewRecord
 
                     Notification::make()
                         ->title('Email Sent')
-                        ->body('Lease document has been emailed to ' . $tenant->full_name . '.')
+                        ->body('Lease document has been emailed to ' . $tenant->names . '.')
                         ->success()
                         ->send();
                 }),

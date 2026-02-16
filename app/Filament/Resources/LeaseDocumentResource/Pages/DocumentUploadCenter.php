@@ -336,10 +336,10 @@ class DocumentUploadCenter extends Page implements HasForms
                             Select::make('lease_tenant_id')
                                 ->label('Tenant')
                                 ->options(
-                                    Tenant::orderBy('full_name')
+                                    Tenant::orderBy('names')
                                         ->get()
                                         ->mapWithKeys(fn ($t) => [
-                                            $t->id => $t->full_name . ' (' . $t->id_number . ')'
+                                            $t->id => $t->names . ' (' . $t->national_id . ')'
                                         ])
                                 )
                                 ->searchable()
@@ -364,7 +364,7 @@ class DocumentUploadCenter extends Page implements HasForms
                                 if ($tenantId) $query->where('tenant_id', $tenantId);
 
                                 return $query->with('tenant')->get()->mapWithKeys(fn ($l) => [
-                                    $l->id => $l->reference_number . ' - ' . ($l->tenant?->full_name ?? 'Unknown')
+                                    $l->id => $l->reference_number . ' - ' . ($l->tenant?->names ?? 'Unknown')
                                 ]);
                             })
                             ->searchable()
@@ -684,7 +684,7 @@ class DocumentUploadCenter extends Page implements HasForms
                     'tenant_id' => $data['lease_tenant_id'],
                     'unit_id' => $data['lease_unit_id'],
                     'property_id' => $property?->id,
-                    'landlord_id' => $property?->landlord_id,
+                    'client_id' => $property?->client_id,
                     'zone_id' => $property?->zone_id,
                     'monthly_rent' => $data['monthly_rent'] ?? 0,
                     'deposit_amount' => $data['deposit_amount'] ?? 0,

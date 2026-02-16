@@ -55,7 +55,7 @@ class ReviewQueue extends Page implements HasTable
                     ->label('Zone')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('property.name')
+                Tables\Columns\TextColumn::make('property.property_name')
                     ->label('Property')
                     ->limit(20),
 
@@ -194,7 +194,7 @@ class ReviewQueue extends Page implements HasTable
                                     ->get()
                                     ->mapWithKeys(fn ($lease) => [
                                         $lease->id => $lease->reference_number . ' - ' .
-                                            ($lease->tenant?->full_name ?? 'Unknown') . ' - ' .
+                                            ($lease->tenant?->names ?? 'Unknown') . ' - ' .
                                             ($lease->unit?->unit_number ?? 'Unknown')
                                     ]);
                             })

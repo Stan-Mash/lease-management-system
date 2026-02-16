@@ -68,26 +68,26 @@ class LeaseResource extends Resource
             'reference_number',
             'lease_reference_number',
             'unit_code',
-            'tenant.full_name',
-            'tenant.id_number',
-            'tenant.phone_number',
-            'property.name',
-            'property.property_code',
+            'tenant.names',
+            'tenant.national_id',
+            'tenant.mobile_number',
+            'property.property_name',
+            'property.reference_number',
             'unit.unit_number',
-            'landlord.name',
+            'client.names',
         ];
     }
 
     public static function getGlobalSearchResultTitle($record): string
     {
-        return $record->reference_number . ' - ' . ($record->tenant?->full_name ?? 'Unknown Tenant');
+        return $record->reference_number . ' - ' . ($record->tenant?->names ?? 'Unknown Tenant');
     }
 
     public static function getGlobalSearchResultDetails($record): array
     {
         return [
-            'Tenant' => $record->tenant?->full_name ?? 'N/A',
-            'Property' => $record->property?->name ?? 'N/A',
+            'Tenant' => $record->tenant?->names ?? 'N/A',
+            'Property' => $record->property?->property_name ?? 'N/A',
             'Unit' => $record->unit?->unit_number ?? 'N/A',
             'Status' => ucfirst(str_replace('_', ' ', $record->workflow_state)),
         ];
@@ -133,22 +133,22 @@ class LeaseResource extends Resource
                     ->weight('bold')
                     ->toggleable(),
 
-                TextColumn::make('tenant.full_name')
+                TextColumn::make('tenant.names')
                     ->label('Tenant')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('tenant.id_number')
-                    ->label('ID No.')
+                TextColumn::make('tenant.national_id')
+                    ->label('National ID')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('tenant.phone_number')
-                    ->label('Tenant Phone')
+                TextColumn::make('tenant.mobile_number')
+                    ->label('Tenant Mobile')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('property.name')
+                TextColumn::make('property.property_name')
                     ->label('Property')
                     ->searchable()
                     ->sortable(),
@@ -158,8 +158,8 @@ class LeaseResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('landlord.name')
-                    ->label('Landlord')
+                TextColumn::make('client.names')
+                    ->label('Client')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -274,13 +274,13 @@ class LeaseResource extends Resource
 
                 SelectFilter::make('property_id')
                     ->label('Property')
-                    ->relationship('property', 'name')
+                    ->relationship('property', 'property_name')
                     ->searchable()
                     ->preload(),
 
-                SelectFilter::make('landlord_id')
-                    ->label('Landlord')
-                    ->relationship('landlord', 'name')
+                SelectFilter::make('client_id')
+                    ->label('Client')
+                    ->relationship('client', 'names')
                     ->searchable()
                     ->preload(),
 
@@ -394,7 +394,7 @@ class LeaseResource extends Resource
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getEloquentQuery()
-            ->with(['tenant', 'property', 'unit', 'landlord', 'approvals', 'assignedZone', 'assignedFieldOfficer', 'zoneManager']);
+            ->with(['tenant', 'property', 'unit', 'client', 'approvals', 'assignedZone', 'assignedFieldOfficer', 'zoneManager']);
 
         $user = auth()->user();
         if (!$user) {
