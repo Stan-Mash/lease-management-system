@@ -71,10 +71,10 @@ class LeaseResource extends Resource
             'tenant.names',
             'tenant.national_id',
             'tenant.mobile_number',
-            'property.property_name',
+            'property.name',
             'property.reference_number',
             'unit.unit_number',
-            'client.names',
+            'landlord.name',
         ];
     }
 
@@ -87,7 +87,7 @@ class LeaseResource extends Resource
     {
         return [
             'Tenant' => $record->tenant?->names ?? 'N/A',
-            'Property' => $record->property?->property_name ?? 'N/A',
+            'Property' => $record->property?->name ?? 'N/A',
             'Unit' => $record->unit?->unit_number ?? 'N/A',
             'Status' => ucfirst(str_replace('_', ' ', $record->workflow_state)),
         ];
@@ -148,7 +148,7 @@ class LeaseResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('property.property_name')
+                TextColumn::make('property.name')
                     ->label('Property')
                     ->searchable()
                     ->sortable(),
@@ -158,8 +158,8 @@ class LeaseResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('client.names')
-                    ->label('Client')
+                TextColumn::make('landlord.name')
+                    ->label('Landlord')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -274,13 +274,13 @@ class LeaseResource extends Resource
 
                 SelectFilter::make('property_id')
                     ->label('Property')
-                    ->relationship('property', 'property_name')
+                    ->relationship('property', 'name')
                     ->searchable()
                     ->preload(),
 
-                SelectFilter::make('client_id')
-                    ->label('Client')
-                    ->relationship('client', 'names')
+                SelectFilter::make('landlord_id')
+                    ->label('Landlord')
+                    ->relationship('landlord', 'name')
                     ->searchable()
                     ->preload(),
 
@@ -394,7 +394,7 @@ class LeaseResource extends Resource
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getEloquentQuery()
-            ->with(['tenant', 'property', 'unit', 'client', 'approvals', 'assignedZone', 'assignedFieldOfficer', 'zoneManager']);
+            ->with(['tenant', 'property', 'unit', 'landlord', 'approvals', 'assignedZone', 'assignedFieldOfficer', 'zoneManager']);
 
         $user = auth()->user();
         if (!$user) {
