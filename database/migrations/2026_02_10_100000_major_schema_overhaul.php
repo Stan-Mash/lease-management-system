@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -201,7 +201,7 @@ return new class extends Migration
         // ---------------------------------------------------------------
         // 11. Backfill lease unit_code from the unit's unit_code
         // ---------------------------------------------------------------
-        DB::statement("
+        DB::statement('
             UPDATE leases
             SET unit_code = (
                 SELECT u.unit_code
@@ -210,12 +210,12 @@ return new class extends Migration
             )
             WHERE leases.unit_code IS NULL
               AND leases.unit_id IS NOT NULL
-        ");
+        ');
 
         // ---------------------------------------------------------------
         // 12. Backfill lease_documents.unit_code from the unit via the lease
         // ---------------------------------------------------------------
-        DB::statement("
+        DB::statement('
             UPDATE lease_documents
             SET unit_code = (
                 SELECT u.unit_code
@@ -225,7 +225,7 @@ return new class extends Migration
             )
             WHERE lease_documents.unit_code IS NULL
               AND lease_documents.lease_id IS NOT NULL
-        ");
+        ');
     }
 
     /**

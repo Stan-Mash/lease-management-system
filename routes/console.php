@@ -44,7 +44,7 @@ Schedule::command('db:backup --compress --retention=30')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/database-backups.log'))
     ->onFailure(function () {
-        \Illuminate\Support\Facades\Log::critical('Database backup failed!');
+        Illuminate\Support\Facades\Log::critical('Database backup failed!');
     });
 
 // Weekly full backup on Sunday at 3 AM (kept for 90 days)

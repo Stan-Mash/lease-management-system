@@ -256,8 +256,8 @@ class LeasesTable
                         return $indicators;
                     }),
             ])
-                /** @phpstan-ignore-next-line */
-                /** @noinspection PhpDeprecationInspection */
+            /** @phpstan-ignore-next-line */
+            /** @noinspection PhpDeprecationInspection */
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
@@ -269,8 +269,8 @@ class LeasesTable
                         fn (Lease $record): bool => in_array($record->workflow_state, ['approved', 'printed']),
                     ),
             ])
-                /** @phpstan-ignore-next-line */
-                /** @noinspection PhpDeprecationInspection */
+            /** @phpstan-ignore-next-line */
+            /** @noinspection PhpDeprecationInspection */
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteAction::make()

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Pulse\Recorders;
 
+use Exception;
 use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Laravel\Pulse\Events\SharedBeat;
 use Laravel\Pulse\Pulse;
+use RuntimeException;
 
 /**
  * Records Africa's Talking SMS balance for Pulse monitoring.
@@ -39,7 +41,7 @@ class SmsBalanceRecorder
 
     public function __construct(
         protected Pulse $pulse,
-        protected Repository $config
+        protected Repository $config,
     ) {
         $this->apiKey = $config->get('services.africas_talking.api_key');
         $this->username = $config->get('services.africas_talking.username');
@@ -62,7 +64,7 @@ class SmsBalanceRecorder
                 type: 'sms_balance',
                 key: 'africas_talking',
                 value: 0,
-                timestamp: $event->time
+                timestamp: $event->time,
             )->max()->onlyBuckets();
 
             $this->pulse->set(
@@ -75,7 +77,7 @@ class SmsBalanceRecorder
                     'message' => 'Africa\'s Talking API not configured',
                     'checked_at' => $event->time->toIso8601String(),
                 ]),
-                timestamp: $event->time
+                timestamp: $event->time,
             );
 
             return;
@@ -89,14 +91,14 @@ class SmsBalanceRecorder
                 type: 'sms_balance',
                 key: 'africas_talking',
                 value: (int) ($balance * 100), // Store as cents/smallest unit
-                timestamp: $event->time
+                timestamp: $event->time,
             )->max()->onlyBuckets();
 
             // Determine status
             $status = $balance < $this->alertThreshold ? 'low' : 'healthy';
             $message = $balance < $this->alertThreshold
-                ? "Low balance! KES " . number_format($balance, 2) . " (threshold: KES " . number_format($this->alertThreshold, 2) . ")"
-                : "Balance: KES " . number_format($balance, 2);
+                ? 'Low balance! KES ' . number_format($balance, 2) . ' (threshold: KES ' . number_format($this->alertThreshold, 2) . ')'
+                : 'Balance: KES ' . number_format($balance, 2);
 
             // Store status for card display
             $this->pulse->set(
@@ -110,7 +112,7 @@ class SmsBalanceRecorder
                     'message' => $message,
                     'checked_at' => $event->time->toIso8601String(),
                 ]),
-                timestamp: $event->time
+                timestamp: $event->time,
             );
 
             // Log warning if balance is low
@@ -122,7 +124,7 @@ class SmsBalanceRecorder
                 ]);
             }
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch SMS balance', [
                 'error' => $e->getMessage(),
             ]);
@@ -137,7 +139,7 @@ class SmsBalanceRecorder
                     'message' => 'Failed to fetch balance: ' . $e->getMessage(),
                     'checked_at' => $event->time->toIso8601String(),
                 ]),
-                timestamp: $event->time
+                timestamp: $event->time,
             );
         }
     }
@@ -155,7 +157,7 @@ class SmsBalanceRecorder
         ]);
 
         if (! $response->successful()) {
-            throw new \RuntimeException('API request failed with status: ' . $response->status());
+            throw new RuntimeException('API request failed with status: ' . $response->status());
         }
 
         $data = $response->json();

@@ -29,11 +29,11 @@ class UserRoleObserver
         }
 
         // If both added and removed, also log as a change
-        if (!empty($addedRoles) && !empty($removedRoles)) {
+        if (! empty($addedRoles) && ! empty($removedRoles)) {
             RoleAuditLog::logRoleChanged(
                 $user,
                 implode(', ', $oldRoleNames),
-                implode(', ', $newRoleNames)
+                implode(', ', $newRoleNames),
             );
         }
     }
@@ -51,7 +51,7 @@ class UserRoleObserver
                 $user,
                 RoleAuditLog::ACTION_PERMISSION_SYNCED,
                 $oldPermNames,
-                $newPermNames
+                $newPermNames,
             );
         }
     }

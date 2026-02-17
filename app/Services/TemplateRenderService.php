@@ -15,9 +15,7 @@ class TemplateRenderService
      * Accepts either a real Lease model or a stdClass mock object
      * (used by TemplatePreviewController for sample data previews).
      *
-     * @param  LeaseTemplate  $template
-     * @param  Lease|object  $lease  Real Lease model or stdClass mock for previews
-     * @return string
+     * @param Lease|object $lease Real Lease model or stdClass mock for previews
      *
      * @throws Exception
      */
@@ -67,7 +65,7 @@ class TemplateRenderService
         try {
             return Blade::render($templateContent, $data);
         } catch (Exception $e) {
-            throw new Exception("Error rendering template '{$template->name}': ".$e->getMessage());
+            throw new Exception("Error rendering template '{$template->name}': " . $e->getMessage());
         }
     }
 }

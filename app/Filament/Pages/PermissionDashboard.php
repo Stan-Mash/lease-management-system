@@ -9,19 +9,28 @@ use App\Models\User;
 use App\Services\ActingDelegationService;
 use BackedEnum;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use UnitEnum;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use UnitEnum;
 
 class PermissionDashboard extends Page
 {
+    public string $activeTab = 'matrix';
+
+    public ?string $selectedRole = null;
+
+    public ?string $searchPermission = null;
+
+    public ?string $userFilter = null;
+
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
 
     protected static ?string $navigationLabel = 'Rights Allocation';
@@ -33,14 +42,6 @@ class PermissionDashboard extends Page
     protected static ?int $navigationSort = 10;
 
     protected string $view = 'filament.pages.permission-dashboard';
-
-    public string $activeTab = 'matrix';
-
-    public ?string $selectedRole = null;
-
-    public ?string $searchPermission = null;
-
-    public ?string $userFilter = null;
 
     public function mount(): void
     {
@@ -70,7 +71,9 @@ class PermissionDashboard extends Page
     public function toggleUserActive(int $userId): void
     {
         $user = User::find($userId);
-        if (!$user) return;
+        if (! $user) {
+            return;
+        }
 
         // Prevent deactivating yourself
         if ($user->id === auth()->id()) {
@@ -78,10 +81,11 @@ class PermissionDashboard extends Page
                 ->title('Cannot deactivate yourself')
                 ->danger()
                 ->send();
+
             return;
         }
 
-        $user->is_active = !$user->is_active;
+        $user->is_active = ! $user->is_active;
         $user->save();
 
         // Log the action
@@ -106,9 +110,13 @@ class PermissionDashboard extends Page
     public function updateAvailability(int $userId, string $status): void
     {
         $user = User::find($userId);
-        if (!$user) return;
+        if (! $user) {
+            return;
+        }
 
-        if (!in_array($status, ['available', 'on_leave', 'away'])) return;
+        if (! in_array($status, ['available', 'on_leave', 'away'])) {
+            return;
+        }
 
         try {
             $delegationService = app(ActingDelegationService::class);
@@ -118,7 +126,7 @@ class PermissionDashboard extends Page
                 ->title($user->name . ' availability set to ' . ucfirst($status))
                 ->success()
                 ->send();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Notification::make()
                 ->title('Failed to update availability')
                 ->body($e->getMessage())
@@ -144,151 +152,6 @@ class PermissionDashboard extends Page
         ];
     }
 
-    protected function getRoles(): Collection
-    {
-        return Role::orderBy('name')->get();
-    }
-
-    protected function getPermissions(): Collection
-    {
-        return Permission::orderBy('name')->get();
-    }
-
-    protected function getPermissionMatrix(): array
-    {
-        return Cache::remember('permission_matrix', now()->addMinutes(10), function () {
-            $roles = Role::orderBy('name')->get();
-            $permissions = Permission::orderBy('name')->get();
-
-            $rolePermissionMap = DB::table('role_has_permissions')
-                ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
-                ->select('role_has_permissions.role_id', 'permissions.name')
-                ->get()
-                ->groupBy('role_id')
-                ->map(fn ($perms) => $perms->pluck('name')->toArray());
-
-            $matrix = [];
-
-            foreach ($roles as $role) {
-                $rolePermissions = $rolePermissionMap->get($role->id, []);
-                $matrix[$role->name] = [];
-
-                foreach ($permissions as $permission) {
-                    $matrix[$role->name][$permission->name] = in_array($permission->name, $rolePermissions);
-                }
-            }
-
-            return $matrix;
-        });
-    }
-
-    protected function getRoleStats(): array
-    {
-        return Cache::remember('permission_role_stats', now()->addMinutes(10), function () {
-            $permissionCounts = DB::table('role_has_permissions')
-                ->select('role_id', DB::raw('count(*) as cnt'))
-                ->groupBy('role_id')
-                ->pluck('cnt', 'role_id');
-
-            $userCounts = DB::table('model_has_roles')
-                ->where('model_type', User::class)
-                ->select('role_id', DB::raw('count(*) as cnt'))
-                ->groupBy('role_id')
-                ->pluck('cnt', 'role_id');
-
-            $roles = Role::orderBy('name')->get();
-
-            return $roles->map(fn($role) => [
-                'name' => $role->name,
-                'users_count' => $userCounts->get($role->id, 0),
-                'permissions_count' => $permissionCounts->get($role->id, 0),
-                'color' => $this->getRoleColor($role->name),
-            ])->toArray();
-        });
-    }
-
-    protected function getRoleColor(string $roleName): string
-    {
-        return match ($roleName) {
-            'super_admin' => 'danger',
-            'admin' => 'warning',
-            'property_manager', 'asst_property_manager' => 'primary',
-            'zone_manager' => 'info',
-            'field_officer', 'senior_field_officer' => 'success',
-            'accountant' => 'purple',
-            'auditor' => 'gray',
-            'office_administrator', 'office_admin_assistant', 'office_assistant' => 'orange',
-            default => 'secondary',
-        };
-    }
-
-    protected function getRecentChanges(): Collection
-    {
-        return RoleAuditLog::with(['user', 'performer'])
-            ->orderByDesc('created_at')
-            ->limit(15)
-            ->get();
-    }
-
-    protected function getUsersWithSelectedRole(): Collection
-    {
-        if (!$this->selectedRole) {
-            return collect();
-        }
-
-        return User::role($this->selectedRole)
-            ->orderBy('name')
-            ->limit(50)
-            ->get(['id', 'name', 'email', 'last_login_at', 'is_active', 'availability_status', 'zone_id']);
-    }
-
-    /**
-     * Get all users for the management tab.
-     */
-    protected function getAllUsersForManagement(): Collection
-    {
-        $query = User::with('zone')
-            ->orderBy('name');
-
-        if ($this->userFilter) {
-            $query->where('role', $this->userFilter);
-        }
-
-        return $query->limit(100)->get();
-    }
-
-    /**
-     * Get zone managers with their delegation info.
-     */
-    protected function getZoneManagers(): Collection
-    {
-        return User::where('role', 'zone_manager')
-            ->with(['zone', 'backupOfficer'])
-            ->orderBy('name')
-            ->get();
-    }
-
-    protected function getPermissionsByCategory(): array
-    {
-        $permissions = Permission::orderBy('name')->get();
-        $categories = [];
-
-        foreach ($permissions as $permission) {
-            $parts = explode('_', $permission->name);
-            $category = $parts[0] ?? 'general';
-
-            if (!isset($categories[$category])) {
-                $categories[$category] = [];
-            }
-
-            $categories[$category][] = $permission->name;
-        }
-
-        ksort($categories);
-
-        return $categories;
-    }
-
     // =====================================================================
     // Permission Toggle
     // =====================================================================
@@ -296,12 +159,13 @@ class PermissionDashboard extends Page
     public function togglePermission(string $roleName, string $permissionName): void
     {
         $user = auth()->user();
-        if (!$user || !$user->isSuperAdmin()) {
+        if (! $user || ! $user->isSuperAdmin()) {
             Notification::make()
                 ->title('Unauthorized')
                 ->body('Only Super Admins can modify permissions.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -359,6 +223,151 @@ class PermissionDashboard extends Page
             ->send();
     }
 
+    protected function getRoles(): Collection
+    {
+        return Role::orderBy('name')->get();
+    }
+
+    protected function getPermissions(): Collection
+    {
+        return Permission::orderBy('name')->get();
+    }
+
+    protected function getPermissionMatrix(): array
+    {
+        return Cache::remember('permission_matrix', now()->addMinutes(10), function () {
+            $roles = Role::orderBy('name')->get();
+            $permissions = Permission::orderBy('name')->get();
+
+            $rolePermissionMap = DB::table('role_has_permissions')
+                ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
+                ->select('role_has_permissions.role_id', 'permissions.name')
+                ->get()
+                ->groupBy('role_id')
+                ->map(fn ($perms) => $perms->pluck('name')->toArray());
+
+            $matrix = [];
+
+            foreach ($roles as $role) {
+                $rolePermissions = $rolePermissionMap->get($role->id, []);
+                $matrix[$role->name] = [];
+
+                foreach ($permissions as $permission) {
+                    $matrix[$role->name][$permission->name] = in_array($permission->name, $rolePermissions);
+                }
+            }
+
+            return $matrix;
+        });
+    }
+
+    protected function getRoleStats(): array
+    {
+        return Cache::remember('permission_role_stats', now()->addMinutes(10), function () {
+            $permissionCounts = DB::table('role_has_permissions')
+                ->select('role_id', DB::raw('count(*) as cnt'))
+                ->groupBy('role_id')
+                ->pluck('cnt', 'role_id');
+
+            $userCounts = DB::table('model_has_roles')
+                ->where('model_type', User::class)
+                ->select('role_id', DB::raw('count(*) as cnt'))
+                ->groupBy('role_id')
+                ->pluck('cnt', 'role_id');
+
+            $roles = Role::orderBy('name')->get();
+
+            return $roles->map(fn ($role) => [
+                'name' => $role->name,
+                'users_count' => $userCounts->get($role->id, 0),
+                'permissions_count' => $permissionCounts->get($role->id, 0),
+                'color' => $this->getRoleColor($role->name),
+            ])->toArray();
+        });
+    }
+
+    protected function getRoleColor(string $roleName): string
+    {
+        return match ($roleName) {
+            'super_admin' => 'danger',
+            'admin' => 'warning',
+            'property_manager', 'asst_property_manager' => 'primary',
+            'zone_manager' => 'info',
+            'field_officer', 'senior_field_officer' => 'success',
+            'accountant' => 'purple',
+            'auditor' => 'gray',
+            'office_administrator', 'office_admin_assistant', 'office_assistant' => 'orange',
+            default => 'secondary',
+        };
+    }
+
+    protected function getRecentChanges(): Collection
+    {
+        return RoleAuditLog::with(['user', 'performer'])
+            ->orderByDesc('created_at')
+            ->limit(15)
+            ->get();
+    }
+
+    protected function getUsersWithSelectedRole(): Collection
+    {
+        if (! $this->selectedRole) {
+            return collect();
+        }
+
+        return User::role($this->selectedRole)
+            ->orderBy('name')
+            ->limit(50)
+            ->get(['id', 'name', 'email', 'last_login_at', 'is_active', 'availability_status', 'zone_id']);
+    }
+
+    /**
+     * Get all users for the management tab.
+     */
+    protected function getAllUsersForManagement(): Collection
+    {
+        $query = User::with('zone')
+            ->orderBy('name');
+
+        if ($this->userFilter) {
+            $query->where('role', $this->userFilter);
+        }
+
+        return $query->limit(100)->get();
+    }
+
+    /**
+     * Get zone managers with their delegation info.
+     */
+    protected function getZoneManagers(): Collection
+    {
+        return User::where('role', 'zone_manager')
+            ->with(['zone', 'backupOfficer'])
+            ->orderBy('name')
+            ->get();
+    }
+
+    protected function getPermissionsByCategory(): array
+    {
+        $permissions = Permission::orderBy('name')->get();
+        $categories = [];
+
+        foreach ($permissions as $permission) {
+            $parts = explode('_', $permission->name);
+            $category = $parts[0] ?? 'general';
+
+            if (! isset($categories[$category])) {
+                $categories[$category] = [];
+            }
+
+            $categories[$category][] = $permission->name;
+        }
+
+        ksort($categories);
+
+        return $categories;
+    }
+
     // =====================================================================
     // Export methods
     // =====================================================================
@@ -367,7 +376,7 @@ class PermissionDashboard extends Page
     {
         $matrix = $this->getPermissionMatrix();
         $roles = array_keys($matrix);
-        $permissions = !empty($matrix) ? array_keys(reset($matrix)) : [];
+        $permissions = ! empty($matrix) ? array_keys(reset($matrix)) : [];
 
         $rows = [];
 
@@ -391,7 +400,7 @@ class PermissionDashboard extends Page
 
         return Excel::download(
             new \App\Exports\PermissionMatrixExport($rows),
-            $filename
+            $filename,
         );
     }
 
@@ -399,7 +408,7 @@ class PermissionDashboard extends Page
     {
         $matrix = $this->getPermissionMatrix();
         $roles = array_keys($matrix);
-        $permissions = !empty($matrix) ? array_keys(reset($matrix)) : [];
+        $permissions = ! empty($matrix) ? array_keys(reset($matrix)) : [];
 
         $roleStats = $this->getRoleStats();
 
@@ -415,9 +424,9 @@ class PermissionDashboard extends Page
         $filename = "permission_matrix_{$timestamp}.pdf";
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
+            fn () => print ($pdf->output()),
             $filename,
-            ['Content-Type' => 'application/pdf']
+            ['Content-Type' => 'application/pdf'],
         );
     }
 
@@ -425,7 +434,7 @@ class PermissionDashboard extends Page
     {
         $matrix = $this->getPermissionMatrix();
         $roles = array_keys($matrix);
-        $permissions = !empty($matrix) ? array_keys(reset($matrix)) : [];
+        $permissions = ! empty($matrix) ? array_keys(reset($matrix)) : [];
 
         $csv = 'Permission,' . implode(',', array_map(fn ($r) => '"' . ucwords(str_replace('_', ' ', $r)) . '"', $roles)) . "\n";
 
@@ -440,9 +449,9 @@ class PermissionDashboard extends Page
         $filename = "permission_matrix_{$timestamp}.csv";
 
         return response()->streamDownload(
-            fn () => print($csv),
+            fn () => print ($csv),
             $filename,
-            ['Content-Type' => 'text/csv']
+            ['Content-Type' => 'text/csv'],
         );
     }
 

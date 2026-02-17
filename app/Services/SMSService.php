@@ -22,9 +22,10 @@ class SMSService
     /**
      * Send an SMS message (raw - no localization).
      *
-     * @param  string  $phone  The recipient phone number
-     * @param  string  $message  The message to send
-     * @param  array  $context  Additional context for logging (no sensitive data)
+     * @param string $phone The recipient phone number
+     * @param string $message The message to send
+     * @param array $context Additional context for logging (no sensitive data)
+     *
      * @return bool True if sent successfully
      */
     public static function send(string $phone, string $message, array $context = []): bool
@@ -113,9 +114,9 @@ class SMSService
     /**
      * Dispatch an SMS to be sent asynchronously via the queue.
      *
-     * @param  string  $phone  The recipient phone number
-     * @param  string  $message  The message to send
-     * @param  array  $context  Additional context for logging
+     * @param string $phone The recipient phone number
+     * @param string $message The message to send
+     * @param array $context Additional context for logging
      */
     public static function sendQueued(string $phone, string $message, array $context = []): void
     {
@@ -129,10 +130,11 @@ class SMSService
     /**
      * Send a localized SMS message to a tenant.
      *
-     * @param  Tenant  $tenant  The tenant to send to
-     * @param  string  $key  The translation key (e.g., 'sms.otp_message')
-     * @param  array  $replace  Variables to replace in the message
-     * @param  array  $context  Additional logging context
+     * @param Tenant $tenant The tenant to send to
+     * @param string $key The translation key (e.g., 'sms.otp_message')
+     * @param array $replace Variables to replace in the message
+     * @param array $context Additional logging context
+     *
      * @return bool True if sent successfully
      */
     public static function sendLocalized(
@@ -161,9 +163,10 @@ class SMSService
     /**
      * Translate a message key for a specific tenant's language preference.
      *
-     * @param  Tenant  $tenant  The tenant
-     * @param  string  $key  The translation key
-     * @param  array  $replace  Variables to replace
+     * @param Tenant $tenant The tenant
+     * @param string $key The translation key
+     * @param array $replace Variables to replace
+     *
      * @return string The translated message
      */
     public static function translateForTenant(Tenant $tenant, string $key, array $replace = []): string
@@ -177,9 +180,10 @@ class SMSService
      * Translate a message key with a specific locale.
      * Uses temporary locale switch to avoid affecting the rest of the request.
      *
-     * @param  string  $locale  The locale code (en, sw)
-     * @param  string  $key  The translation key
-     * @param  array  $replace  Variables to replace
+     * @param string $locale The locale code (en, sw)
+     * @param string $key The translation key
+     * @param array $replace Variables to replace
+     *
      * @return string The translated message
      */
     public static function translateWithLocale(string $locale, string $key, array $replace = []): string
@@ -203,17 +207,18 @@ class SMSService
     /**
      * Send an OTP code via SMS (localized).
      *
-     * @param  Tenant  $tenant  The tenant to send to
-     * @param  string  $code  The OTP code
-     * @param  string  $reference  A reference number (e.g., lease reference)
-     * @param  int  $expiryMinutes  How long the OTP is valid
+     * @param Tenant $tenant The tenant to send to
+     * @param string $code The OTP code
+     * @param string $reference A reference number (e.g., lease reference)
+     * @param int $expiryMinutes How long the OTP is valid
+     *
      * @return bool True if sent successfully
      */
     public static function sendOTPToTenant(
         Tenant $tenant,
         string $code,
         string $reference,
-        int $expiryMinutes = 10
+        int $expiryMinutes = 10,
     ): bool {
         return self::sendLocalized(
             $tenant,
@@ -231,11 +236,12 @@ class SMSService
     /**
      * Send an OTP code via SMS (legacy - uses phone number directly).
      *
-     * @param  string  $phone  The recipient phone number
-     * @param  string  $code  The OTP code
-     * @param  string  $reference  A reference number
-     * @param  int  $expiryMinutes  How long the OTP is valid
-     * @param  string|null  $locale  Optional locale override
+     * @param string $phone The recipient phone number
+     * @param string $code The OTP code
+     * @param string $reference A reference number
+     * @param int $expiryMinutes How long the OTP is valid
+     * @param string|null $locale Optional locale override
+     *
      * @return bool True if sent successfully
      */
     public static function sendOTP(
@@ -243,7 +249,7 @@ class SMSService
         string $code,
         string $reference,
         int $expiryMinutes = 10,
-        ?string $locale = null
+        ?string $locale = null,
     ): bool {
         // Try to find tenant by phone to get their language preference
         $tenant = Tenant::where('phone_number', $phone)->first();
@@ -260,7 +266,7 @@ class SMSService
                 'code' => $code,
                 'minutes' => $expiryMinutes,
                 'reference' => $reference,
-            ]
+            ],
         );
 
         return self::send($phone, $message, ['type' => 'otp', 'reference' => $reference]);
@@ -279,7 +285,7 @@ class SMSService
             $tenant,
             'sms.lease_ready',
             ['reference' => $reference],
-            ['type' => 'lease_ready', 'reference' => $reference]
+            ['type' => 'lease_ready', 'reference' => $reference],
         );
     }
 
@@ -295,7 +301,7 @@ class SMSService
                 'tenant_name' => $tenant->full_name,
                 'reference' => $reference,
             ],
-            ['type' => 'lease_created', 'reference' => $reference]
+            ['type' => 'lease_created', 'reference' => $reference],
         );
     }
 
@@ -332,7 +338,7 @@ class SMSService
                 $tenant,
                 'sms.lease_approved',
                 ['reference' => $reference],
-                ['type' => 'approval_notification', 'reference' => $reference]
+                ['type' => 'approval_notification', 'reference' => $reference],
             );
         }
 
@@ -356,7 +362,7 @@ class SMSService
                 $tenant,
                 'sms.lease_rejected',
                 ['reference' => $reference, 'reason' => $reason],
-                ['type' => 'rejection_notification', 'reference' => $reference]
+                ['type' => 'rejection_notification', 'reference' => $reference],
             );
         }
 
@@ -383,7 +389,7 @@ class SMSService
                 'reference' => $reference,
                 'start_date' => $startDate,
             ],
-            ['type' => 'lease_signed', 'reference' => $reference]
+            ['type' => 'lease_signed', 'reference' => $reference],
         );
     }
 
@@ -399,7 +405,7 @@ class SMSService
                 'reference' => $reference,
                 'expiry_date' => $expiryDate,
             ],
-            ['type' => 'lease_expiring', 'reference' => $reference]
+            ['type' => 'lease_expiring', 'reference' => $reference],
         );
     }
 
@@ -423,7 +429,7 @@ class SMSService
                     'link' => $link,
                     'hours' => 72,
                 ],
-                ['type' => 'signing_link', 'reference' => $reference]
+                ['type' => 'signing_link', 'reference' => $reference],
             );
         }
 
@@ -452,7 +458,7 @@ class SMSService
                 'link' => $link,
                 'hours' => $hoursRemaining,
             ],
-            ['type' => 'signing_reminder', 'reference' => $reference]
+            ['type' => 'signing_reminder', 'reference' => $reference],
         );
     }
 
@@ -467,7 +473,7 @@ class SMSService
         Tenant $tenant,
         float $amount,
         string $reference,
-        float $balance = 0
+        float $balance = 0,
     ): bool {
         return self::sendLocalized(
             $tenant,
@@ -477,7 +483,7 @@ class SMSService
                 'reference' => $reference,
                 'balance' => number_format($balance),
             ],
-            ['type' => 'payment_received', 'reference' => $reference]
+            ['type' => 'payment_received', 'reference' => $reference],
         );
     }
 
@@ -489,7 +495,7 @@ class SMSService
         float $amount,
         string $reference,
         string $dueDate,
-        string $paybill
+        string $paybill,
     ): bool {
         return self::sendLocalized(
             $tenant,
@@ -500,7 +506,7 @@ class SMSService
                 'due_date' => $dueDate,
                 'paybill' => $paybill,
             ],
-            ['type' => 'payment_reminder', 'reference' => $reference]
+            ['type' => 'payment_reminder', 'reference' => $reference],
         );
     }
 
@@ -511,7 +517,7 @@ class SMSService
         Tenant $tenant,
         float $amount,
         string $reference,
-        string $dueDate
+        string $dueDate,
     ): bool {
         return self::sendLocalized(
             $tenant,
@@ -521,7 +527,7 @@ class SMSService
                 'reference' => $reference,
                 'due_date' => $dueDate,
             ],
-            ['type' => 'payment_overdue', 'reference' => $reference]
+            ['type' => 'payment_overdue', 'reference' => $reference],
         );
     }
 
@@ -541,7 +547,7 @@ class SMSService
                 'tenant_name' => $tenant->full_name,
                 'tenant_id' => $tenant->id,
             ],
-            ['type' => 'welcome']
+            ['type' => 'welcome'],
         );
     }
 

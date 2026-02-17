@@ -194,7 +194,7 @@ class ExcelImportContractTest extends TestCase
 
     public function test_default_dry_run_is_false(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
         $this->assertFalse($service->isDryRun());
     }
 

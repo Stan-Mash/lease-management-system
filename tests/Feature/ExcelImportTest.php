@@ -4,16 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Landlord;
-use App\Models\Property;
-use App\Models\Tenant;
-use App\Models\Unit;
-use App\Models\User;
 use App\Models\Zone;
 use App\Services\ChabrinExcelImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel;
 use Tests\TestCase;
 
 class ExcelImportTest extends TestCase
@@ -36,7 +29,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_import_service_can_be_instantiated(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
         $this->assertInstanceOf(ChabrinExcelImportService::class, $service);
     }
 
@@ -57,7 +50,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_phone_number_formatting(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
 
         // Test 9-digit phone starting with 7
         $this->assertEquals('0712345678', $service->formatPhonePublic('712345678'));
@@ -80,7 +73,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_placeholder_phone_generation_is_deterministic(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
 
         $phone1 = $service->generatePlaceholderPhonePublic('test-seed-123');
         $phone2 = $service->generatePlaceholderPhonePublic('test-seed-123');
@@ -95,7 +88,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_lease_type_determination_based_on_rent(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
 
         // Commercial: >= 100,000
         $this->assertEquals('commercial', $service->determinLeaseTypePublic(150000));
@@ -115,7 +108,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_position_to_role_mapping(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
 
         $this->assertEquals('super_admin', $service->mapPositionToRolePublic('Director'));
         $this->assertEquals('zone_manager', $service->mapPositionToRolePublic('Zone Manager'));
@@ -130,7 +123,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_stats_tracking_increments_correctly(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
 
         $service->incrementStat('landlords', 'imported');
         $service->incrementStat('landlords', 'imported');
@@ -148,7 +141,7 @@ class ExcelImportTest extends TestCase
      */
     public function test_error_collection(): void
     {
-        $service = new ChabrinExcelImportService();
+        $service = new ChabrinExcelImportService;
 
         $service->addErrorPublic('LANDLORDS', 5, 'Test error message');
         $service->addErrorPublic('TENANTS', 10, 'Another error');

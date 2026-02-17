@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
-enum DocumentQuality: string implements HasLabel, HasColor, HasIcon
+enum DocumentQuality: string implements HasColor, HasIcon, HasLabel
 {
     case GOOD = 'good';
     case FAIR = 'fair';

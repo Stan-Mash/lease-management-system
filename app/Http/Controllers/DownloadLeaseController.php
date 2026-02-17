@@ -63,6 +63,7 @@ class DownloadLeaseController extends Controller
 
         if ($cachedPdf !== null) {
             Log::debug('PDF served from cache', ['lease_id' => $lease->id, 'cache_key' => $cacheKey]);
+
             return $this->buildRawPdfResponse($cachedPdf, $filename, $method);
         }
 
@@ -126,6 +127,61 @@ class DownloadLeaseController extends Controller
     }
 
     /**
+     * Generate PDF using hardcoded Blade views (backward compatibility fallback).
+     */
+    protected function generateWithHardcodedViews(
+        Lease $lease,
+        string $filename,
+        string $method,
+        string $cacheKey,
+    ): SymfonyResponse {
+        $data = [
+            'lease' => $lease,
+            'tenant' => $lease->tenant,
+            'unit' => $lease->unit,
+            'landlord' => $lease->landlord,
+            'property' => $lease->property,
+            'today' => now()->format('d/m/Y'),
+        ];
+
+        $viewName = match ($lease->lease_type) {
+            'residential_major' => 'pdf.residential-major',
+            'residential_micro' => 'pdf.residential-micro',
+            'commercial' => 'pdf.commercial',
+            default => 'pdf.residential-major',
+        };
+
+        try {
+            $pdf = Pdf::loadView($viewName, $data);
+
+            // Add metadata and DRAFT watermark for hardcoded views too
+            $this->setPdfMetadata($pdf, $lease);
+
+            Log::info('PDF generated with hardcoded views (fallback)', [
+                'lease_id' => $lease->id,
+                'view_name' => $viewName,
+            ]);
+
+            return $this->cacheAndRespond($pdf, $filename, $method, $cacheKey);
+        } catch (Exception $e) {
+            Log::error('Failed to generate PDF with hardcoded views', [
+                'lease_id' => $lease->id,
+                'view_name' => $viewName,
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($method === 'stream') {
+                return response()->view('errors.pdf-generation-failed', [
+                    'error' => $e->getMessage(),
+                    'lease' => $lease,
+                ], 500);
+            }
+
+            abort(500, 'Failed to generate PDF. Please try again later.');
+        }
+    }
+
+    /**
      * Create a PDF from HTML, applying metadata and DRAFT watermark as needed.
      */
     private function createPdf(string $html, Lease $lease): DomPDF
@@ -174,7 +230,7 @@ class DownloadLeaseController extends Controller
             $lease->id,
             $templateVersion,
             $leaseUpdated,
-            $tenantUpdated
+            $tenantUpdated,
         );
     }
 
@@ -221,7 +277,7 @@ class DownloadLeaseController extends Controller
             '%s Lease - %s - %s',
             ucfirst(str_replace('_', ' ', $lease->lease_type ?? 'General')),
             $lease->tenant?->full_name ?? 'Unknown Tenant',
-            $lease->property?->name ?? 'Unknown Property'
+            $lease->property?->name ?? 'Unknown Property',
         ));
         $dompdf->addInfo('Keywords', implode(', ', [
             'lease',
@@ -246,7 +302,7 @@ class DownloadLeaseController extends Controller
             $workflowState = LeaseWorkflowState::tryFrom($workflowState);
         }
 
-        if (!$workflowState instanceof LeaseWorkflowState) {
+        if (! $workflowState instanceof LeaseWorkflowState) {
             return true; // Default to DRAFT watermark if state is unknown
         }
 
@@ -313,60 +369,5 @@ class DownloadLeaseController extends Controller
         }
 
         return $html;
-    }
-
-    /**
-     * Generate PDF using hardcoded Blade views (backward compatibility fallback).
-     */
-    protected function generateWithHardcodedViews(
-        Lease $lease,
-        string $filename,
-        string $method,
-        string $cacheKey
-    ): SymfonyResponse {
-        $data = [
-            'lease' => $lease,
-            'tenant' => $lease->tenant,
-            'unit' => $lease->unit,
-            'landlord' => $lease->landlord,
-            'property' => $lease->property,
-            'today' => now()->format('d/m/Y'),
-        ];
-
-        $viewName = match ($lease->lease_type) {
-            'residential_major' => 'pdf.residential-major',
-            'residential_micro' => 'pdf.residential-micro',
-            'commercial' => 'pdf.commercial',
-            default => 'pdf.residential-major',
-        };
-
-        try {
-            $pdf = Pdf::loadView($viewName, $data);
-
-            // Add metadata and DRAFT watermark for hardcoded views too
-            $this->setPdfMetadata($pdf, $lease);
-
-            Log::info('PDF generated with hardcoded views (fallback)', [
-                'lease_id' => $lease->id,
-                'view_name' => $viewName,
-            ]);
-
-            return $this->cacheAndRespond($pdf, $filename, $method, $cacheKey);
-        } catch (Exception $e) {
-            Log::error('Failed to generate PDF with hardcoded views', [
-                'lease_id' => $lease->id,
-                'view_name' => $viewName,
-                'error' => $e->getMessage(),
-            ]);
-
-            if ($method === 'stream') {
-                return response()->view('errors.pdf-generation-failed', [
-                    'error' => $e->getMessage(),
-                    'lease' => $lease,
-                ], 500);
-            }
-
-            abort(500, 'Failed to generate PDF. Please try again later.');
-        }
     }
 }

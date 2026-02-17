@@ -95,6 +95,12 @@ export_clean_staff.ps1
 # Database dumps - never commit these
 *.dump
 *.sql
+ # Database dumps and large SQL exports
+ /chabrin_leases.dump
+ /chabrin_leases.sql
+ /chabrin_leases_clean.dump
+ /chabrin_leases_pg18.dump
+ /chabrin_leases_utf8.sql
 !database/migrations/*.sql
 import_wrapper.sql
 

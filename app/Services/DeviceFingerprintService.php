@@ -6,7 +6,6 @@ namespace App\Services;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 
 /**
  * Device Fingerprinting Service
@@ -210,6 +209,7 @@ class DeviceFingerprintService
     public static function retrieve(string $entityType, int $entityId): ?array
     {
         $key = "fingerprint:{$entityType}:{$entityId}";
+
         return Cache::get($key);
     }
 
@@ -226,7 +226,7 @@ class DeviceFingerprintService
 
         // Detect device type
         $device = 'desktop';
-        if (str_contains($ua, 'mobile') || str_contains($ua, 'android') && !str_contains($ua, 'tablet')) {
+        if (str_contains($ua, 'mobile') || str_contains($ua, 'android') && ! str_contains($ua, 'tablet')) {
             $device = 'mobile';
         } elseif (str_contains($ua, 'tablet') || str_contains($ua, 'ipad')) {
             $device = 'tablet';
@@ -248,11 +248,11 @@ class DeviceFingerprintService
 
         // Detect browser
         $browser = 'unknown';
-        if (str_contains($ua, 'chrome') && !str_contains($ua, 'edg')) {
+        if (str_contains($ua, 'chrome') && ! str_contains($ua, 'edg')) {
             $browser = 'chrome';
         } elseif (str_contains($ua, 'firefox')) {
             $browser = 'firefox';
-        } elseif (str_contains($ua, 'safari') && !str_contains($ua, 'chrome')) {
+        } elseif (str_contains($ua, 'safari') && ! str_contains($ua, 'chrome')) {
             $browser = 'safari';
         } elseif (str_contains($ua, 'edg')) {
             $browser = 'edge';

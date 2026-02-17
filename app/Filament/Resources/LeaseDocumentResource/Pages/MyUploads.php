@@ -43,6 +43,7 @@ class MyUploads extends ListRecords
     public static function getNavigationBadge(): ?string
     {
         $count = LeaseDocument::where('uploaded_by', auth()->id())->count();
+
         return $count > 0 ? (string) $count : null;
     }
 
@@ -53,11 +54,6 @@ class MyUploads extends ListRecords
             ->count();
 
         return $pendingCount > 0 ? 'warning' : 'success';
-    }
-
-    protected function getTableQuery(): Builder
-    {
-        return parent::getTableQuery()->where('uploaded_by', auth()->id());
     }
 
     public function table(Table $table): Table
@@ -108,9 +104,9 @@ class MyUploads extends ListRecords
                     ->since()
                     ->sortable()
                     ->badge()
-                    ->color(fn (LeaseDocument $record): string =>
-                        $record->updated_at->isToday() ? 'success' :
-                        ($record->updated_at->isCurrentWeek() ? 'info' : 'gray')
+                    ->color(
+                        fn (LeaseDocument $record): string => $record->updated_at->isToday() ? 'success' :
+                        ($record->updated_at->isCurrentWeek() ? 'info' : 'gray'),
                     )
                     ->tooltip(fn (LeaseDocument $record): string => $record->updated_at->format('M j, Y H:i:s')),
 
@@ -199,6 +195,11 @@ class MyUploads extends ListRecords
         ];
     }
 
+    protected function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->where('uploaded_by', auth()->id());
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -213,7 +214,7 @@ class MyUploads extends ListRecords
                 ->icon('heroicon-o-clipboard-document-check')
                 ->url(fn (): string => LeaseDocumentResource::getUrl('review'))
                 ->color('warning')
-                ->badge(fn (): ?string => (string) \App\Models\LeaseDocument::pendingReview()->count() ?: null),
+                ->badge(fn (): ?string => (string) LeaseDocument::pendingReview()->count() ?: null),
         ];
     }
 }

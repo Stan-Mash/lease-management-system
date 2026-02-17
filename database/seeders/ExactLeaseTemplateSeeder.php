@@ -58,11 +58,11 @@ class ExactLeaseTemplateSeeder extends Seeder
                 'version_number' => 1,
                 'created_by' => 1,
                 'updated_by' => 1,
-            ]
+            ],
         );
 
         // Ensure version_number is set (for freshly created templates)
-        if (!$template->version_number) {
+        if (! $template->version_number) {
             $template->update(['version_number' => 1]);
             $template->refresh();
         }
@@ -81,7 +81,7 @@ class ExactLeaseTemplateSeeder extends Seeder
                 'available_variables' => $template->available_variables,
                 'created_by' => 1,
                 'change_summary' => 'Template seeded/updated to match physical PDF',
-            ]
+            ],
         );
 
         // Also update all templates of the same type to keep them in sync

@@ -41,7 +41,7 @@ class LeaseDisputeService
     ): void {
         $this->validateCanDispute($lease);
 
-        DB::transaction(function () use ($lease, $reason, $comment, $ipAddress): void {
+        DB::transaction(function () use ($lease, $reason, $comment): void {
             $previousState = $lease->workflow_state;
 
             $this->appendDisputeNotes($lease, $reason, $comment);

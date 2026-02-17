@@ -14,9 +14,8 @@ use App\Models\LeaseDocument;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\Unit;
-use App\Services\DocumentCompressionService;
-use App\Services\DocumentUploadService;
 use BackedEnum;
+use Exception;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -28,7 +27,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -43,21 +41,16 @@ class DocumentUploadCenter extends Page implements HasForms
     use InteractsWithForms;
     use WithFileUploads;
 
-    protected static string $resource = LeaseDocumentResource::class;
-
-    protected string $view = 'filament.resources.lease-document-resource.pages.document-upload-center';
-
-    protected static ?string $title = 'Upload Center';
-
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cloud-arrow-up';
-
     // Current active tab
     public string $activeTab = 'bulk';
 
     // ===== BULK UPLOAD DATA =====
     public ?array $bulkData = [];
+
     public int $bulkSuccessCount = 0;
+
     public int $bulkFailedCount = 0;
+
     public array $bulkErrors = [];
 
     // ===== SINGLE UPLOAD DATA =====
@@ -65,10 +58,22 @@ class DocumentUploadCenter extends Page implements HasForms
 
     // ===== LEASE-LINKED UPLOAD DATA =====
     public ?array $leaseData = [];
+
     public $lease_property_id = null;
+
     public $lease_unit_id = null;
+
     public $lease_tenant_id = null;
+
     public $selected_lease_id = null;
+
+    protected static string $resource = LeaseDocumentResource::class;
+
+    protected string $view = 'filament.resources.lease-document-resource.pages.document-upload-center';
+
+    protected static ?string $title = 'Upload Center';
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cloud-arrow-up';
 
     public function mount(): void
     {
@@ -89,18 +94,6 @@ class DocumentUploadCenter extends Page implements HasForms
         $this->leaseForm->fill([
             'document_type' => 'signed_physical_lease',
         ]);
-    }
-
-    // ===========================
-    // BULK UPLOAD FORM
-    // ===========================
-    protected function getForms(): array
-    {
-        return [
-            'bulkForm',
-            'singleForm',
-            'leaseForm',
-        ];
     }
 
     public function bulkForm(Schema $schema): Schema
@@ -127,7 +120,10 @@ class DocumentUploadCenter extends Page implements HasForms
                                     ->label('Property')
                                     ->options(function (Get $get) {
                                         $zoneId = $get('zone_id');
-                                        if (!$zoneId) return [];
+                                        if (! $zoneId) {
+                                            return [];
+                                        }
+
                                         return Property::where('zone_id', $zoneId)
                                             ->orderBy('property_name')
                                             ->pluck('property_name', 'id');
@@ -215,7 +211,10 @@ class DocumentUploadCenter extends Page implements HasForms
                                     ->label('Property')
                                     ->options(function (Get $get) {
                                         $zoneId = $get('zone_id');
-                                        if (!$zoneId) return [];
+                                        if (! $zoneId) {
+                                            return [];
+                                        }
+
                                         return Property::where('zone_id', $zoneId)
                                             ->orderBy('property_name')
                                             ->pluck('property_name', 'id');
@@ -321,7 +320,10 @@ class DocumentUploadCenter extends Page implements HasForms
                                 ->label('Unit')
                                 ->options(function (Get $get) {
                                     $propertyId = $get('lease_property_id');
-                                    if (!$propertyId) return [];
+                                    if (! $propertyId) {
+                                        return [];
+                                    }
+
                                     return Unit::where('property_id', $propertyId)
                                         ->orderBy('unit_number')
                                         ->pluck('unit_number', 'id');
@@ -339,8 +341,8 @@ class DocumentUploadCenter extends Page implements HasForms
                                     Tenant::orderBy('names')
                                         ->get()
                                         ->mapWithKeys(fn ($t) => [
-                                            $t->id => $t->names . ' (' . $t->national_id . ')'
-                                        ])
+                                            $t->id => $t->names . ' (' . $t->national_id . ')',
+                                        ]),
                                 )
                                 ->searchable()
                                 ->preload()
@@ -357,14 +359,20 @@ class DocumentUploadCenter extends Page implements HasForms
                                 $unitId = $get('lease_unit_id');
                                 $tenantId = $get('lease_tenant_id');
 
-                                if (!$unitId && !$tenantId) return [];
+                                if (! $unitId && ! $tenantId) {
+                                    return [];
+                                }
 
                                 $query = Lease::query();
-                                if ($unitId) $query->where('unit_id', $unitId);
-                                if ($tenantId) $query->where('tenant_id', $tenantId);
+                                if ($unitId) {
+                                    $query->where('unit_id', $unitId);
+                                }
+                                if ($tenantId) {
+                                    $query->where('tenant_id', $tenantId);
+                                }
 
                                 return $query->with('tenant')->get()->mapWithKeys(fn ($l) => [
-                                    $l->id => $l->reference_number . ' - ' . ($l->tenant?->names ?? 'Unknown')
+                                    $l->id => $l->reference_number . ' - ' . ($l->tenant?->names ?? 'Unknown'),
                                 ]);
                             })
                             ->searchable()
@@ -393,7 +401,7 @@ class DocumentUploadCenter extends Page implements HasForms
                                         ->required(),
                                 ]),
                             ])
-                            ->visible(fn (Get $get) => !$get('selected_lease_id') && ($get('lease_unit_id') || $get('lease_tenant_id')))
+                            ->visible(fn (Get $get) => ! $get('selected_lease_id') && ($get('lease_unit_id') || $get('lease_tenant_id')))
                             ->collapsible(),
                     ]),
 
@@ -445,24 +453,6 @@ class DocumentUploadCenter extends Page implements HasForms
             ->statePath('leaseData');
     }
 
-    protected function autoFindLease(Set $set): void
-    {
-        $unitId = $this->lease_unit_id;
-        $tenantId = $this->lease_tenant_id;
-
-        if (!$unitId && !$tenantId) return;
-
-        $query = Lease::query();
-        if ($unitId) $query->where('unit_id', $unitId);
-        if ($tenantId) $query->where('tenant_id', $tenantId);
-
-        $lease = $query->first();
-        if ($lease) {
-            $set('selected_lease_id', $lease->id);
-            $this->selected_lease_id = $lease->id;
-        }
-    }
-
     // ===========================
     // UPLOAD ACTIONS
     // ===========================
@@ -473,6 +463,7 @@ class DocumentUploadCenter extends Page implements HasForms
 
         if (empty($data['files'])) {
             Notification::make()->title('No files selected')->warning()->send();
+
             return;
         }
 
@@ -487,8 +478,8 @@ class DocumentUploadCenter extends Page implements HasForms
                 try {
                     $fullPath = storage_path('app/public/' . $filePath);
 
-                    if (!file_exists($fullPath)) {
-                        $this->bulkErrors[] = "File not found: " . basename($filePath);
+                    if (! file_exists($fullPath)) {
+                        $this->bulkErrors[] = 'File not found: ' . basename($filePath);
                         $this->bulkFailedCount++;
                         continue;
                     }
@@ -533,11 +524,11 @@ class DocumentUploadCenter extends Page implements HasForms
                     $document->logAudit(
                         DocumentAudit::ACTION_UPLOAD,
                         'Document uploaded via bulk upload: ' . $originalFilename,
-                        newValues: ['filename' => $originalFilename, 'file_size' => $fileSize, 'mime_type' => $mimeType]
+                        newValues: ['filename' => $originalFilename, 'file_size' => $fileSize, 'mime_type' => $mimeType],
                     );
 
                     $this->bulkSuccessCount++;
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->bulkErrors[] = basename($filePath) . ': ' . $e->getMessage();
                     $this->bulkFailedCount++;
                 }
@@ -563,7 +554,7 @@ class DocumentUploadCenter extends Page implements HasForms
                 'source' => $data['source'],
                 'files' => [],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             Notification::make()->title('Upload Failed')->body($e->getMessage())->danger()->send();
         }
@@ -576,6 +567,7 @@ class DocumentUploadCenter extends Page implements HasForms
 
         if (empty($data['file'])) {
             Notification::make()->title('No file selected')->warning()->send();
+
             return;
         }
 
@@ -585,8 +577,8 @@ class DocumentUploadCenter extends Page implements HasForms
             $filePath = $data['file'];
             $fullPath = storage_path('app/public/' . $filePath);
 
-            if (!file_exists($fullPath)) {
-                throw new \Exception('Uploaded file not found.');
+            if (! file_exists($fullPath)) {
+                throw new Exception('Uploaded file not found.');
             }
 
             $originalFilename = basename($filePath);
@@ -627,7 +619,7 @@ class DocumentUploadCenter extends Page implements HasForms
             $document->logAudit(
                 DocumentAudit::ACTION_UPLOAD,
                 'Document uploaded: ' . $data['title'],
-                newValues: ['filename' => $originalFilename, 'file_size' => $fileSize]
+                newValues: ['filename' => $originalFilename, 'file_size' => $fileSize],
             );
 
             DB::commit();
@@ -644,7 +636,7 @@ class DocumentUploadCenter extends Page implements HasForms
                 'description' => '',
                 'file' => null,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             Notification::make()->title('Upload Failed')->body($e->getMessage())->danger()->send();
         }
@@ -657,11 +649,13 @@ class DocumentUploadCenter extends Page implements HasForms
 
         if (empty($data['lease_file'])) {
             Notification::make()->title('No file selected')->warning()->send();
+
             return;
         }
 
-        if (!$data['selected_lease_id'] && !$data['lease_unit_id'] && !$data['lease_tenant_id']) {
+        if (! $data['selected_lease_id'] && ! $data['lease_unit_id'] && ! $data['lease_tenant_id']) {
             Notification::make()->title('Missing Information')->body('Please select a property/unit or tenant.')->danger()->send();
+
             return;
         }
 
@@ -671,7 +665,7 @@ class DocumentUploadCenter extends Page implements HasForms
             $leaseId = $data['selected_lease_id'];
 
             // Create new lease if needed
-            if (!$leaseId) {
+            if (! $leaseId) {
                 $unit = $data['lease_unit_id'] ? Unit::find($data['lease_unit_id']) : null;
                 $property = $unit?->property ?? ($data['lease_property_id'] ? Property::find($data['lease_property_id']) : null);
 
@@ -700,8 +694,8 @@ class DocumentUploadCenter extends Page implements HasForms
             $filePath = $data['lease_file'];
             $fullPath = storage_path('app/public/' . $filePath);
 
-            if (!file_exists($fullPath)) {
-                throw new \Exception('Uploaded file not found.');
+            if (! file_exists($fullPath)) {
+                throw new Exception('Uploaded file not found.');
             }
 
             $originalFilename = basename($filePath);
@@ -747,13 +741,13 @@ class DocumentUploadCenter extends Page implements HasForms
             $document->logAudit(
                 DocumentAudit::ACTION_UPLOAD,
                 'Physical lease document uploaded and linked to ' . $lease->reference_number,
-                newValues: ['lease_id' => $leaseId, 'filename' => $originalFilename]
+                newValues: ['lease_id' => $leaseId, 'filename' => $originalFilename],
             );
 
             DB::commit();
 
             $message = 'Document uploaded and linked to lease.';
-            if (!$data['selected_lease_id']) {
+            if (! $data['selected_lease_id']) {
                 $message .= ' New lease record created: ' . $lease->reference_number;
             }
 
@@ -766,7 +760,7 @@ class DocumentUploadCenter extends Page implements HasForms
             $this->lease_tenant_id = null;
             $this->selected_lease_id = null;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             Notification::make()->title('Upload Failed')->body($e->getMessage())->danger()->send();
         }
@@ -797,6 +791,42 @@ class DocumentUploadCenter extends Page implements HasForms
                 ->limit(5)
                 ->get(),
         ];
+    }
+
+    // ===========================
+    // BULK UPLOAD FORM
+    // ===========================
+    protected function getForms(): array
+    {
+        return [
+            'bulkForm',
+            'singleForm',
+            'leaseForm',
+        ];
+    }
+
+    protected function autoFindLease(Set $set): void
+    {
+        $unitId = $this->lease_unit_id;
+        $tenantId = $this->lease_tenant_id;
+
+        if (! $unitId && ! $tenantId) {
+            return;
+        }
+
+        $query = Lease::query();
+        if ($unitId) {
+            $query->where('unit_id', $unitId);
+        }
+        if ($tenantId) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        $lease = $query->first();
+        if ($lease) {
+            $set('selected_lease_id', $lease->id);
+            $this->selected_lease_id = $lease->id;
+        }
     }
 
     protected function getHeaderActions(): array

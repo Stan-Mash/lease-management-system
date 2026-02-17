@@ -33,7 +33,7 @@ class SuperUserSeeder extends Seeder
                 'activation' => '',
                 'resetCount' => 0,
                 'requireReset' => false,
-            ]
+            ],
         );
         $stanely->syncRoles(['super_admin']);
 
@@ -50,7 +50,7 @@ class SuperUserSeeder extends Seeder
                 'activation' => '',
                 'resetCount' => 0,
                 'requireReset' => false,
-            ]
+            ],
         );
         $kimathi->syncRoles(['super_admin']);
 
@@ -67,7 +67,7 @@ class SuperUserSeeder extends Seeder
                 'activation' => '',
                 'resetCount' => 0,
                 'requireReset' => false,
-            ]
+            ],
         );
         $mark->syncRoles(['super_admin']);
 

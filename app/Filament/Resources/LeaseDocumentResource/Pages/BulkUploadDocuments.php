@@ -12,7 +12,7 @@ use App\Models\DocumentAudit;
 use App\Models\LeaseDocument;
 use App\Models\Property;
 use App\Services\DocumentCompressionService;
-use BackedEnum;
+use Exception;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -32,17 +32,6 @@ class BulkUploadDocuments extends Page
 {
     use WithFileUploads;
 
-    protected static string $resource = LeaseDocumentResource::class;
-
-    protected string $view = 'filament.resources.lease-document-resource.pages.bulk-upload-documents';
-
-    protected static ?string $title = 'Bulk Document Upload';
-
-    public static function getNavigationIcon(): string
-    {
-        return 'heroicon-o-cloud-arrow-up';
-    }
-
     public ?array $data = [];
 
     public array $uploadedFiles = [];
@@ -54,6 +43,17 @@ class BulkUploadDocuments extends Page
     public array $errors = [];
 
     public bool $isProcessing = false;
+
+    protected static string $resource = LeaseDocumentResource::class;
+
+    protected string $view = 'filament.resources.lease-document-resource.pages.bulk-upload-documents';
+
+    protected static ?string $title = 'Bulk Document Upload';
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-cloud-arrow-up';
+    }
 
     public function mount(): void
     {
@@ -87,9 +87,10 @@ class BulkUploadDocuments extends Page
                                     ->label('Property')
                                     ->options(function (Get $get) {
                                         $zoneId = $get('zone_id');
-                                        if (!$zoneId) {
+                                        if (! $zoneId) {
                                             return [];
                                         }
+
                                         return Property::where('zone_id', $zoneId)
                                             ->orderBy('property_name')
                                             ->pluck('property_name', 'id');
@@ -162,6 +163,7 @@ class BulkUploadDocuments extends Page
                 ->title('No files selected')
                 ->warning()
                 ->send();
+
             return;
         }
 
@@ -179,8 +181,8 @@ class BulkUploadDocuments extends Page
                 try {
                     $fullPath = storage_path('app/public/' . $filePath);
 
-                    if (!file_exists($fullPath)) {
-                        $this->errors[] = "File not found: " . basename($filePath);
+                    if (! file_exists($fullPath)) {
+                        $this->errors[] = 'File not found: ' . basename($filePath);
                         $this->failedCount++;
                         continue;
                     }
@@ -220,7 +222,7 @@ class BulkUploadDocuments extends Page
                     $compressionMethod = null;
 
                     $alreadyCompressedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
-                    if ($fileSize > (5 * 1024 * 1024) && !in_array($mimeType, $alreadyCompressedTypes)) {
+                    if ($fileSize > (5 * 1024 * 1024) && ! in_array($mimeType, $alreadyCompressedTypes)) {
                         // Apply compression for large non-compressed files
                         // For now, we'll note it should be compressed
                         // Actual compression handled by DocumentCompressionService
@@ -257,11 +259,11 @@ class BulkUploadDocuments extends Page
                             'file_size' => $fileSize,
                             'mime_type' => $mimeType,
                             'file_hash' => $fileHash,
-                        ]
+                        ],
                     );
 
                     $this->successCount++;
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->errors[] = basename($filePath) . ': ' . $e->getMessage();
                     $this->failedCount++;
                 }
@@ -300,7 +302,7 @@ class BulkUploadDocuments extends Page
                 'source' => $data['source'],
                 'files' => [],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
 
             Notification::make()

@@ -7,10 +7,10 @@ namespace App\Models;
 use App\Enums\DocumentQuality;
 use App\Enums\DocumentSource;
 use App\Enums\DocumentStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 class LeaseDocument extends Model
@@ -193,7 +193,7 @@ class LeaseDocument extends Model
      */
     public function startReview(User $reviewer): bool
     {
-        if (!$this->status->canTransitionTo(DocumentStatus::IN_REVIEW)) {
+        if (! $this->status->canTransitionTo(DocumentStatus::IN_REVIEW)) {
             return false;
         }
 
@@ -210,7 +210,7 @@ class LeaseDocument extends Model
      */
     public function approve(User $reviewer, ?string $notes = null): bool
     {
-        if (!$this->status->canTransitionTo(DocumentStatus::APPROVED)) {
+        if (! $this->status->canTransitionTo(DocumentStatus::APPROVED)) {
             return false;
         }
 
@@ -234,7 +234,7 @@ class LeaseDocument extends Model
      */
     public function reject(User $reviewer, string $reason): bool
     {
-        if (!$this->status->canTransitionTo(DocumentStatus::REJECTED)) {
+        if (! $this->status->canTransitionTo(DocumentStatus::REJECTED)) {
             return false;
         }
 
@@ -253,7 +253,7 @@ class LeaseDocument extends Model
      */
     public function linkToLease(Lease $lease, User $linker): bool
     {
-        if (!$this->status->canTransitionTo(DocumentStatus::LINKED)) {
+        if (! $this->status->canTransitionTo(DocumentStatus::LINKED)) {
             return false;
         }
 
@@ -275,7 +275,7 @@ class LeaseDocument extends Model
      */
     public function resubmit(): bool
     {
-        if (!$this->status->canTransitionTo(DocumentStatus::PENDING_REVIEW)) {
+        if (! $this->status->canTransitionTo(DocumentStatus::PENDING_REVIEW)) {
             return false;
         }
 
@@ -300,7 +300,7 @@ class LeaseDocument extends Model
 
     public function getCompressedSizeForHumansAttribute(): ?string
     {
-        if (!$this->compressed_size) {
+        if (! $this->compressed_size) {
             return null;
         }
 
@@ -309,7 +309,7 @@ class LeaseDocument extends Model
 
     public function getCompressionRatioAttribute(): ?float
     {
-        if (!$this->is_compressed || !$this->compressed_size) {
+        if (! $this->is_compressed || ! $this->compressed_size) {
             return null;
         }
 
@@ -318,11 +318,12 @@ class LeaseDocument extends Model
 
     public function getCompressionSavingsAttribute(): ?string
     {
-        if (!$this->is_compressed || !$this->compressed_size) {
+        if (! $this->is_compressed || ! $this->compressed_size) {
             return null;
         }
 
         $saved = $this->file_size - $this->compressed_size;
+
         return $this->formatBytes($saved);
     }
 
@@ -352,7 +353,7 @@ class LeaseDocument extends Model
 
     public function getDownloadUrl(): ?string
     {
-        if (!Storage::disk('local')->exists($this->file_path)) {
+        if (! Storage::exists($this->file_path)) {
             return null;
         }
 
@@ -364,7 +365,7 @@ class LeaseDocument extends Model
         // Only PDFs and images can be previewed
         $previewableMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
 
-        if (!in_array($this->mime_type, $previewableMimes, true)) {
+        if (! in_array($this->mime_type, $previewableMimes, true)) {
             return null;
         }
 
@@ -373,7 +374,7 @@ class LeaseDocument extends Model
 
     public function fileExists(): bool
     {
-        return Storage::disk('local')->exists($this->file_path);
+        return Storage::exists($this->file_path);
     }
 
     public function getFullPath(): string
@@ -386,14 +387,15 @@ class LeaseDocument extends Model
      */
     public function verifyIntegrity(bool $logCheck = true): bool
     {
-        if (!$this->file_hash || !$this->fileExists()) {
+        if (! $this->file_hash || ! $this->fileExists()) {
             if ($logCheck) {
                 $this->logAudit(
                     DocumentAudit::ACTION_VERIFY,
-                    'Integrity check failed: ' . (!$this->file_hash ? 'No hash stored' : 'File not found'),
-                    integrityVerified: false
+                    'Integrity check failed: ' . (! $this->file_hash ? 'No hash stored' : 'File not found'),
+                    integrityVerified: false,
                 );
             }
+
             return false;
         }
 
@@ -409,9 +411,10 @@ class LeaseDocument extends Model
                 $this->logAudit(
                     DocumentAudit::ACTION_VERIFY,
                     'Integrity verified (compressed file - hash check skipped)',
-                    integrityVerified: true
+                    integrityVerified: true,
                 );
             }
+
             return true;
         }
 
@@ -428,7 +431,7 @@ class LeaseDocument extends Model
                 $isValid
                     ? 'Integrity verified successfully - hash matches stored value'
                     : 'INTEGRITY FAILURE - File hash mismatch detected! Document may have been tampered with.',
-                integrityVerified: $isValid
+                integrityVerified: $isValid,
             );
         }
 
@@ -440,7 +443,7 @@ class LeaseDocument extends Model
      */
     public function getCurrentFileHash(): ?string
     {
-        if (!$this->fileExists()) {
+        if (! $this->fileExists()) {
             return null;
         }
 
@@ -455,7 +458,7 @@ class LeaseDocument extends Model
         string $description,
         ?array $oldValues = null,
         ?array $newValues = null,
-        ?bool $integrityVerified = null
+        ?bool $integrityVerified = null,
     ): DocumentAudit {
         return DocumentAudit::log($this, $action, $description, $oldValues, $newValues, $integrityVerified);
     }
@@ -465,7 +468,7 @@ class LeaseDocument extends Model
      */
     public function getShortHashAttribute(): ?string
     {
-        if (!$this->file_hash) {
+        if (! $this->file_hash) {
             return null;
         }
 
@@ -504,23 +507,6 @@ class LeaseDocument extends Model
         return $this;
     }
 
-    // =====================
-    // Helper Methods
-    // =====================
-
-    private function formatBytes(int $bytes): string
-    {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $i = 0;
-
-        while ($bytes >= 1024 && $i < count($units) - 1) {
-            $bytes /= 1024;
-            $i++;
-        }
-
-        return round($bytes, 2) . ' ' . $units[$i];
-    }
-
     /**
      * Get document type options
      */
@@ -551,5 +537,22 @@ class LeaseDocument extends Model
 
         // Must have review permission (admin, it_officer)
         return $user->hasAnyRole(['super_admin', 'admin', 'it_officer']);
+    }
+
+    // =====================
+    // Helper Methods
+    // =====================
+
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $i = 0;
+
+        while ($bytes >= 1024 && $i < count($units) - 1) {
+            $bytes /= 1024;
+            $i++;
+        }
+
+        return round($bytes, 2) . ' ' . $units[$i];
     }
 }

@@ -9,7 +9,6 @@ use App\Filament\Resources\Leases\Pages\ViewLease;
 use App\Filament\Resources\Leases\Schemas\LeaseForm;
 use App\Filament\Resources\Leases\Schemas\LeaseInfolist;
 use App\Models\Lease;
-use App\Models\User;
 use App\Models\Zone;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -310,6 +309,7 @@ class LeaseResource extends Resource
                         if ($data['date_until'] ?? null) {
                             $indicators['date_until'] = 'Created until ' . \Carbon\Carbon::parse($data['date_until'])->format('d/m/Y');
                         }
+
                         return $indicators;
                     }),
 
@@ -333,6 +333,7 @@ class LeaseResource extends Resource
                         if ($data['start_until'] ?? null) {
                             $indicators['start_until'] = 'Start until ' . \Carbon\Carbon::parse($data['start_until'])->format('d/m/Y');
                         }
+
                         return $indicators;
                     }),
 
@@ -356,15 +357,17 @@ class LeaseResource extends Resource
                         if ($data['end_until'] ?? null) {
                             $indicators['end_until'] = 'End until ' . \Carbon\Carbon::parse($data['end_until'])->format('d/m/Y');
                         }
+
                         return $indicators;
                     }),
 
                 Filter::make('expiring_soon')
                     ->label('Expiring within 90 days')
                     ->toggle()
-                    ->query(fn (Builder $query) => $query
-                        ->where('workflow_state', 'active')
-                        ->whereBetween('end_date', [now(), now()->addDays(90)])
+                    ->query(
+                        fn (Builder $query) => $query
+                            ->where('workflow_state', 'active')
+                            ->whereBetween('end_date', [now(), now()->addDays(90)]),
                     ),
             ])
             ->filtersFormColumns(3)
@@ -397,7 +400,7 @@ class LeaseResource extends Resource
             ->with(['tenant', 'property', 'unit', 'landlord', 'approvals', 'assignedZone', 'assignedFieldOfficer', 'zoneManager']);
 
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return $query;
         }
 
@@ -418,18 +421,21 @@ class LeaseResource extends Resource
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && $user->role !== 'field_officer' && !in_array($user->role, ['auditor', 'internal_auditor']);
+
+        return $user && $user->role !== 'field_officer' && ! in_array($user->role, ['auditor', 'internal_auditor']);
     }
 
     public static function canEdit($record): bool
     {
         $user = auth()->user();
-        return $user && $user->role !== 'field_officer' && !in_array($user->role, ['auditor', 'internal_auditor']);
+
+        return $user && $user->role !== 'field_officer' && ! in_array($user->role, ['auditor', 'internal_auditor']);
     }
 
     public static function canDelete($record): bool
     {
         $user = auth()->user();
+
         return $user && in_array($user->role, ['super_admin', 'admin', 'property_manager']);
     }
 

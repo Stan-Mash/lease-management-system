@@ -17,7 +17,7 @@ class LeaseDocumentController extends Controller
     use AuthorizesRequests;
 
     public function __construct(
-        private readonly DocumentCompressionService $compressionService
+        private readonly DocumentCompressionService $compressionService,
     ) {}
 
     /**
@@ -27,14 +27,14 @@ class LeaseDocumentController extends Controller
     {
         $this->authorize('download', $leaseDocument);
 
-        if (!$leaseDocument->fileExists()) {
+        if (! $leaseDocument->fileExists()) {
             abort(404, 'Document file not found');
         }
 
         // Log the download action
         $leaseDocument->logAudit(
             DocumentAudit::ACTION_DOWNLOAD,
-            'Document downloaded by ' . auth()->user()->name
+            'Document downloaded by ' . auth()->user()->name,
         );
 
         $filePath = $leaseDocument->getFullPath();
@@ -44,7 +44,7 @@ class LeaseDocumentController extends Controller
         if ($leaseDocument->is_compressed && $leaseDocument->compression_method === 'zip') {
             $extractedPath = $this->compressionService->extractForDownload($leaseDocument->file_path);
 
-            if (!$extractedPath) {
+            if (! $extractedPath) {
                 abort(500, 'Failed to extract compressed file');
             }
 
@@ -61,7 +61,7 @@ class LeaseDocumentController extends Controller
     {
         $this->authorize('view', $leaseDocument);
 
-        if (!$leaseDocument->fileExists()) {
+        if (! $leaseDocument->fileExists()) {
             abort(404, 'Document file not found');
         }
 
@@ -73,7 +73,7 @@ class LeaseDocumentController extends Controller
             'image/gif',
         ];
 
-        if (!in_array($leaseDocument->mime_type, $previewableMimes, true)) {
+        if (! in_array($leaseDocument->mime_type, $previewableMimes, true)) {
             abort(400, 'This file type cannot be previewed');
         }
 
@@ -83,7 +83,7 @@ class LeaseDocumentController extends Controller
         if ($leaseDocument->is_compressed && $leaseDocument->compression_method === 'zip') {
             $extractedPath = $this->compressionService->extractForDownload($leaseDocument->file_path);
 
-            if (!$extractedPath) {
+            if (! $extractedPath) {
                 abort(500, 'Failed to extract compressed file');
             }
 

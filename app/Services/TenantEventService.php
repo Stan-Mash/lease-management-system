@@ -8,6 +8,7 @@ use App\Enums\TenantEventType;
 use App\Models\Tenant;
 use App\Models\TenantEvent;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -20,10 +21,8 @@ use Illuminate\Support\Facades\Log;
  *
  * @example Basic usage:
  *   TenantEventService::log($tenant, TenantEventType::SMS, 'SMS Sent', ['message' => 'Your rent is due']);
- *
  * @example With source model:
  *   TenantEventService::log($tenant, TenantEventType::FINANCIAL, 'Payment Received', $paymentData, $payment);
- *
  * @example With external reference:
  *   TenantEventService::log($tenant, TenantEventType::SMS, 'SMS Sent', $data, null, [
  *       'external_reference' => 'ATXid_12345',
@@ -35,12 +34,12 @@ class TenantEventService
     /**
      * Log a new event to the tenant's timeline.
      *
-     * @param  Tenant  $tenant  The tenant this event belongs to
-     * @param  TenantEventType  $type  The type of event
-     * @param  string  $title  Short descriptive title
-     * @param  array|null  $body  Structured event data (varies by event type)
-     * @param  Model|null  $eventable  Optional source model (Lease, Payment, etc.)
-     * @param  array  $options  Additional options: happened_at, performed_by, is_internal, etc.
+     * @param Tenant $tenant The tenant this event belongs to
+     * @param TenantEventType $type The type of event
+     * @param string $title Short descriptive title
+     * @param array|null $body Structured event data (varies by event type)
+     * @param Model|null $eventable Optional source model (Lease, Payment, etc.)
+     * @param array $options Additional options: happened_at, performed_by, is_internal, etc.
      */
     public static function log(
         Tenant $tenant,
@@ -48,7 +47,7 @@ class TenantEventService
         string $title,
         ?array $body = null,
         ?Model $eventable = null,
-        array $options = []
+        array $options = [],
     ): TenantEvent {
         $performedBy = $options['performed_by'] ?? Auth::id();
 
@@ -87,7 +86,7 @@ class TenantEventService
         string $message,
         string $direction = 'outbound',
         ?string $messageId = null,
-        ?string $status = null
+        ?string $status = null,
     ): TenantEvent {
         $title = $direction === 'outbound' ? 'SMS Sent' : 'SMS Received';
 
@@ -105,7 +104,7 @@ class TenantEventService
             options: [
                 'external_reference' => $messageId,
                 'channel' => 'africas_talking',
-            ]
+            ],
         );
     }
 
@@ -117,7 +116,7 @@ class TenantEventService
         string $subject,
         ?string $bodyPreview = null,
         string $direction = 'outbound',
-        ?string $messageId = null
+        ?string $messageId = null,
     ): TenantEvent {
         $title = $direction === 'outbound' ? 'Email Sent' : 'Email Received';
 
@@ -133,7 +132,7 @@ class TenantEventService
             ],
             options: [
                 'external_reference' => $messageId,
-            ]
+            ],
         );
     }
 
@@ -145,7 +144,7 @@ class TenantEventService
         string $title,
         string $content,
         bool $isInternal = true,
-        bool $isPinned = false
+        bool $isPinned = false,
     ): TenantEvent {
         return self::log(
             tenant: $tenant,
@@ -157,7 +156,7 @@ class TenantEventService
             options: [
                 'is_internal' => $isInternal,
                 'is_pinned' => $isPinned,
-            ]
+            ],
         );
     }
 
@@ -170,7 +169,7 @@ class TenantEventService
         float $amount,
         ?string $reference = null,
         ?Model $sourceModel = null,
-        ?array $additionalData = null
+        ?array $additionalData = null,
     ): TenantEvent {
         $body = [
             'transaction_type' => $transactionType,
@@ -192,7 +191,7 @@ class TenantEventService
             options: [
                 'external_reference' => $reference,
                 'channel' => 'chips',  // CHIPS integration
-            ]
+            ],
         );
     }
 
@@ -203,7 +202,7 @@ class TenantEventService
         Tenant $tenant,
         string $title,
         ?array $data = null,
-        ?Model $sourceModel = null
+        ?Model $sourceModel = null,
     ): TenantEvent {
         return self::log(
             tenant: $tenant,
@@ -213,7 +212,7 @@ class TenantEventService
             eventable: $sourceModel,
             options: [
                 'performed_by' => null,  // System events have no user
-            ]
+            ],
         );
     }
 
@@ -225,7 +224,7 @@ class TenantEventService
         string $title,
         string $description,
         ?string $category = null,
-        ?\DateTimeInterface $followUpAt = null
+        ?DateTimeInterface $followUpAt = null,
     ): TenantEvent {
         return self::log(
             tenant: $tenant,
@@ -239,7 +238,7 @@ class TenantEventService
             options: [
                 'requires_follow_up' => true,
                 'follow_up_at' => $followUpAt ?? now()->addDays(3),
-            ]
+            ],
         );
     }
 
@@ -252,7 +251,7 @@ class TenantEventService
         string $direction = 'outbound',
         ?int $durationSeconds = null,
         ?string $notes = null,
-        ?\DateTimeInterface $followUpAt = null
+        ?DateTimeInterface $followUpAt = null,
     ): TenantEvent {
         $title = $direction === 'outbound' ? 'Outbound Call' : 'Inbound Call';
 
@@ -270,7 +269,7 @@ class TenantEventService
             options: [
                 'requires_follow_up' => $followUpAt !== null,
                 'follow_up_at' => $followUpAt,
-            ]
+            ],
         );
     }
 
@@ -283,7 +282,7 @@ class TenantEventService
         string $outcome,
         ?string $notes = null,
         ?array $location = null,
-        ?\DateTimeInterface $followUpAt = null
+        ?DateTimeInterface $followUpAt = null,
     ): TenantEvent {
         return self::log(
             tenant: $tenant,
@@ -298,7 +297,7 @@ class TenantEventService
             options: [
                 'requires_follow_up' => $followUpAt !== null,
                 'follow_up_at' => $followUpAt,
-            ]
+            ],
         );
     }
 
@@ -310,7 +309,7 @@ class TenantEventService
         string $action,
         string $documentName,
         ?Model $document = null,
-        ?array $metadata = null
+        ?array $metadata = null,
     ): TenantEvent {
         return self::log(
             tenant: $tenant,
@@ -321,7 +320,7 @@ class TenantEventService
                 'document_name' => $documentName,
                 'metadata' => $metadata,
             ],
-            eventable: $document
+            eventable: $document,
         );
     }
 
@@ -332,7 +331,7 @@ class TenantEventService
         Tenant $tenant,
         string $action,
         Model $lease,
-        ?array $details = null
+        ?array $details = null,
     ): TenantEvent {
         return self::log(
             tenant: $tenant,
@@ -342,15 +341,15 @@ class TenantEventService
                 'action' => $action,
                 'lease_reference' => $lease->reference ?? $lease->id,
             ], $details ?? []),
-            eventable: $lease
+            eventable: $lease,
         );
     }
 
     /**
      * Bulk log events from CHIPS sync.
      *
-     * @param  Tenant  $tenant
-     * @param  array  $transactions  Array of transaction data from CHIPS
+     * @param array $transactions Array of transaction data from CHIPS
+     *
      * @return int Number of events created
      */
     public static function syncFromChips(Tenant $tenant, array $transactions): int
@@ -375,7 +374,7 @@ class TenantEventService
                 additionalData: [
                     'synced_from' => 'chips',
                     'original_date' => $transaction['date'] ?? null,
-                ]
+                ],
             );
 
             $count++;

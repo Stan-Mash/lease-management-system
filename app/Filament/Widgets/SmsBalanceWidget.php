@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
+use Exception;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -30,7 +31,7 @@ class SmsBalanceWidget extends BaseWidget
             ->color($this->getStatusColor($data['status']));
 
         // Add trend chart if we have historical data
-        if (!empty($data['chart'])) {
+        if (! empty($data['chart'])) {
             $stat->chart($data['chart']);
         }
 
@@ -83,7 +84,7 @@ class SmsBalanceWidget extends BaseWidget
                     'chart' => $chartData,
                 ];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::debug('Could not fetch Pulse SMS data: ' . $e->getMessage());
         }
 
@@ -130,7 +131,7 @@ class SmsBalanceWidget extends BaseWidget
                     'chart' => [],
                 ];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('SMS Balance fetch failed: ' . $e->getMessage());
         }
 

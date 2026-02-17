@@ -10,8 +10,8 @@ use App\Models\DocumentAudit;
 use App\Models\Lease;
 use Filament\Actions;
 use Filament\Forms;
-use Filament\Resources\Pages\ViewRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -140,6 +140,7 @@ class ViewLeaseDocument extends ViewRecord
         if ($this->record->integrity_status === null) {
             return 'Not Verified';
         }
+
         return $this->record->integrity_status ? 'Verified' : 'FAILED';
     }
 
@@ -148,6 +149,7 @@ class ViewLeaseDocument extends ViewRecord
         if ($this->record->integrity_status === null) {
             return 'gray';
         }
+
         return $this->record->integrity_status ? 'success' : 'danger';
     }
 
@@ -170,7 +172,7 @@ class ViewLeaseDocument extends ViewRecord
 
     protected function getVersionHistorySection(): array
     {
-        if ($this->record->version <= 1 && !$this->record->versions()->exists()) {
+        if ($this->record->version <= 1 && ! $this->record->versions()->exists()) {
             return [];
         }
 
@@ -242,9 +244,9 @@ class ViewLeaseDocument extends ViewRecord
                 ->label('Approve')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool =>
-                    $this->record->status === DocumentStatus::PENDING_REVIEW
-                    && $this->record->canBeReviewedBy(auth()->user())
+                ->visible(
+                    fn (): bool => $this->record->status === DocumentStatus::PENDING_REVIEW
+                    && $this->record->canBeReviewedBy(auth()->user()),
                 )
                 ->requiresConfirmation()
                 ->modalHeading('Approve Document')
@@ -259,7 +261,7 @@ class ViewLeaseDocument extends ViewRecord
                     $this->record->logAudit(
                         DocumentAudit::ACTION_APPROVE,
                         'Document approved by ' . auth()->user()->name,
-                        newValues: ['notes' => $data['notes'] ?? null]
+                        newValues: ['notes' => $data['notes'] ?? null],
                     );
                     Notification::make()
                         ->title('Document approved')
@@ -271,9 +273,9 @@ class ViewLeaseDocument extends ViewRecord
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn (): bool =>
-                    in_array($this->record->status, [DocumentStatus::PENDING_REVIEW, DocumentStatus::IN_REVIEW])
-                    && $this->record->canBeReviewedBy(auth()->user())
+                ->visible(
+                    fn (): bool => in_array($this->record->status, [DocumentStatus::PENDING_REVIEW, DocumentStatus::IN_REVIEW])
+                    && $this->record->canBeReviewedBy(auth()->user()),
                 )
                 ->requiresConfirmation()
                 ->modalHeading('Reject Document')
@@ -300,7 +302,7 @@ class ViewLeaseDocument extends ViewRecord
                     $this->record->logAudit(
                         DocumentAudit::ACTION_REJECT,
                         'Document rejected by ' . auth()->user()->name,
-                        newValues: ['reason' => $reason]
+                        newValues: ['reason' => $reason],
                     );
                     Notification::make()
                         ->title('Document rejected')
@@ -326,7 +328,7 @@ class ViewLeaseDocument extends ViewRecord
                                 ->mapWithKeys(fn ($lease) => [
                                     $lease->id => $lease->reference_number . ' - ' .
                                         ($lease->tenant?->names ?? 'Unknown') . ' - ' .
-                                        ($lease->unit?->unit_number ?? 'Unknown')
+                                        ($lease->unit?->unit_number ?? 'Unknown'),
                                 ]);
                         })
                         ->searchable()
@@ -338,7 +340,7 @@ class ViewLeaseDocument extends ViewRecord
                         $this->record->logAudit(
                             DocumentAudit::ACTION_LINK,
                             'Document linked to lease ' . $lease->reference_number,
-                            newValues: ['lease_id' => $lease->id, 'reference' => $lease->reference_number]
+                            newValues: ['lease_id' => $lease->id, 'reference' => $lease->reference_number],
                         );
                         Notification::make()
                             ->title('Document linked to lease')
@@ -362,7 +364,7 @@ class ViewLeaseDocument extends ViewRecord
         // Log view action
         $this->record->logAudit(
             DocumentAudit::ACTION_VIEW,
-            'Document viewed by ' . auth()->user()->name
+            'Document viewed by ' . auth()->user()->name,
         );
     }
 }

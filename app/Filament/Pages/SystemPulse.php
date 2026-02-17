@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use BackedEnum;
+use Exception;
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\DB;
+use FilesystemIterator;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use UnitEnum;
 
 class SystemPulse extends Page
@@ -33,6 +37,7 @@ class SystemPulse extends Page
     public static function canAccess(): bool
     {
         $user = auth()->user();
+
         return $user && ($user->isSuperAdmin() || $user->isAdmin());
     }
 
@@ -46,6 +51,36 @@ class SystemPulse extends Page
             'storageStats' => $this->getStorageStats(),
             'databaseStats' => $this->getDatabaseStats(),
         ];
+    }
+
+    public function retryFailedJob(string $uuid): void
+    {
+        \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => [$uuid]]);
+
+        $this->dispatch('notify', [
+            'type' => 'success',
+            'message' => 'Job queued for retry',
+        ]);
+    }
+
+    public function retryAllFailedJobs(): void
+    {
+        \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => ['all']]);
+
+        $this->dispatch('notify', [
+            'type' => 'success',
+            'message' => 'All failed jobs queued for retry',
+        ]);
+    }
+
+    public function flushFailedJobs(): void
+    {
+        \Illuminate\Support\Facades\Artisan::call('queue:flush');
+
+        $this->dispatch('notify', [
+            'type' => 'success',
+            'message' => 'All failed jobs cleared',
+        ]);
     }
 
     protected function getQueueStats(): array
@@ -116,7 +151,7 @@ class SystemPulse extends Page
         try {
             DB::connection()->getPdo();
             $checks['database'] = ['status' => 'healthy', 'message' => 'Connected'];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $checks['database'] = ['status' => 'critical', 'message' => 'Connection failed'];
         }
 
@@ -125,7 +160,7 @@ class SystemPulse extends Page
             Cache::put('health_check', true, 10);
             Cache::forget('health_check');
             $checks['cache'] = ['status' => 'healthy', 'message' => 'Working'];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $checks['cache'] = ['status' => 'critical', 'message' => 'Not working'];
         }
 
@@ -137,7 +172,7 @@ class SystemPulse extends Page
             } else {
                 $checks['storage'] = ['status' => 'critical', 'message' => 'Not writable'];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $checks['storage'] = ['status' => 'critical', 'message' => 'Error checking'];
         }
 
@@ -148,12 +183,12 @@ class SystemPulse extends Page
             if ($jobAge > 30) {
                 $checks['queue_worker'] = [
                     'status' => 'critical',
-                    'message' => "Jobs waiting {$jobAge}+ mins - worker may be down"
+                    'message' => "Jobs waiting {$jobAge}+ mins - worker may be down",
                 ];
             } elseif ($jobAge > 10) {
                 $checks['queue_worker'] = [
                     'status' => 'warning',
-                    'message' => "Jobs waiting {$jobAge} mins"
+                    'message' => "Jobs waiting {$jobAge} mins",
                 ];
             } else {
                 $checks['queue_worker'] = ['status' => 'healthy', 'message' => 'Processing normally'];
@@ -250,10 +285,11 @@ class SystemPulse extends Page
 
         // Get database size (PostgreSQL)
         $dbSize = 0;
+
         try {
-            $result = DB::select("SELECT pg_database_size(current_database()) as size");
+            $result = DB::select('SELECT pg_database_size(current_database()) as size');
             $dbSize = $result[0]->size ?? 0;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Silently fail if not PostgreSQL
         }
 
@@ -267,9 +303,10 @@ class SystemPulse extends Page
     protected function getDirectorySize(string $path): int
     {
         $size = 0;
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)) as $file) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS)) as $file) {
             $size += $file->getSize();
         }
+
         return $size;
     }
 
@@ -284,35 +321,5 @@ class SystemPulse extends Page
         $i = floor(log($bytes, 1024));
 
         return round($bytes / pow(1024, $i), 2) . ' ' . $units[$i];
-    }
-
-    public function retryFailedJob(string $uuid): void
-    {
-        \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => [$uuid]]);
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'Job queued for retry',
-        ]);
-    }
-
-    public function retryAllFailedJobs(): void
-    {
-        \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => ['all']]);
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'All failed jobs queued for retry',
-        ]);
-    }
-
-    public function flushFailedJobs(): void
-    {
-        \Illuminate\Support\Facades\Artisan::call('queue:flush');
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'All failed jobs cleared',
-        ]);
     }
 }

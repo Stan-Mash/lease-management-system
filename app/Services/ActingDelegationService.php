@@ -6,8 +6,11 @@ use App\Models\LeaseAuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
+use RuntimeException;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\PermissionRegistrar;
+use Throwable;
 
 class ActingDelegationService
 {
@@ -20,15 +23,15 @@ class ActingDelegationService
      * Activate delegation: grant a backup officer temporary zone-manager
      * permissions while the zone manager is away or on leave.
      *
-     * @throws \RuntimeException If no backup officer is configured.
+     * @throws RuntimeException If no backup officer is configured.
      */
     public function activateDelegation(User $zoneManager): void
     {
         if (! $zoneManager->backup_officer_id) {
             Log::warning("ActingDelegation: Zone manager [{$zoneManager->id}] has no backup officer configured.");
 
-            throw new \RuntimeException(
-                "Zone manager {$zoneManager->name} does not have a backup officer configured."
+            throw new RuntimeException(
+                "Zone manager {$zoneManager->name} does not have a backup officer configured.",
             );
         }
 
@@ -37,8 +40,8 @@ class ActingDelegationService
         if (! $backupOfficer) {
             Log::warning("ActingDelegation: Backup officer [{$zoneManager->backup_officer_id}] for zone manager [{$zoneManager->id}] not found.");
 
-            throw new \RuntimeException(
-                "Backup officer (ID: {$zoneManager->backup_officer_id}) could not be found."
+            throw new RuntimeException(
+                "Backup officer (ID: {$zoneManager->backup_officer_id}) could not be found.",
             );
         }
 
@@ -46,8 +49,8 @@ class ActingDelegationService
         if ($backupOfficer->acting_for_user_id !== null) {
             Log::warning("ActingDelegation: Backup officer [{$backupOfficer->id}] is already acting for user [{$backupOfficer->acting_for_user_id}].");
 
-            throw new \RuntimeException(
-                "{$backupOfficer->name} is already acting for another user."
+            throw new RuntimeException(
+                "{$backupOfficer->name} is already acting for another user.",
             );
         }
 
@@ -78,7 +81,7 @@ class ActingDelegationService
                     'backup_officer_id' => $backupOfficer->id,
                     'backup_officer_name' => $backupOfficer->name,
                     'permissions_granted' => $zoneManagerPermissions,
-                ]
+                ],
             );
 
             Log::info("ActingDelegation: Activated - {$backupOfficer->name} (ID:{$backupOfficer->id}) is now acting for {$zoneManager->name} (ID:{$zoneManager->id}).");
@@ -122,7 +125,7 @@ class ActingDelegationService
                     'zone_manager_name' => $zoneManager->name,
                     'officer_id' => $actingOfficer->id,
                     'officer_name' => $actingOfficer->name,
-                ]
+                ],
             );
 
             Log::info("ActingDelegation: Deactivated - {$actingOfficer->name} (ID:{$actingOfficer->id}) is no longer acting for {$zoneManager->name} (ID:{$zoneManager->id}).");
@@ -140,8 +143,8 @@ class ActingDelegationService
         $validStatuses = ['available', 'on_leave', 'away'];
 
         if (! in_array($newStatus, $validStatuses, true)) {
-            throw new \InvalidArgumentException(
-                "Invalid availability status: {$newStatus}. Must be one of: " . implode(', ', $validStatuses)
+            throw new InvalidArgumentException(
+                "Invalid availability status: {$newStatus}. Must be one of: " . implode(', ', $validStatuses),
             );
         }
 
@@ -247,7 +250,7 @@ class ActingDelegationService
         string $action,
         string $description,
         ?int $userId = null,
-        array $additionalData = []
+        array $additionalData = [],
     ): void {
         try {
             LeaseAuditLog::create([
@@ -259,7 +262,7 @@ class ActingDelegationService
                 'ip_address' => request()->ip(),
                 'additional_data' => $additionalData,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Logging should never break the delegation flow.
             Log::error("ActingDelegation: Failed to write audit log - {$e->getMessage()}", [
                 'action' => $action,
