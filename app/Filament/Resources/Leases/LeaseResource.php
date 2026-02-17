@@ -274,7 +274,7 @@ class LeaseResource extends Resource
 
                 SelectFilter::make('property_id')
                     ->label('Property')
-                    ->relationship('property', 'name')
+                    ->relationship('property', 'property_name')
                     ->searchable()
                     ->preload(),
 

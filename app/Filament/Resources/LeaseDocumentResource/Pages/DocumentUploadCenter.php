@@ -129,8 +129,8 @@ class DocumentUploadCenter extends Page implements HasForms
                                         $zoneId = $get('zone_id');
                                         if (!$zoneId) return [];
                                         return Property::where('zone_id', $zoneId)
-                                            ->orderBy('name')
-                                            ->pluck('name', 'id');
+                                            ->orderBy('property_name')
+                                            ->pluck('property_name', 'id');
                                     })
                                     ->searchable()
                                     ->required(),
@@ -217,8 +217,8 @@ class DocumentUploadCenter extends Page implements HasForms
                                         $zoneId = $get('zone_id');
                                         if (!$zoneId) return [];
                                         return Property::where('zone_id', $zoneId)
-                                            ->orderBy('name')
-                                            ->pluck('name', 'id');
+                                            ->orderBy('property_name')
+                                            ->pluck('property_name', 'id');
                                     })
                                     ->searchable()
                                     ->required(),
@@ -306,7 +306,7 @@ class DocumentUploadCenter extends Page implements HasForms
                         Grid::make(3)->schema([
                             Select::make('lease_property_id')
                                 ->label('Property')
-                                ->options(Property::orderBy('name')->pluck('name', 'id'))
+                                ->options(Property::orderBy('property_name')->pluck('property_name', 'id'))
                                 ->searchable()
                                 ->preload()
                                 ->live()

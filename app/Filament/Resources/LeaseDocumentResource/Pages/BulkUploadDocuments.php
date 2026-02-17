@@ -91,8 +91,8 @@ class BulkUploadDocuments extends Page
                                             return [];
                                         }
                                         return Property::where('zone_id', $zoneId)
-                                            ->orderBy('name')
-                                            ->pluck('name', 'id');
+                                            ->orderBy('property_name')
+                                            ->pluck('property_name', 'id');
                                     })
                                     ->searchable()
                                     ->required(),

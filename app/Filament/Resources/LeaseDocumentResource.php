@@ -91,7 +91,7 @@ class LeaseDocumentResource extends Resource
                                             return [];
                                         }
                                         return Property::where('zone_id', $zoneId)
-                                            ->pluck('name', 'id');
+                                            ->pluck('property_name', 'id');
                                     })
                                     ->searchable()
                                     ->required(),
