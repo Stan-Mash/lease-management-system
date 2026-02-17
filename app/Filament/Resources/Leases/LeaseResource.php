@@ -148,7 +148,7 @@ class LeaseResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('property.name')
+                TextColumn::make('property.property_name')
                     ->label('Property')
                     ->searchable()
                     ->sortable(),

@@ -74,6 +74,14 @@ class Tenant extends Model
         'overdraft_penalty' => 'decimal:2',
     ];
 
+    /**
+     * Accessor: full_name → names (backward compatibility after schema restructure).
+     */
+    public function getFullNameAttribute(): ?string
+    {
+        return $this->names;
+    }
+
     public function routeNotificationForMail(): ?string
     {
         return $this->email_address;
