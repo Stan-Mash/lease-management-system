@@ -192,7 +192,7 @@ class LeaseDocumentResource extends Resource
                     ->searchable()
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('property.property_name')
+                Tables\Columns\TextColumn::make('property.name')
                     ->label('Property')
                     ->sortable()
                     ->searchable()

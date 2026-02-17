@@ -44,7 +44,7 @@ class RecentLeasesWidget extends TableWidget
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('property.property_name')
+                TextColumn::make('property.name')
                     ->label('Property')
                     ->searchable()
                     ->sortable()

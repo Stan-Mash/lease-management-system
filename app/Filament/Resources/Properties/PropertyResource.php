@@ -26,16 +26,16 @@ class PropertyResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $recordTitleAttribute = 'property_name';
+    protected static ?string $recordTitleAttribute = 'name';
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['property_name', 'reference_number', 'lr_number', 'description'];
+        return ['name', 'reference_number', 'lr_number', 'description'];
     }
 
     public static function getGlobalSearchResultTitle($record): string
     {
-        return $record->property_name ?? 'Unknown Property';
+        return $record->name ?? 'Unknown Property';
     }
 
     public static function getGlobalSearchResultDetails($record): array

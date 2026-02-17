@@ -16,7 +16,7 @@ class PropertyInfolist
                 TextEntry::make('reference_number')->placeholder('-'),
                 TextEntry::make('description')->placeholder('-'),
                 TextEntry::make('lat_long')->placeholder('-'),
-                TextEntry::make('property_name')->placeholder('-'),
+                TextEntry::make('name')->placeholder('-'),
                 TextEntry::make('lr_number')->placeholder('-'),
                 TextEntry::make('usage_type_id')->placeholder('-'),
                 TextEntry::make('current_status_id')->placeholder('-'),

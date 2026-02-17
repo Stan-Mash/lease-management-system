@@ -89,7 +89,7 @@ class MyUploads extends ListRecords
                     ->sortable()
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('property.property_name')
+                Tables\Columns\TextColumn::make('property.name')
                     ->label('Property')
                     ->limit(20)
                     ->toggleable(),

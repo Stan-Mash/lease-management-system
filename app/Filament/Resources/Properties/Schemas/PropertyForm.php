@@ -22,7 +22,7 @@ class PropertyForm
                 Textarea::make('photos_and_documents'),
                 TextInput::make('zone_id')->numeric(),
                 TextInput::make('zone_area_id')->numeric(),
-                TextInput::make('property_name'),
+                TextInput::make('name'),
                 TextInput::make('lr_number'),
                 TextInput::make('usage_type_id')->numeric(),
                 TextInput::make('current_status_id')->numeric(),

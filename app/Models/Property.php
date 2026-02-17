@@ -20,7 +20,7 @@ class Property extends Model
         'photos_and_documents',
         'zone_id',
         'zone_area_id',
-        'property_name',
+        'name',
         'lr_number',
         'usage_type_id',
         'current_status_id',

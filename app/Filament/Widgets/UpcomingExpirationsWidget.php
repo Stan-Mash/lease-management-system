@@ -35,7 +35,7 @@ class UpcomingExpirationsWidget extends BaseWidget
                     ->label('Tenant')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('unit.property.property_name')
+                Tables\Columns\TextColumn::make('unit.property.name')
                     ->label('Property'),
 
                 Tables\Columns\TextColumn::make('unit.unit_number')
