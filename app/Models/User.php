@@ -5,6 +5,8 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -62,6 +64,25 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
+    // ── Relationships ──
+
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class);
+    }
+
+    public function backupOfficer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'backup_officer_id');
+    }
+
+    public function assignedLeases(): HasMany
+    {
+        return $this->hasMany(Lease::class, 'assigned_field_officer_id');
+    }
+
+    // ── Role checks ──
+
     public function isSuperAdmin(): bool
     {
         return $this->hasRole('super_admin');
@@ -80,5 +101,34 @@ class User extends Authenticatable implements FilamentUser
     public function isFieldOfficer(): bool
     {
         return $this->hasRole(['field_officer', 'senior_field_officer']);
+    }
+
+    public function hasZoneRestriction(): bool
+    {
+        return $this->isZoneManager() || $this->isFieldOfficer();
+    }
+
+    public function canAccessZone(int|string|null $zoneId): bool
+    {
+        if ($this->isSuperAdmin() || $this->isAdmin()) {
+            return true;
+        }
+
+        if (! $zoneId) {
+            return false;
+        }
+
+        return (int) $this->zone_id === (int) $zoneId;
+    }
+
+    public function getRoleDisplayName(): string
+    {
+        $role = $this->roles->first();
+
+        if (! $role) {
+            return 'No Role';
+        }
+
+        return ucwords(str_replace('_', ' ', $role->name));
     }
 }
