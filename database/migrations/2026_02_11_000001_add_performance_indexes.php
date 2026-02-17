@@ -11,7 +11,12 @@ return new class extends Migration
     {
         // Helper to check if index exists before adding
         $indexExists = function (string $table, string $indexName): bool {
-            return DB::select("SELECT 1 FROM pg_indexes WHERE tablename = ? AND indexname = ?", [$table, $indexName]) !== [];
+            foreach (Schema::getIndexes($table) as $index) {
+                if ($index['name'] === $indexName) {
+                    return true;
+                }
+            }
+            return false;
         };
 
         // Properties table
