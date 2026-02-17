@@ -52,7 +52,7 @@ class DevelopmentSeeder extends Seeder
 
         // Assign super_admin role via Spatie
         $superAdminRole = Role::where('name', 'super_admin')->first();
-        if ($superAdminRole && !$admin->hasRole('super_admin')) {
+        if ($superAdminRole && ! $admin->hasRole('super_admin')) {
             $admin->assignRole('super_admin');
         }
 

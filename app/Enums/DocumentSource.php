@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
-enum DocumentSource: string implements HasLabel, HasColor, HasIcon
+enum DocumentSource: string implements HasColor, HasIcon, HasLabel
 {
     case SCANNED = 'scanned';
     case LANDLORD_UPLOAD = 'landlord_upload';

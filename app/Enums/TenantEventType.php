@@ -12,7 +12,7 @@ use Filament\Support\Contracts\HasLabel;
  * Event types for the Tenant 360 CRM Timeline.
  * Color-coded for quick visual identification in the activity feed.
  */
-enum TenantEventType: string implements HasColor, HasLabel, HasIcon
+enum TenantEventType: string implements HasColor, HasIcon, HasLabel
 {
     case SMS = 'sms';
     case EMAIL = 'email';

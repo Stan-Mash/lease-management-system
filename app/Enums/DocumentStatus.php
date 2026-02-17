@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
-enum DocumentStatus: string implements HasLabel, HasColor, HasIcon
+enum DocumentStatus: string implements HasColor, HasIcon, HasLabel
 {
     case PENDING_REVIEW = 'pending_review';
     case IN_REVIEW = 'in_review';

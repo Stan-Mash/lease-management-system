@@ -32,7 +32,7 @@ class ResolveActingPermissions
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param Closure(Request): (Response) $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -61,7 +61,7 @@ class ResolveActingPermissions
             // so future requests skip this path.
             Log::warning(
                 "ResolveActingPermissions: acting_for_user_id [{$user->acting_for_user_id}] "
-                . "on user [{$user->id}] references a non-existent user. Clearing."
+                . "on user [{$user->id}] references a non-existent user. Clearing.",
             );
 
             $user->updateQuietly(['acting_for_user_id' => null]);
@@ -94,7 +94,7 @@ class ResolveActingPermissions
 
         Log::debug(
             "ResolveActingPermissions: User [{$user->name}] (ID:{$user->id}) "
-            . "is acting for [{$zoneManager->name}] (ID:{$zoneManager->id})."
+            . "is acting for [{$zoneManager->name}] (ID:{$zoneManager->id}).",
         );
     }
 }

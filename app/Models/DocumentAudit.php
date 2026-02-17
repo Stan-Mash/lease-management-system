@@ -9,6 +9,42 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DocumentAudit extends Model
 {
+    // Action constants
+    public const ACTION_UPLOAD = 'upload';
+
+    public const ACTION_VIEW = 'view';
+
+    public const ACTION_DOWNLOAD = 'download';
+
+    public const ACTION_EDIT = 'edit';
+
+    public const ACTION_APPROVE = 'approve';
+
+    public const ACTION_REJECT = 'reject';
+
+    public const ACTION_LINK = 'link';
+
+    public const ACTION_UNLINK = 'unlink';
+
+    public const ACTION_VERIFY = 'verify';
+
+    public const ACTION_REPLACE = 'replace';
+
+    public const ACTION_DELETE = 'delete';
+
+    public const ACTION_RESTORE = 'restore';
+
+    public const ACTION_RESUBMIT = 'resubmit';
+
+    // Category constants
+    public const CATEGORY_ACCESS = 'access';
+
+    public const CATEGORY_MODIFICATION = 'modification';
+
+    public const CATEGORY_WORKFLOW = 'workflow';
+
+    public const CATEGORY_INTEGRITY = 'integrity';
+
     protected $table = 'document_audit_trail';
 
     protected $fillable = [
@@ -30,27 +66,6 @@ class DocumentAudit extends Model
         'new_values' => 'array',
         'integrity_verified' => 'boolean',
     ];
-
-    // Action constants
-    public const ACTION_UPLOAD = 'upload';
-    public const ACTION_VIEW = 'view';
-    public const ACTION_DOWNLOAD = 'download';
-    public const ACTION_EDIT = 'edit';
-    public const ACTION_APPROVE = 'approve';
-    public const ACTION_REJECT = 'reject';
-    public const ACTION_LINK = 'link';
-    public const ACTION_UNLINK = 'unlink';
-    public const ACTION_VERIFY = 'verify';
-    public const ACTION_REPLACE = 'replace';
-    public const ACTION_DELETE = 'delete';
-    public const ACTION_RESTORE = 'restore';
-    public const ACTION_RESUBMIT = 'resubmit';
-
-    // Category constants
-    public const CATEGORY_ACCESS = 'access';
-    public const CATEGORY_MODIFICATION = 'modification';
-    public const CATEGORY_WORKFLOW = 'workflow';
-    public const CATEGORY_INTEGRITY = 'integrity';
 
     // Relationships
     public function document(): BelongsTo
@@ -162,7 +177,7 @@ class DocumentAudit extends Model
         string $description,
         ?array $oldValues = null,
         ?array $newValues = null,
-        ?bool $integrityVerified = null
+        ?bool $integrityVerified = null,
     ): self {
         $category = match ($action) {
             self::ACTION_VIEW, self::ACTION_DOWNLOAD => self::CATEGORY_ACCESS,

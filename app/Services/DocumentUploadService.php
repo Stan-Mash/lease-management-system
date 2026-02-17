@@ -6,11 +6,14 @@ use App\Models\LeaseDocument;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Log;
 
 class DocumentUploadService
 {
     private const MAX_IMAGE_DIMENSION = 1920;
+
     private const JPEG_QUALITY = 75;
+
     private const PDF_MAX_SIZE_MB = 10;
 
     public function upload(
@@ -19,7 +22,7 @@ class DocumentUploadService
         string $documentType,
         string $title,
         ?string $description = null,
-        ?string $documentDate = null
+        ?string $documentDate = null,
     ): LeaseDocument {
         $originalFilename = $file->getClientOriginalName();
         $mimeType = $file->getMimeType();
@@ -59,6 +62,16 @@ class DocumentUploadService
         ]);
     }
 
+    public function delete(LeaseDocument $document): bool
+    {
+        // Delete file from storage
+        if (Storage::disk('local')->exists($document->file_path)) {
+            Storage::disk('local')->delete($document->file_path);
+        }
+
+        return $document->delete();
+    }
+
     private function processFile(UploadedFile $file, string $mimeType): string
     {
         // Handle images - compress and resize
@@ -85,7 +98,7 @@ class DocumentUploadService
             default => null,
         };
 
-        if (!$image) {
+        if (! $image) {
             return file_get_contents($file->getRealPath());
         }
 
@@ -133,19 +146,9 @@ class DocumentUploadService
 
         if ($sizeMb > self::PDF_MAX_SIZE_MB) {
             // Log warning about large file
-            \Log::warning("Large PDF uploaded: {$sizeMb}MB for file {$file->getClientOriginalName()}");
+            Log::warning("Large PDF uploaded: {$sizeMb}MB for file {$file->getClientOriginalName()}");
         }
 
         return $content;
-    }
-
-    public function delete(LeaseDocument $document): bool
-    {
-        // Delete file from storage
-        if (Storage::disk('local')->exists($document->file_path)) {
-            Storage::disk('local')->delete($document->file_path);
-        }
-
-        return $document->delete();
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LeaseDocumentResource\Widgets;
 
-use App\Enums\DocumentStatus;
 use App\Models\LeaseDocument;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;

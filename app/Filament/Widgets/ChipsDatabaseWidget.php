@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
+use Exception;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -36,7 +37,7 @@ class ChipsDatabaseWidget extends BaseWidget
             ->color($this->getStatusColor($data['status']));
 
         // Add response time chart if we have historical data
-        if (!empty($data['chart'])) {
+        if (! empty($data['chart'])) {
             $stat->chart($data['chart']);
         }
 
@@ -109,7 +110,7 @@ class ChipsDatabaseWidget extends BaseWidget
                     'chart' => $chartData,
                 ];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::debug('Could not fetch Pulse CHIPS data: ' . $e->getMessage());
         }
 
@@ -121,7 +122,7 @@ class ChipsDatabaseWidget extends BaseWidget
         $connectionName = config('pulse.recorders.' . \App\Pulse\Recorders\ChipsDatabaseRecorder::class . '.connection', 'chips_db');
 
         // Check if connection is configured
-        if (!config("database.connections.{$connectionName}")) {
+        if (! config("database.connections.{$connectionName}")) {
             return [
                 'status' => 'not_configured',
                 'message' => "Connection '{$connectionName}' not configured",
@@ -149,7 +150,7 @@ class ChipsDatabaseWidget extends BaseWidget
                     'chart' => [],
                 ];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $responseTime = (microtime(true) - $startTime) * 1000;
             Log::error('CHIPS health check failed: ' . $e->getMessage());
 

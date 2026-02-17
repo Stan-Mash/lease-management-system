@@ -307,8 +307,8 @@ return [
         */
 
         'DOMPDF_ALLOWED_PROTOCOLS' => [
-            'file://'  => ['rules' => []],
-            'http://'  => ['rules' => []],
+            'file://' => ['rules' => []],
+            'http://' => ['rules' => []],
             'https://' => ['rules' => []],
         ],
 

@@ -65,28 +65,6 @@ class OTPVerification extends Model
     ];
 
     /**
-     * Get a masked code representation for display.
-     *
-     * Since the code is now hashed, we can only show a fixed-length mask.
-     */
-    protected function maskedCode(): Attribute
-    {
-        return Attribute::make(
-            get: fn (): string => str_repeat('*', (int) config('lease.otp.code_length', 6)),
-        );
-    }
-
-    /**
-     * Get the fully masked code (all asterisks).
-     */
-    protected function hiddenCode(): Attribute
-    {
-        return Attribute::make(
-            get: fn (): string => str_repeat('*', (int) config('lease.otp.code_length', 6)),
-        );
-    }
-
-    /**
      * Check if the current request/user is the tenant who should receive this OTP.
      * Used to determine if the code can be displayed.
      */
@@ -291,5 +269,27 @@ class OTPVerification extends Model
         }
 
         return now()->diffInMinutes($this->expires_at, false);
+    }
+
+    /**
+     * Get a masked code representation for display.
+     *
+     * Since the code is now hashed, we can only show a fixed-length mask.
+     */
+    protected function maskedCode(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => str_repeat('*', (int) config('lease.otp.code_length', 6)),
+        );
+    }
+
+    /**
+     * Get the fully masked code (all asterisks).
+     */
+    protected function hiddenCode(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => str_repeat('*', (int) config('lease.otp.code_length', 6)),
+        );
     }
 }

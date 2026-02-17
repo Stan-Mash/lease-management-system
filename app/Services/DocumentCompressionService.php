@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use ZipArchive;
 
 class DocumentCompressionService
@@ -48,12 +49,12 @@ class DocumentCompressionService
         string $basePath,
         ?int $zoneId = null,
         ?int $propertyId = null,
-        ?int $year = null
+        ?int $year = null,
     ): array {
         // Validate file type
         $mimeType = $file->getMimeType();
-        if (!in_array($mimeType, self::SUPPORTED_TYPES, true)) {
-            throw new \InvalidArgumentException("Unsupported file type: {$mimeType}");
+        if (! in_array($mimeType, self::SUPPORTED_TYPES, true)) {
+            throw new InvalidArgumentException("Unsupported file type: {$mimeType}");
         }
 
         // Build storage path
@@ -91,13 +92,122 @@ class DocumentCompressionService
     }
 
     /**
+     * Calculate SHA-256 hash of file
+     */
+    public function calculateHash(string $filePath): string
+    {
+        return hash_file('sha256', $filePath);
+    }
+
+    /**
+     * Verify file integrity against stored hash
+     */
+    public function verifyIntegrity(string $filePath, string $expectedHash): bool
+    {
+        if (! Storage::disk('local')->exists($filePath)) {
+            return false;
+        }
+
+        $actualHash = hash_file('sha256', storage_path('app/' . $filePath));
+
+        return hash_equals($expectedHash, $actualHash);
+    }
+
+    /**
+     * Extract compressed file for viewing/download
+     */
+    public function extractForDownload(string $compressedPath): ?string
+    {
+        $fullPath = storage_path('app/' . $compressedPath);
+
+        if (! file_exists($fullPath)) {
+            return null;
+        }
+
+        $zip = new ZipArchive;
+        if ($zip->open($fullPath) !== true) {
+            return null;
+        }
+
+        // Extract to temp directory
+        $tempDir = storage_path('app/temp/' . Str::uuid());
+        mkdir($tempDir, 0755, true);
+
+        $zip->extractTo($tempDir);
+        $extractedFile = $tempDir . '/' . $zip->getNameIndex(0);
+        $zip->close();
+
+        return $extractedFile;
+    }
+
+    /**
+     * Clean up temporary extracted files
+     */
+    public function cleanupTempFile(string $tempPath): void
+    {
+        if (file_exists($tempPath)) {
+            unlink($tempPath);
+
+            // Remove parent temp directory if empty
+            $tempDir = dirname($tempPath);
+            if (is_dir($tempDir) && count(scandir($tempDir)) === 2) {
+                rmdir($tempDir);
+            }
+        }
+    }
+
+    /**
+     * Get human-readable file size
+     */
+    public function formatFileSize(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $i = 0;
+
+        while ($bytes >= 1024 && $i < count($units) - 1) {
+            $bytes /= 1024;
+            $i++;
+        }
+
+        return round($bytes, 2) . ' ' . $units[$i];
+    }
+
+    /**
+     * Calculate compression ratio
+     */
+    public function calculateCompressionRatio(int $originalSize, int $compressedSize): float
+    {
+        if ($originalSize === 0) {
+            return 0;
+        }
+
+        return round((1 - ($compressedSize / $originalSize)) * 100, 1);
+    }
+
+    /**
+     * Get supported MIME types
+     */
+    public static function getSupportedMimeTypes(): array
+    {
+        return self::SUPPORTED_TYPES;
+    }
+
+    /**
+     * Get supported file extensions
+     */
+    public static function getSupportedExtensions(): array
+    {
+        return ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'tiff', 'tif', 'gif'];
+    }
+
+    /**
      * Compress and store the file
      */
     private function compressAndStore(
         UploadedFile $file,
         string $storagePath,
         string $filename,
-        int $originalSize
+        int $originalSize,
     ): array {
         $originalFilename = $file->getClientOriginalName();
         $mimeType = $file->getMimeType();
@@ -109,11 +219,11 @@ class DocumentCompressionService
 
         // Ensure directory exists
         $directory = dirname($zipPath);
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             // Fallback: store without compression
             Log::warning('DocumentCompressionService: Failed to create ZIP archive, storing uncompressed');
@@ -203,7 +313,7 @@ class DocumentCompressionService
         string $basePath,
         ?int $zoneId,
         ?int $propertyId,
-        ?int $year
+        ?int $year,
     ): string {
         $path = trim($basePath, '/');
 
@@ -225,70 +335,6 @@ class DocumentCompressionService
     }
 
     /**
-     * Calculate SHA-256 hash of file
-     */
-    public function calculateHash(string $filePath): string
-    {
-        return hash_file('sha256', $filePath);
-    }
-
-    /**
-     * Verify file integrity against stored hash
-     */
-    public function verifyIntegrity(string $filePath, string $expectedHash): bool
-    {
-        if (!Storage::disk('local')->exists($filePath)) {
-            return false;
-        }
-
-        $actualHash = hash_file('sha256', storage_path('app/' . $filePath));
-        return hash_equals($expectedHash, $actualHash);
-    }
-
-    /**
-     * Extract compressed file for viewing/download
-     */
-    public function extractForDownload(string $compressedPath): ?string
-    {
-        $fullPath = storage_path('app/' . $compressedPath);
-
-        if (!file_exists($fullPath)) {
-            return null;
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($fullPath) !== true) {
-            return null;
-        }
-
-        // Extract to temp directory
-        $tempDir = storage_path('app/temp/' . Str::uuid());
-        mkdir($tempDir, 0755, true);
-
-        $zip->extractTo($tempDir);
-        $extractedFile = $tempDir . '/' . $zip->getNameIndex(0);
-        $zip->close();
-
-        return $extractedFile;
-    }
-
-    /**
-     * Clean up temporary extracted files
-     */
-    public function cleanupTempFile(string $tempPath): void
-    {
-        if (file_exists($tempPath)) {
-            unlink($tempPath);
-
-            // Remove parent temp directory if empty
-            $tempDir = dirname($tempPath);
-            if (is_dir($tempDir) && count(scandir($tempDir)) === 2) {
-                rmdir($tempDir);
-            }
-        }
-    }
-
-    /**
      * Get file extension from MIME type
      */
     private function getExtensionFromMime(string $mimeType): string
@@ -303,49 +349,5 @@ class DocumentCompressionService
             'image/gif' => 'gif',
             default => 'bin',
         };
-    }
-
-    /**
-     * Get human-readable file size
-     */
-    public function formatFileSize(int $bytes): string
-    {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $i = 0;
-
-        while ($bytes >= 1024 && $i < count($units) - 1) {
-            $bytes /= 1024;
-            $i++;
-        }
-
-        return round($bytes, 2) . ' ' . $units[$i];
-    }
-
-    /**
-     * Calculate compression ratio
-     */
-    public function calculateCompressionRatio(int $originalSize, int $compressedSize): float
-    {
-        if ($originalSize === 0) {
-            return 0;
-        }
-
-        return round((1 - ($compressedSize / $originalSize)) * 100, 1);
-    }
-
-    /**
-     * Get supported MIME types
-     */
-    public static function getSupportedMimeTypes(): array
-    {
-        return self::SUPPORTED_TYPES;
-    }
-
-    /**
-     * Get supported file extensions
-     */
-    public static function getSupportedExtensions(): array
-    {
-        return ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'tiff', 'tif', 'gif'];
     }
 }

@@ -6,6 +6,8 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 class DataCleanupCommand extends Command
 {
@@ -49,6 +51,7 @@ class DataCleanupCommand extends Command
                 break;
             default:
                 $this->error("Unknown cleanup type: {$type}");
+
                 return Command::FAILURE;
         }
 
@@ -67,7 +70,7 @@ class DataCleanupCommand extends Command
             ->where('created_at', '<', $cutoffDate)
             ->count();
 
-        if (!$dryRun && $count > 0) {
+        if (! $dryRun && $count > 0) {
             DB::table('otp_verifications')
                 ->where('created_at', '<', $cutoffDate)
                 ->delete();
@@ -89,8 +92,9 @@ class DataCleanupCommand extends Command
         $cutoffDate = now()->subDays($days);
 
         // Check if table exists
-        if (!$this->tableExists('lease_audit_logs')) {
+        if (! $this->tableExists('lease_audit_logs')) {
             $this->warn('  - lease_audit_logs table does not exist');
+
             return ['table' => 'lease_audit_logs', 'count' => 0, 'cutoff' => $cutoffDate->toDateTimeString()];
         }
 
@@ -98,7 +102,7 @@ class DataCleanupCommand extends Command
             ->where('created_at', '<', $cutoffDate)
             ->count();
 
-        if (!$dryRun && $count > 0) {
+        if (! $dryRun && $count > 0) {
             // Archive before deleting (optional)
             $this->archiveBeforeDelete('lease_audit_logs', $cutoffDate, $days);
 
@@ -123,8 +127,9 @@ class DataCleanupCommand extends Command
         $cutoffDate = now()->subDays($days);
 
         // Check if table exists
-        if (!$this->tableExists('document_audits')) {
+        if (! $this->tableExists('document_audits')) {
             $this->warn('  - document_audits table does not exist');
+
             return ['table' => 'document_audits', 'count' => 0, 'cutoff' => $cutoffDate->toDateTimeString()];
         }
 
@@ -132,7 +137,7 @@ class DataCleanupCommand extends Command
             ->where('created_at', '<', $cutoffDate)
             ->count();
 
-        if (!$dryRun && $count > 0) {
+        if (! $dryRun && $count > 0) {
             // Archive before deleting
             $this->archiveBeforeDelete('document_audits', $cutoffDate, $days);
 
@@ -157,20 +162,20 @@ class DataCleanupCommand extends Command
         $tempPath = storage_path('app/public/temp-uploads');
         $count = 0;
 
-        if (!is_dir($tempPath)) {
+        if (! is_dir($tempPath)) {
             return ['table' => 'temp-uploads', 'count' => 0, 'cutoff' => now()->subDays($days)->toDateTimeString()];
         }
 
         $cutoffTimestamp = now()->subDays($days)->timestamp;
 
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($tempPath, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($tempPath, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($files as $file) {
             if ($file->isFile() && $file->getMTime() < $cutoffTimestamp) {
-                if (!$dryRun) {
+                if (! $dryRun) {
                     unlink($file->getRealPath());
                 }
                 $count++;
@@ -197,11 +202,11 @@ class DataCleanupCommand extends Command
 
         $archivePath = storage_path("app/backups/archives/{$table}");
 
-        if (!is_dir($archivePath)) {
+        if (! is_dir($archivePath)) {
             mkdir($archivePath, 0755, true);
         }
 
-        $filename = "{$table}_archive_" . now()->format('Y-m-d_H-i-s') . ".json";
+        $filename = "{$table}_archive_" . now()->format('Y-m-d_H-i-s') . '.json';
         $filePath = "{$archivePath}/{$filename}";
 
         // Export in chunks to avoid memory issues
@@ -214,7 +219,7 @@ class DataCleanupCommand extends Command
             ->orderBy('created_at')
             ->chunk(500, function ($records) use ($handle, &$first) {
                 foreach ($records as $record) {
-                    if (!$first) {
+                    if (! $first) {
                         fwrite($handle, ",\n");
                     }
                     fwrite($handle, json_encode($record));
@@ -255,7 +260,7 @@ class DataCleanupCommand extends Command
 
         $this->table(
             ['Type', 'Table/Path', 'Records', 'Cutoff Date'],
-            $tableData
+            $tableData,
         );
 
         $this->newLine();
@@ -263,7 +268,7 @@ class DataCleanupCommand extends Command
         $this->info("Total records {$action}: {$totalDeleted}");
 
         // Log cleanup action
-        if (!$dryRun) {
+        if (! $dryRun) {
             $this->logCleanup($results, $totalDeleted);
         }
     }

@@ -9,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         // ─── 1. Add zone_id to units and tenants tables ───
-        if (!Schema::hasColumn('units', 'zone_id')) {
+        if (! Schema::hasColumn('units', 'zone_id')) {
             Schema::table('units', function ($table) {
                 $table->foreignId('zone_id')->nullable()->after('property_id')->constrained('zones')->nullOnDelete();
                 $table->index('zone_id');
             });
         }
 
-        if (!Schema::hasColumn('tenants', 'zone_id')) {
+        if (! Schema::hasColumn('tenants', 'zone_id')) {
             Schema::table('tenants', function ($table) {
                 $table->foreignId('zone_id')->nullable()->after('id')->constrained('zones')->nullOnDelete();
                 $table->index('zone_id');
@@ -68,27 +68,27 @@ return new class extends Migration
         }
 
         // ─── 4. Propagate zone_id to units from their properties ───
-        DB::statement("
+        DB::statement('
             UPDATE units
             SET zone_id = properties.zone_id
             FROM properties
             WHERE units.property_id = properties.id
             AND properties.zone_id IS NOT NULL
-        ");
+        ');
 
         // ─── 5. Propagate zone_id to leases from their properties ───
-        DB::statement("
+        DB::statement('
             UPDATE leases
             SET zone_id = properties.zone_id
             FROM properties
             WHERE leases.property_id = properties.id
             AND properties.zone_id IS NOT NULL
             AND leases.zone_id IS NULL
-        ");
+        ');
 
         // ─── 6. Propagate zone_id to tenants from their latest lease's property ───
         // For tenants, we set zone_id from their most recent lease
-        DB::statement("
+        DB::statement('
             UPDATE tenants
             SET zone_id = sub.zone_id
             FROM (
@@ -99,7 +99,7 @@ return new class extends Migration
             ) sub
             WHERE tenants.id = sub.tenant_id
             AND tenants.zone_id IS NULL
-        ");
+        ');
 
         // ─── 7. Assign zone_id to zone manager users ───
         $managerAssignments = [
@@ -121,8 +121,8 @@ return new class extends Migration
         // ─── 8. Assign auditors to zones ───
         $auditorAssignments = [
             30 => $zoneIds['ZN-AB'],  // Albin → AB
-            6  => $zoneIds['ZN-D'],   // Lucy Muriithi → D
-            9  => $zoneIds['ZN-G'],   // Lucy Karimi → G
+            6 => $zoneIds['ZN-D'],   // Lucy Muriithi → D
+            9 => $zoneIds['ZN-G'],   // Lucy Karimi → G
             25 => $zoneIds['ZN-F'],   // Oliver → F
             35 => $zoneIds['ZN-E'],   // Dennis Gitonga → E
         ];
@@ -169,7 +169,7 @@ return new class extends Migration
             $additionalPerms = ['view_all_zones', 'view_field_officer_dashboard'];
             foreach ($additionalPerms as $permName) {
                 $perm = DB::table('permissions')->where('name', $permName)->first();
-                if ($perm && !in_array($perm->id, $auditorPermIds->toArray())) {
+                if ($perm && ! in_array($perm->id, $auditorPermIds->toArray())) {
                     $inserts[] = [
                         'permission_id' => $perm->id,
                         'role_id' => $internalAuditorRole->id,
@@ -177,7 +177,7 @@ return new class extends Migration
                 }
             }
 
-            if (!empty($inserts)) {
+            if (! empty($inserts)) {
                 DB::table('role_has_permissions')->insert($inserts);
             }
         }
@@ -188,7 +188,7 @@ return new class extends Migration
         }
 
         // ─── 12. Clear Spatie permission cache ───
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     public function down(): void
@@ -219,7 +219,7 @@ return new class extends Migration
     private function syncSpatieRole(int $userId, string $roleName): void
     {
         $role = DB::table('roles')->where('name', $roleName)->where('guard_name', 'web')->first();
-        if (!$role) {
+        if (! $role) {
             return;
         }
 

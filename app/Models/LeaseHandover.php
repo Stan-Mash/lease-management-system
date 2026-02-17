@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LeaseHandover extends Model
 {
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_CHECKED_OUT = 'checked_out';
+
+    public const STATUS_DELIVERED = 'delivered';
+
+    public const STATUS_RETURNED = 'returned';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -88,7 +96,7 @@ class LeaseHandover extends Model
     public function markAsCheckedOut(): void
     {
         $this->checked_out_at = now();
-        $this->checkout_status = 'checked_out';
+        $this->checkout_status = self::STATUS_CHECKED_OUT;
         $this->save();
     }
 
@@ -101,7 +109,7 @@ class LeaseHandover extends Model
         $this->delivered_at = now();
         $this->delivery_status = $status;
         $this->delivery_notes = $notes;
-        $this->checkout_status = 'delivered';
+        $this->checkout_status = self::STATUS_DELIVERED;
         $this->save();
     }
 
@@ -124,7 +132,7 @@ class LeaseHandover extends Model
         $this->returned_at = now();
         $this->return_condition = $condition;
         $this->return_notes = $notes;
-        $this->checkout_status = 'returned';
+        $this->checkout_status = self::STATUS_RETURNED;
         $this->received_by = auth()->id();
         $this->save();
     }
@@ -134,7 +142,7 @@ class LeaseHandover extends Model
      */
     public function scopeCheckedOut($query)
     {
-        return $query->where('checkout_status', 'checked_out');
+        return $query->where('checkout_status', self::STATUS_CHECKED_OUT);
     }
 
     /**
@@ -142,7 +150,7 @@ class LeaseHandover extends Model
      */
     public function scopeDelivered($query)
     {
-        return $query->where('checkout_status', 'delivered');
+        return $query->where('checkout_status', self::STATUS_DELIVERED);
     }
 
     /**
@@ -150,7 +158,7 @@ class LeaseHandover extends Model
      */
     public function scopeReturned($query)
     {
-        return $query->where('checkout_status', 'returned');
+        return $query->where('checkout_status', self::STATUS_RETURNED);
     }
 
     /**
@@ -166,7 +174,7 @@ class LeaseHandover extends Model
      */
     public function scopeActive($query)
     {
-        return $query->whereIn('checkout_status', ['pending', 'checked_out', 'delivered']);
+        return $query->whereIn('checkout_status', [self::STATUS_PENDING, self::STATUS_CHECKED_OUT, self::STATUS_DELIVERED]);
     }
 
     /**
@@ -174,7 +182,7 @@ class LeaseHandover extends Model
      */
     public function isActive(): bool
     {
-        return in_array($this->checkout_status, ['pending', 'checked_out', 'delivered']);
+        return in_array($this->checkout_status, [self::STATUS_PENDING, self::STATUS_CHECKED_OUT, self::STATUS_DELIVERED]);
     }
 
     /**

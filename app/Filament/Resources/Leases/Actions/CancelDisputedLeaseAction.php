@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Leases\Actions;
 use App\Enums\LeaseWorkflowState;
 use App\Models\Lease;
 use App\Services\TenantEventService;
+use Exception;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -52,7 +53,7 @@ class CancelDisputedLeaseAction
                             "\n\n--- DISPUTED LEASE CANCELLED [%s] ---\nCancelled by: %s\nReason: %s\n---",
                             now()->format('Y-m-d H:i:s'),
                             Auth::user()?->name ?? 'System',
-                            $data['cancellation_reason']
+                            $data['cancellation_reason'],
                         );
 
                         $record->update([
@@ -69,7 +70,7 @@ class CancelDisputedLeaseAction
                                 'cancelled_by' => Auth::user()?->name,
                                 'cancelled_at' => now()->toIso8601String(),
                                 'previous_state' => 'disputed',
-                            ]
+                            ],
                         );
 
                         // Transition to CANCELLED state
@@ -89,7 +90,7 @@ class CancelDisputedLeaseAction
                         ->body('The disputed lease has been cancelled.')
                         ->send();
 
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::error('Failed to cancel disputed lease', [
                         'lease_id' => $record->id,
                         'error' => $e->getMessage(),

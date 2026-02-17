@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pulse\Recorders;
 
+use Exception;
 use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,15 +38,15 @@ class ChipsDatabaseRecorder
 
     public function __construct(
         protected Pulse $pulse,
-        protected Repository $config
+        protected Repository $config,
     ) {
         $this->connectionName = $config->get(
             'pulse.recorders.' . self::class . '.connection',
-            'chips_db'
+            'chips_db',
         );
         $this->timeout = (int) $config->get(
             'pulse.recorders.' . self::class . '.timeout',
-            5
+            5,
         );
     }
 
@@ -68,7 +69,7 @@ class ChipsDatabaseRecorder
                     event: $event,
                     status: 'not_configured',
                     message: "Database connection '{$this->connectionName}' is not configured",
-                    responseTime: 0
+                    responseTime: 0,
                 );
 
                 return;
@@ -83,18 +84,18 @@ class ChipsDatabaseRecorder
                     event: $event,
                     status: 'connected',
                     message: 'CHIPS database is connected',
-                    responseTime: $responseTime
+                    responseTime: $responseTime,
                 );
             } else {
                 $this->recordStatus(
                     event: $event,
                     status: 'down',
                     message: 'CHIPS database query returned unexpected result',
-                    responseTime: $responseTime
+                    responseTime: $responseTime,
                 );
             }
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $responseTime = (microtime(true) - $startTime) * 1000;
 
             Log::error('CHIPS database health check failed', [
@@ -106,7 +107,7 @@ class ChipsDatabaseRecorder
                 event: $event,
                 status: 'down',
                 message: $this->sanitizeErrorMessage($e->getMessage()),
-                responseTime: $responseTime
+                responseTime: $responseTime,
             );
         }
     }
@@ -118,14 +119,14 @@ class ChipsDatabaseRecorder
         SharedBeat $event,
         string $status,
         string $message,
-        float $responseTime
+        float $responseTime,
     ): void {
         // Record response time for graphing
         $this->pulse->record(
             type: 'chips_response_time',
             key: $this->connectionName,
             value: (int) $responseTime,
-            timestamp: $event->time
+            timestamp: $event->time,
         )->avg()->onlyBuckets();
 
         // Record status (1 = connected, 0 = down)
@@ -133,7 +134,7 @@ class ChipsDatabaseRecorder
             type: 'chips_status',
             key: $this->connectionName,
             value: $status === 'connected' ? 1 : 0,
-            timestamp: $event->time
+            timestamp: $event->time,
         )->max()->onlyBuckets();
 
         // Store detailed status for card display
@@ -147,7 +148,7 @@ class ChipsDatabaseRecorder
                 'connection' => $this->connectionName,
                 'checked_at' => $event->time->toIso8601String(),
             ]),
-            timestamp: $event->time
+            timestamp: $event->time,
         );
 
         // Log if database is down
@@ -203,7 +204,7 @@ class ChipsDatabaseRecorder
         $sanitized = preg_replace(
             array_keys($patterns),
             array_values($patterns),
-            $message
+            $message,
         );
 
         // Truncate if too long

@@ -68,7 +68,7 @@ return new class extends Migration
 
         foreach ($allPermissions as $permissionName) {
             Permission::firstOrCreate(
-                ['name' => $permissionName, 'guard_name' => 'web']
+                ['name' => $permissionName, 'guard_name' => 'web'],
             );
         }
 
@@ -134,30 +134,30 @@ return new class extends Migration
             52 => 'admin',           // STANELY KIMANI MACHARIA (keep as admin)
 
             // Property manager
-            8  => 'property_manager',       // GIBSON MWANGI GITAU (was manager)
+            8 => 'property_manager',       // GIBSON MWANGI GITAU (was manager)
 
             // Assistant property managers
             53 => 'asst_property_manager',  // MOSES KIBURI WAINAINA (was manager)
             72 => 'asst_property_manager',  // KENNETH MWANGI WAGACHA (was manager)
 
             // Accountant
-            7  => 'accountant',             // REUBEN MUSYIMI MUTINDA (was admin)
+            7 => 'accountant',             // REUBEN MUSYIMI MUTINDA (was admin)
 
             // Auditor
-            6  => 'auditor',                // LUCY WANYAGA MURIITHI (was viewer)
+            6 => 'auditor',                // LUCY WANYAGA MURIITHI (was viewer)
 
             // Office administrator
-            3  => 'office_administrator',   // LUCY WANJIRU KARANJA (was admin)
+            3 => 'office_administrator',   // LUCY WANJIRU KARANJA (was admin)
 
             // Office admin assistant
             73 => 'office_admin_assistant',  // LOISE NYAKIO MUIRURI (was agent)
 
             // Office assistants
             60 => 'office_assistant',        // ISABELLA NASWA WANJALA (was agent)
-            4  => 'office_assistant',        // HANNAH WANGUI KIBUTU (was agent)
+            4 => 'office_assistant',        // HANNAH WANGUI KIBUTU (was agent)
 
             // Senior field officers
-            5  => 'senior_field_officer',    // GEORGE MUIGAI GITAU (was field_officer)
+            5 => 'senior_field_officer',    // GEORGE MUIGAI GITAU (was field_officer)
             11 => 'senior_field_officer',    // JANE WANGUI MWANGI (was field_officer)
             21 => 'senior_field_officer',    // PASCALINE WAMBUI MUIRURI (was field_officer)
             43 => 'senior_field_officer',    // ALLAN LUHAMBE SOGOMI (was field_officer)
@@ -431,18 +431,18 @@ return new class extends Migration
         // Most are 1:1, but 'admin' maps to 'system_admin' and
         // 'manager' maps to 'property_manager' in Spatie.
         $roleColumnToSpatieRole = [
-            'super_admin'           => 'super_admin',
-            'admin'                 => 'system_admin',
-            'property_manager'      => 'property_manager',
+            'super_admin' => 'super_admin',
+            'admin' => 'system_admin',
+            'property_manager' => 'property_manager',
             'asst_property_manager' => 'asst_property_manager',
-            'zone_manager'          => 'zone_manager',
-            'senior_field_officer'  => 'senior_field_officer',
-            'field_officer'         => 'field_officer',
-            'accountant'            => 'accountant',
-            'auditor'               => 'auditor',
-            'office_administrator'  => 'office_administrator',
+            'zone_manager' => 'zone_manager',
+            'senior_field_officer' => 'senior_field_officer',
+            'field_officer' => 'field_officer',
+            'accountant' => 'accountant',
+            'auditor' => 'auditor',
+            'office_administrator' => 'office_administrator',
             'office_admin_assistant' => 'office_admin_assistant',
-            'office_assistant'      => 'office_assistant',
+            'office_assistant' => 'office_assistant',
         ];
 
         $users = DB::table('users')->whereNotNull('role')->get(['id', 'role']);
@@ -456,7 +456,7 @@ return new class extends Migration
             }
 
             // Find the user model and sync their Spatie role
-            $user = \App\Models\User::find($userData->id);
+            $user = App\Models\User::find($userData->id);
 
             if ($user) {
                 $user->syncRoles([$spatieRoleName]);

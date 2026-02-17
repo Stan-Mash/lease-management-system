@@ -46,10 +46,10 @@ class LeaseReferenceService
      * even under concurrent requests. Sequences are keyed by
      * year + lease_type combination.
      *
-     * @param string   $source    The source ('landlord_provided' or 'chabrin_issued')
-     * @param string   $leaseType The lease type (depends on source)
-     * @param string   $unitCode  The unit code (e.g., '484A-001')
-     * @param int|null $year      Optional year (defaults to current year)
+     * @param string $source The source ('landlord_provided' or 'chabrin_issued')
+     * @param string $leaseType The lease type (depends on source)
+     * @param string $unitCode The unit code (e.g., '484A-001')
+     * @param int|null $year Optional year (defaults to current year)
      *
      * @throws Exception If source or lease type is invalid
      *
@@ -60,14 +60,16 @@ class LeaseReferenceService
         // Validate source
         if (! isset(self::$sourceCodes[$source])) {
             $validSources = implode(', ', array_keys(self::$sourceCodes));
+
             throw new Exception("Invalid source: {$source}. Valid sources are: {$validSources}");
         }
 
         // Validate lease type for this source
         if (! isset(self::$typeCodesBySource[$source][$leaseType])) {
             $validTypes = implode(', ', array_keys(self::$typeCodesBySource[$source]));
+
             throw new Exception(
-                "Invalid lease type '{$leaseType}' for source '{$source}'. Valid types are: {$validTypes}"
+                "Invalid lease type '{$leaseType}' for source '{$source}'. Valid types are: {$validTypes}",
             );
         }
 
@@ -122,8 +124,8 @@ class LeaseReferenceService
      * Auto-determines source, lease type, and unit code from the Lease
      * and its related Unit model.
      *
-     * @param Lease    $lease The lease model instance
-     * @param int|null $year  Optional year override (defaults to current year)
+     * @param Lease $lease The lease model instance
+     * @param int|null $year Optional year override (defaults to current year)
      *
      * @throws Exception If the lease is missing required fields or relationships
      *
@@ -160,8 +162,8 @@ class LeaseReferenceService
      * Get the current sequence number for a year/lease_type combination
      * without incrementing it.
      *
-     * @param string   $leaseType The lease type key
-     * @param int|null $year      Optional year (defaults to current year)
+     * @param string $leaseType The lease type key
+     * @param int|null $year Optional year (defaults to current year)
      *
      * @return int Current sequence number (0 if no leases yet)
      */
@@ -182,8 +184,8 @@ class LeaseReferenceService
      *
      * USE WITH CAUTION - Only for testing or year-end resets.
      *
-     * @param string   $leaseType The lease type key
-     * @param int|null $year      Optional year (defaults to current year)
+     * @param string $leaseType The lease type key
+     * @param int|null $year Optional year (defaults to current year)
      *
      * @return bool True if a row was updated, false otherwise
      */
@@ -203,8 +205,6 @@ class LeaseReferenceService
      * Returns all sequence records for the given year, ordered by lease type.
      *
      * @param int|null $year Optional year (defaults to current year)
-     *
-     * @return \Illuminate\Support\Collection
      */
     public static function getStatistics(?int $year = null): \Illuminate\Support\Collection
     {

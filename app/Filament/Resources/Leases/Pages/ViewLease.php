@@ -7,6 +7,7 @@ use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
+use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -16,7 +17,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ViewLease extends ViewRecord
 {
@@ -215,12 +215,13 @@ class ViewLease extends ViewRecord
                 ->modalDescription(fn () => 'This will send an email to ' . ($this->record->tenant?->names ?? 'the tenant') . ' at ' . ($this->record->tenant?->email_address ?? 'N/A') . '.')
                 ->action(function (array $data) {
                     $tenant = $this->record->tenant;
-                    if (!$tenant || !$tenant->email_address) {
+                    if (! $tenant || ! $tenant->email_address) {
                         Notification::make()
                             ->title('No Email')
                             ->body('This tenant does not have an email address.')
                             ->danger()
                             ->send();
+
                         return;
                     }
 
@@ -296,18 +297,19 @@ class ViewLease extends ViewRecord
                 ->modalDescription('Digitize historical signed leases from physical files for easy retrieval.')
                 ->modalSubmitActionLabel('Upload & Save')
                 ->action(function (array $data) {
-                    $uploadService = new DocumentUploadService();
+                    $uploadService = new DocumentUploadService;
 
                     // Get the uploaded file path
                     $filePath = $data['file'];
                     $fullPath = storage_path('app/' . $filePath);
 
-                    if (!file_exists($fullPath)) {
+                    if (! file_exists($fullPath)) {
                         Notification::make()
                             ->danger()
                             ->title('Upload Failed')
                             ->body('Could not find uploaded file.')
                             ->send();
+
                         return;
                     }
 
@@ -316,7 +318,7 @@ class ViewLease extends ViewRecord
                         basename($filePath),
                         mime_content_type($fullPath),
                         null,
-                        true
+                        true,
                     );
 
                     try {
@@ -326,7 +328,7 @@ class ViewLease extends ViewRecord
                             $data['document_type'],
                             $data['title'],
                             $data['description'] ?? null,
-                            $data['document_date'] ?? null
+                            $data['document_date'] ?? null,
                         );
 
                         // Tag the document with unit_code from the lease
@@ -337,7 +339,7 @@ class ViewLease extends ViewRecord
                         // Clean up temp file
                         @unlink($fullPath);
 
-                        $message = "Document uploaded successfully.";
+                        $message = 'Document uploaded successfully.';
                         if ($document->is_compressed && $document->compression_ratio) {
                             $message .= " Compressed by {$document->compression_ratio}%.";
                         }
@@ -348,7 +350,7 @@ class ViewLease extends ViewRecord
                             ->body($message)
                             ->send();
 
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         Notification::make()
                             ->danger()
                             ->title('Upload Failed')

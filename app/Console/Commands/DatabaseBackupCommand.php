@@ -6,7 +6,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class DatabaseBackupCommand extends Command
 {
@@ -32,8 +31,9 @@ class DatabaseBackupCommand extends Command
         // Get database configuration
         $dbConfig = config("database.connections.{$connection}");
 
-        if (!$dbConfig) {
+        if (! $dbConfig) {
             $this->error("Database connection '{$connection}' not found.");
+
             return Command::FAILURE;
         }
 
@@ -54,19 +54,21 @@ class DatabaseBackupCommand extends Command
         // Build pg_dump command
         $command = $this->buildPgDumpCommand($dbConfig, $fullPath, $compress);
 
-        $this->line("Executing backup command...");
+        $this->line('Executing backup command...');
 
         // Execute backup
         $result = $this->executeBackup($command, $dbConfig);
 
         if ($result !== 0) {
             $this->error("Backup failed with exit code: {$result}");
+
             return Command::FAILURE;
         }
 
         // Verify backup was created
-        if (!file_exists($fullPath)) {
-            $this->error("Backup file was not created.");
+        if (! file_exists($fullPath)) {
+            $this->error('Backup file was not created.');
+
             return Command::FAILURE;
         }
 
@@ -97,7 +99,7 @@ class DatabaseBackupCommand extends Command
             escapeshellarg($host),
             escapeshellarg((string) $port),
             escapeshellarg($username),
-            escapeshellarg($database)
+            escapeshellarg($database),
         );
 
         if ($compress) {
@@ -179,14 +181,14 @@ class DatabaseBackupCommand extends Command
             if ($fileDate->isBefore($cutoffDate)) {
                 Storage::disk($disk)->delete($file);
                 $deletedCount++;
-                $this->line("Deleted old backup: " . basename($file));
+                $this->line('Deleted old backup: ' . basename($file));
             }
         }
 
         if ($deletedCount > 0) {
             $this->info("Cleaned up {$deletedCount} old backup(s).");
         } else {
-            $this->line("No old backups to clean.");
+            $this->line('No old backups to clean.');
         }
     }
 
@@ -207,7 +209,7 @@ class DatabaseBackupCommand extends Command
                 ['Total Size', $this->formatBytes($totalSize)],
                 ['Storage Disk', $disk],
                 ['Backup Path', $this->backupPath],
-            ]
+            ],
         );
     }
 

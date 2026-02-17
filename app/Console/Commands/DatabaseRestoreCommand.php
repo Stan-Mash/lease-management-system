@@ -30,15 +30,16 @@ class DatabaseRestoreCommand extends Command
 
         if (empty($backups)) {
             $this->error('No backup files found.');
+
             return Command::FAILURE;
         }
 
         // Select backup file
         $file = $this->argument('file');
 
-        if (!$file) {
+        if (! $file) {
             $file = $this->selectBackup($backups);
-            if (!$file) {
+            if (! $file) {
                 return Command::FAILURE;
             }
         }
@@ -46,27 +47,30 @@ class DatabaseRestoreCommand extends Command
         // Validate file exists
         $fullPath = Storage::disk($disk)->path("{$this->backupPath}/{$file}");
 
-        if (!file_exists($fullPath)) {
+        if (! file_exists($fullPath)) {
             $this->error("Backup file not found: {$file}");
+
             return Command::FAILURE;
         }
 
         // Get database configuration
         $dbConfig = config("database.connections.{$connection}");
 
-        if (!$dbConfig) {
+        if (! $dbConfig) {
             $this->error("Database connection '{$connection}' not found.");
+
             return Command::FAILURE;
         }
 
         // Confirm restore
-        if (!$force) {
+        if (! $force) {
             $this->warn('WARNING: This will overwrite the current database!');
             $this->line("Database: {$dbConfig['database']}");
             $this->line("Backup file: {$file}");
 
-            if (!$this->confirm('Are you sure you want to restore this backup?')) {
+            if (! $this->confirm('Are you sure you want to restore this backup?')) {
                 $this->info('Restore cancelled.');
+
                 return Command::SUCCESS;
             }
         }
@@ -78,6 +82,7 @@ class DatabaseRestoreCommand extends Command
 
         if ($result !== 0) {
             $this->error("Restore failed with exit code: {$result}");
+
             return Command::FAILURE;
         }
 
@@ -106,7 +111,7 @@ class DatabaseRestoreCommand extends Command
         }
 
         // Sort by date descending
-        usort($backups, fn($a, $b) => strcmp($b['date'], $a['date']));
+        usort($backups, fn ($a, $b) => strcmp($b['date'], $a['date']));
 
         return $backups;
     }
@@ -118,12 +123,12 @@ class DatabaseRestoreCommand extends Command
 
         $this->table(
             ['#', 'Filename', 'Size', 'Date'],
-            array_map(fn($backup, $index) => [
+            array_map(fn ($backup, $index) => [
                 $index + 1,
                 $backup['filename'],
                 $backup['size'],
                 $backup['date'],
-            ], $backups, array_keys($backups))
+            ], $backups, array_keys($backups)),
         );
 
         $selection = $this->ask('Enter the number of the backup to restore (or "q" to quit)');
@@ -134,8 +139,9 @@ class DatabaseRestoreCommand extends Command
 
         $index = (int) $selection - 1;
 
-        if (!isset($backups[$index])) {
+        if (! isset($backups[$index])) {
             $this->error('Invalid selection.');
+
             return null;
         }
 
@@ -158,7 +164,7 @@ class DatabaseRestoreCommand extends Command
                 escapeshellarg($host),
                 escapeshellarg((string) $port),
                 escapeshellarg($username),
-                escapeshellarg($database)
+                escapeshellarg($database),
             );
         } else {
             $command = sprintf(
@@ -167,7 +173,7 @@ class DatabaseRestoreCommand extends Command
                 escapeshellarg((string) $port),
                 escapeshellarg($username),
                 escapeshellarg($database),
-                escapeshellarg($fullPath)
+                escapeshellarg($fullPath),
             );
         }
 

@@ -12,13 +12,21 @@ class RoleAuditLog extends Model
 {
     // Action types
     public const ACTION_ROLE_ASSIGNED = 'role_assigned';
+
     public const ACTION_ROLE_REVOKED = 'role_revoked';
+
     public const ACTION_ROLE_CHANGED = 'role_changed';
+
     public const ACTION_PERMISSION_ADDED = 'permission_added';
+
     public const ACTION_PERMISSION_REMOVED = 'permission_removed';
+
     public const ACTION_PERMISSION_SYNCED = 'permission_synced';
+
     public const ACTION_ROLE_CREATED = 'role_created';
+
     public const ACTION_ROLE_UPDATED = 'role_updated';
+
     public const ACTION_ROLE_DELETED = 'role_deleted';
 
     protected $fillable = [
@@ -41,27 +49,6 @@ class RoleAuditLog extends Model
         'new_permissions' => 'array',
         'metadata' => 'array',
     ];
-
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::creating(function (RoleAuditLog $log) {
-            if (empty($log->uuid)) {
-                $log->uuid = Str::uuid()->toString();
-            }
-
-            // Auto-capture request context if available
-            if (request()) {
-                if (empty($log->ip_address)) {
-                    $log->ip_address = request()->ip();
-                }
-                if (empty($log->user_agent)) {
-                    $log->user_agent = request()->userAgent();
-                }
-            }
-        });
-    }
 
     /*
     |--------------------------------------------------------------------------
@@ -181,7 +168,7 @@ class RoleAuditLog extends Model
         User $user,
         string $roleName,
         ?User $performer = null,
-        ?string $reason = null
+        ?string $reason = null,
     ): self {
         return self::create([
             'user_id' => $user->id,
@@ -200,7 +187,7 @@ class RoleAuditLog extends Model
         User $user,
         string $roleName,
         ?User $performer = null,
-        ?string $reason = null
+        ?string $reason = null,
     ): self {
         return self::create([
             'user_id' => $user->id,
@@ -220,7 +207,7 @@ class RoleAuditLog extends Model
         string $oldRole,
         string $newRole,
         ?User $performer = null,
-        ?string $reason = null
+        ?string $reason = null,
     ): self {
         return self::create([
             'user_id' => $user->id,
@@ -242,7 +229,7 @@ class RoleAuditLog extends Model
         array $oldPermissions,
         array $newPermissions,
         ?User $performer = null,
-        ?string $reason = null
+        ?string $reason = null,
     ): self {
         return self::create([
             'user_id' => $user->id,
@@ -258,5 +245,26 @@ class RoleAuditLog extends Model
                 'removed' => array_diff($oldPermissions, $newPermissions),
             ],
         ]);
+    }
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (RoleAuditLog $log) {
+            if (empty($log->uuid)) {
+                $log->uuid = Str::uuid()->toString();
+            }
+
+            // Auto-capture request context if available
+            if (request()) {
+                if (empty($log->ip_address)) {
+                    $log->ip_address = request()->ip();
+                }
+                if (empty($log->user_agent)) {
+                    $log->user_agent = request()->userAgent();
+                }
+            }
+        });
     }
 }

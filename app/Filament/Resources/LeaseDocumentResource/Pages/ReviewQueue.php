@@ -42,7 +42,7 @@ class ReviewQueue extends Page implements HasTable
                 LeaseDocument::query()
                     ->whereIn('status', [DocumentStatus::PENDING_REVIEW, DocumentStatus::IN_REVIEW])
                     ->where('uploaded_by', '!=', auth()->id()) // Can't review own uploads
-                    ->orderBy('created_at', 'asc') // Oldest first (FIFO)
+                    ->orderBy('created_at', 'asc'), // Oldest first (FIFO)
             )
             ->columns([
                 Tables\Columns\TextColumn::make('title')
@@ -61,8 +61,8 @@ class ReviewQueue extends Page implements HasTable
 
                 Tables\Columns\TextColumn::make('document_type')
                     ->label('Type')
-                    ->formatStateUsing(fn (string $state): string =>
-                        LeaseDocument::getDocumentTypes()[$state] ?? $state
+                    ->formatStateUsing(
+                        fn (string $state): string => LeaseDocument::getDocumentTypes()[$state] ?? $state,
                     )
                     ->badge(),
 
@@ -123,8 +123,8 @@ class ReviewQueue extends Page implements HasTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Approve Document')
-                    ->modalDescription(fn (LeaseDocument $record): string =>
-                        "Approve \"{$record->title}\"?"
+                    ->modalDescription(
+                        fn (LeaseDocument $record): string => "Approve \"{$record->title}\"?",
                     )
                     ->form([
                         Forms\Components\Textarea::make('notes')
@@ -195,7 +195,7 @@ class ReviewQueue extends Page implements HasTable
                                     ->mapWithKeys(fn ($lease) => [
                                         $lease->id => $lease->reference_number . ' - ' .
                                             ($lease->tenant?->names ?? 'Unknown') . ' - ' .
-                                            ($lease->unit?->unit_number ?? 'Unknown')
+                                            ($lease->unit?->unit_number ?? 'Unknown'),
                                     ]);
                             })
                             ->searchable()
@@ -203,11 +203,12 @@ class ReviewQueue extends Page implements HasTable
                     ])
                     ->action(function (LeaseDocument $record, array $data): void {
                         // First approve
-                        if (!$record->approve(auth()->user())) {
+                        if (! $record->approve(auth()->user())) {
                             Notification::make()
                                 ->title('Failed to approve document')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 

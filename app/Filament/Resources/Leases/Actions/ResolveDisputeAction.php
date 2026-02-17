@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Leases\Actions;
 use App\Enums\LeaseWorkflowState;
 use App\Models\Lease;
 use App\Services\TenantEventService;
+use Exception;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Section;
@@ -40,7 +41,7 @@ class ResolveDisputeAction
             ->modalHeading('Resolve Lease Dispute')
             ->modalDescription(fn (Lease $record): string => sprintf(
                 'Resolve the dispute for lease %s. You can adjust the lease terms below. The lease will be re-sent to the tenant for digital signing.',
-                $record->reference_number
+                $record->reference_number,
             ))
             ->modalWidth('xl')
             ->form(fn (Lease $record): array => [
@@ -143,7 +144,7 @@ class ResolveDisputeAction
                             $originalValues['start_date'] ?? 'N/A',
                             $data['start_date'],
                             $originalValues['end_date'] ?? 'N/A',
-                            $data['end_date']
+                            $data['end_date'],
                         );
 
                         $record->update([
@@ -177,7 +178,7 @@ class ResolveDisputeAction
                                 ],
                                 'resolved_by' => Auth::user()?->name,
                                 'resolved_at' => now()->toIso8601String(),
-                            ]
+                            ],
                         );
 
                         // Transition back to SENT_DIGITAL (which will trigger re-sending)
@@ -206,7 +207,7 @@ class ResolveDisputeAction
                         ->persistent()
                         ->send();
 
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::error('Failed to resolve lease dispute', [
                         'lease_id' => $record->id,
                         'error' => $e->getMessage(),

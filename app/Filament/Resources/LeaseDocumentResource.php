@@ -14,7 +14,6 @@ use App\Models\LeaseDocument;
 use App\Models\Property;
 use BackedEnum;
 use Filament\Actions;
-use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -52,12 +51,14 @@ class LeaseDocumentResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $pendingCount = static::getModel()::pendingReview()->count();
+
         return $pendingCount > 0 ? (string) $pendingCount : null;
     }
 
     public static function getNavigationBadgeColor(): string|array|null
     {
         $count = static::getModel()::pendingReview()->count();
+
         return $count > 10 ? 'danger' : ($count > 0 ? 'warning' : 'success');
     }
 
@@ -87,9 +88,10 @@ class LeaseDocumentResource extends Resource
                                     ->label('Property')
                                     ->options(function (Get $get) {
                                         $zoneId = $get('zone_id');
-                                        if (!$zoneId) {
+                                        if (! $zoneId) {
                                             return [];
                                         }
+
                                         return Property::where('zone_id', $zoneId)
                                             ->pluck('property_name', 'id');
                                     })
@@ -241,9 +243,9 @@ class LeaseDocumentResource extends Resource
                     ->since()
                     ->sortable()
                     ->badge()
-                    ->color(fn (LeaseDocument $record): string =>
-                        $record->updated_at->isToday() ? 'success' :
-                        ($record->updated_at->isCurrentWeek() ? 'info' : 'gray')
+                    ->color(
+                        fn (LeaseDocument $record): string => $record->updated_at->isToday() ? 'success' :
+                        ($record->updated_at->isCurrentWeek() ? 'info' : 'gray'),
                     )
                     ->tooltip(fn (LeaseDocument $record): string => $record->updated_at->format('M j, Y H:i:s'))
                     ->toggleable(),
@@ -325,6 +327,7 @@ class LeaseDocumentResource extends Resource
                         if ($data['uploaded_until'] ?? null) {
                             $indicators[] = 'Until ' . $data['uploaded_until'];
                         }
+
                         return $indicators;
                     }),
             ])
@@ -390,11 +393,12 @@ class LeaseDocumentResource extends Resource
                         ])
                         ->action(function (Collection $records, array $data): void {
                             $lease = Lease::find($data['lease_id']);
-                            if (!$lease) {
+                            if (! $lease) {
                                 Notification::make()
                                     ->title('Lease not found')
                                     ->danger()
                                     ->send();
+
                                 return;
                             }
 
@@ -407,7 +411,7 @@ class LeaseDocumentResource extends Resource
                                         $document->logAudit(
                                             DocumentAudit::ACTION_LINK,
                                             'Bulk linked to lease ' . $lease->reference_number . ' by ' . auth()->user()->name,
-                                            newValues: ['lease_id' => $lease->id]
+                                            newValues: ['lease_id' => $lease->id],
                                         );
                                         $linked++;
                                     } else {
@@ -419,7 +423,7 @@ class LeaseDocumentResource extends Resource
                             }
 
                             Notification::make()
-                                ->title("Bulk Link Complete")
+                                ->title('Bulk Link Complete')
                                 ->body("{$linked} document(s) linked to lease {$lease->reference_number}." .
                                     ($skipped > 0 ? " {$skipped} skipped (not approved or already linked)." : ''))
                                 ->success()
@@ -442,7 +446,7 @@ class LeaseDocumentResource extends Resource
                                 if ($document->canBeReviewedBy(auth()->user()) && $document->approve(auth()->user())) {
                                     $document->logAudit(
                                         DocumentAudit::ACTION_APPROVE,
-                                        'Bulk approved by ' . auth()->user()->name
+                                        'Bulk approved by ' . auth()->user()->name,
                                     );
                                     $approved++;
                                 }
@@ -490,7 +494,7 @@ class LeaseDocumentResource extends Resource
         $query = parent::getEloquentQuery();
 
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return $query;
         }
 
@@ -510,18 +514,21 @@ class LeaseDocumentResource extends Resource
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && !in_array($user->role, ['auditor', 'internal_auditor']);
+
+        return $user && ! in_array($user->role, ['auditor', 'internal_auditor']);
     }
 
     public static function canEdit($record): bool
     {
         $user = auth()->user();
-        return $user && $user->role !== 'field_officer' && !in_array($user->role, ['auditor', 'internal_auditor']);
+
+        return $user && $user->role !== 'field_officer' && ! in_array($user->role, ['auditor', 'internal_auditor']);
     }
 
     public static function canDelete($record): bool
     {
         $user = auth()->user();
+
         return $user && in_array($user->role, ['super_admin', 'admin', 'property_manager']);
     }
 }

@@ -19,17 +19,17 @@ class RoleBasedDashboardRedirect
         $response = $next($request);
 
         // Only intercept redirects to the home URL
-        if (!$response instanceof \Illuminate\Http\RedirectResponse) {
+        if (! $response instanceof \Illuminate\Http\RedirectResponse) {
             return $response;
         }
 
         $targetUrl = $response->getTargetUrl();
-        if (!str_ends_with(parse_url($targetUrl, PHP_URL_PATH) ?? '', '/admin/company-dashboard')) {
+        if (! str_ends_with(parse_url($targetUrl, PHP_URL_PATH) ?? '', '/admin/company-dashboard')) {
             return $response;
         }
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return $response;
         }
 
