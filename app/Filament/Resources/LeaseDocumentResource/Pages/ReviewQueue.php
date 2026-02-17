@@ -55,7 +55,7 @@ class ReviewQueue extends Page implements HasTable
                     ->label('Zone')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('property.property_name')
+                Tables\Columns\TextColumn::make('property.name')
                     ->label('Property')
                     ->limit(20),
 

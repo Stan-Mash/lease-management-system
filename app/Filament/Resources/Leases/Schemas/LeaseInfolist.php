@@ -43,7 +43,7 @@ class LeaseInfolist
                     Grid::make(2)->schema([
                         TextEntry::make('tenant.names')->label('Tenant Name'),
                         TextEntry::make('unit.unit_number')->label('Unit Number'),
-                        TextEntry::make('property.property_name')->label('Property'),
+                        TextEntry::make('property.name')->label('Property'),
                         TextEntry::make('client.names')->label('Client'),
                     ]),
                 ]),
