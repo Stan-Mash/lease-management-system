@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -63,11 +64,12 @@ return new class extends Migration
 
     public function up(): void
     {
+        // Use CASCADE to drop tables with foreign key dependencies
+        DB::statement('DROP TABLE IF EXISTS landlords CASCADE');
+
         // =====================================================================
         // 1. CLIENTS TABLE (replaces landlords)
         // =====================================================================
-        Schema::dropIfExists('landlords');
-
         Schema::create('clients', function (Blueprint $table) {
             $this->addClientTenantColumns($table);
         });
@@ -75,8 +77,8 @@ return new class extends Migration
         // =====================================================================
         // 2. TENANTS TABLE (restructure with same columns)
         // =====================================================================
-        Schema::dropIfExists('tenant_events');
-        Schema::dropIfExists('tenants');
+        DB::statement('DROP TABLE IF EXISTS tenant_events CASCADE');
+        DB::statement('DROP TABLE IF EXISTS tenants CASCADE');
 
         Schema::create('tenants', function (Blueprint $table) {
             $this->addClientTenantColumns($table);
@@ -85,7 +87,7 @@ return new class extends Migration
         // =====================================================================
         // 3. PROPERTIES TABLE (restructure)
         // =====================================================================
-        Schema::dropIfExists('properties');
+        DB::statement('DROP TABLE IF EXISTS properties CASCADE');
 
         Schema::create('properties', function (Blueprint $table) {
             $table->id();
@@ -114,7 +116,7 @@ return new class extends Migration
         // =====================================================================
         // 4. UNITS TABLE (restructure)
         // =====================================================================
-        Schema::dropIfExists('units');
+        DB::statement('DROP TABLE IF EXISTS units CASCADE');
 
         Schema::create('units', function (Blueprint $table) {
             $table->id();
@@ -145,9 +147,9 @@ return new class extends Migration
         // =====================================================================
         // 5. USERS TABLE (restructure)
         // =====================================================================
-        Schema::dropIfExists('sessions');
-        Schema::dropIfExists('password_reset_tokens');
-        Schema::dropIfExists('users');
+        DB::statement('DROP TABLE IF EXISTS sessions CASCADE');
+        DB::statement('DROP TABLE IF EXISTS password_reset_tokens CASCADE');
+        DB::statement('DROP TABLE IF EXISTS users CASCADE');
 
         Schema::create('users', function (Blueprint $table) {
             $table->id();
@@ -186,6 +188,7 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
+
     }
 
     public function down(): void
