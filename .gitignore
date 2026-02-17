@@ -91,3 +91,15 @@ export_clean_staff.ps1
 *_credentials.md
 *.secrets
 .secrets/
+
+# Database dumps - never commit these
+*.dump
+*.sql
+!database/migrations/*.sql
+import_wrapper.sql
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Windows null device artifact
+nul
