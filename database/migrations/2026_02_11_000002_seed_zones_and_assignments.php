@@ -68,38 +68,67 @@ return new class extends Migration
         }
 
         // ─── 4. Propagate zone_id to units from their properties ───
-        DB::statement("
-            UPDATE units
-            SET zone_id = properties.zone_id
-            FROM properties
-            WHERE units.property_id = properties.id
-            AND properties.zone_id IS NOT NULL
-        ");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("
+                UPDATE units
+                SET zone_id = properties.zone_id
+                FROM properties
+                WHERE units.property_id = properties.id
+                AND properties.zone_id IS NOT NULL
+            ");
+        } else {
+            DB::statement("
+                UPDATE units
+                SET zone_id = (SELECT properties.zone_id FROM properties WHERE properties.id = units.property_id)
+                WHERE EXISTS (SELECT 1 FROM properties WHERE properties.id = units.property_id AND properties.zone_id IS NOT NULL)
+            ");
+        }
 
         // ─── 5. Propagate zone_id to leases from their properties ───
-        DB::statement("
-            UPDATE leases
-            SET zone_id = properties.zone_id
-            FROM properties
-            WHERE leases.property_id = properties.id
-            AND properties.zone_id IS NOT NULL
-            AND leases.zone_id IS NULL
-        ");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("
+                UPDATE leases
+                SET zone_id = properties.zone_id
+                FROM properties
+                WHERE leases.property_id = properties.id
+                AND properties.zone_id IS NOT NULL
+                AND leases.zone_id IS NULL
+            ");
+        } else {
+            DB::statement("
+                UPDATE leases
+                SET zone_id = (SELECT properties.zone_id FROM properties WHERE properties.id = leases.property_id)
+                WHERE leases.zone_id IS NULL
+                AND EXISTS (SELECT 1 FROM properties WHERE properties.id = leases.property_id AND properties.zone_id IS NOT NULL)
+            ");
+        }
 
         // ─── 6. Propagate zone_id to tenants from their latest lease's property ───
-        // For tenants, we set zone_id from their most recent lease
-        DB::statement("
-            UPDATE tenants
-            SET zone_id = sub.zone_id
-            FROM (
-                SELECT DISTINCT ON (tenant_id) tenant_id, zone_id
-                FROM leases
-                WHERE zone_id IS NOT NULL
-                ORDER BY tenant_id, created_at DESC
-            ) sub
-            WHERE tenants.id = sub.tenant_id
-            AND tenants.zone_id IS NULL
-        ");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("
+                UPDATE tenants
+                SET zone_id = sub.zone_id
+                FROM (
+                    SELECT DISTINCT ON (tenant_id) tenant_id, zone_id
+                    FROM leases
+                    WHERE zone_id IS NOT NULL
+                    ORDER BY tenant_id, created_at DESC
+                ) sub
+                WHERE tenants.id = sub.tenant_id
+                AND tenants.zone_id IS NULL
+            ");
+        } else {
+            DB::statement("
+                UPDATE tenants
+                SET zone_id = (
+                    SELECT l.zone_id FROM leases l
+                    WHERE l.tenant_id = tenants.id AND l.zone_id IS NOT NULL
+                    ORDER BY l.created_at DESC LIMIT 1
+                )
+                WHERE tenants.zone_id IS NULL
+                AND EXISTS (SELECT 1 FROM leases WHERE leases.tenant_id = tenants.id AND leases.zone_id IS NOT NULL)
+            ");
+        }
 
         // ─── 7. Assign zone_id to zone manager users ───
         $managerAssignments = [
