@@ -269,7 +269,7 @@ class Lease extends Model
     public function scopeAccessibleByUser($query, User $user)
     {
         // Super admins and regular admins can see all leases
-        if ($user->isAdmin()) {
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
             return $query;
         }
 
