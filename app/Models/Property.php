@@ -38,6 +38,42 @@ class Property extends Model
         'acquisition_date' => 'date',
     ];
 
+    /**
+     * Accessor: name → property_name (backward compatibility after schema restructure).
+     */
+    public function getNameAttribute(): ?string
+    {
+        return $this->property_name;
+    }
+
+    /**
+     * Calculate occupancy rate as a percentage of occupied units.
+     */
+    public function occupancyRate(): float
+    {
+        $totalUnits = $this->units()->count();
+
+        if ($totalUnits === 0) {
+            return 0.0;
+        }
+
+        $occupiedUnits = $this->units()->whereHas('leases', function ($query) {
+            $query->where('workflow_state', 'active');
+        })->count();
+
+        return round(($occupiedUnits / $totalUnits) * 100, 1);
+    }
+
+    /**
+     * Calculate total monthly rent from active leases on this property.
+     */
+    public function totalMonthlyRent(): float
+    {
+        return (float) $this->leases()
+            ->where('workflow_state', 'active')
+            ->sum('monthly_rent');
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
