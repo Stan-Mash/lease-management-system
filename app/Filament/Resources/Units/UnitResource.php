@@ -43,7 +43,7 @@ class UnitResource extends Resource
         return [
             'Code' => $record->unit_code ?? 'N/A',
             'Number' => $record->unit_number ?? 'N/A',
-            'Property' => $record->property?->name ?? 'N/A',
+            'Property' => $record->property?->property_name ?? 'N/A',
         ];
     }
 

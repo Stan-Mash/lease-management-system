@@ -38,7 +38,7 @@ class UnitsTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('property.name')
+                TextColumn::make('property.property_name')
                     ->label('Property')
                     ->searchable()
                     ->sortable(),
