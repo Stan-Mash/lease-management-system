@@ -26,7 +26,7 @@ class PropertiesTable
                     ->sortable()
                     ->copyable(),
 
-                TextColumn::make('name')
+                TextColumn::make('property_name')
                     ->label('Property Name')
                     ->searchable()
                     ->sortable()

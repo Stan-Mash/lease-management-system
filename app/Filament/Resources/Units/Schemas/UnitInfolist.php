@@ -14,7 +14,7 @@ class UnitInfolist
             ->components([
                 TextEntry::make('date_time')->dateTime()->placeholder('-'),
                 TextEntry::make('client.names')->label('Client')->placeholder('-'),
-                TextEntry::make('property.name')->label('Property')->placeholder('-'),
+                TextEntry::make('property.property_name')->label('Property')->placeholder('-'),
                 TextEntry::make('unit_type_id')->placeholder('-'),
                 TextEntry::make('usage_type_id')->placeholder('-'),
                 TextEntry::make('unit_code')->placeholder('-'),

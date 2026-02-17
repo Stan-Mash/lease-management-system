@@ -43,7 +43,7 @@ class UpcomingRentEscalationsWidget extends BaseWidget
                     ->label('Tenant')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('lease.unit.property.name')
+                Tables\Columns\TextColumn::make('lease.unit.property.property_name')
                     ->label('Property'),
 
                 Tables\Columns\TextColumn::make('effective_date')
