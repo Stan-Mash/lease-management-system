@@ -20,12 +20,12 @@ class SuperUserSeeder extends Seeder
             ->orWhere('username', 'admin')
             ->delete();
 
-        // Stanley Mash - Super Super Admin
-        $stanley = User::updateOrCreate(
-            ['email' => 'stanley.mash@chabrinagencies.co.ke'],
+        // Stanely Macharia - Super Super Admin
+        $stanely = User::updateOrCreate(
+            ['email' => 'stanely.macharia@chabrinagencies.co.ke'],
             [
-                'name' => 'Stanley Mash',
-                'username' => 'stanley.mash',
+                'name' => 'Stanely Macharia',
+                'username' => 'stanely.macharia',
                 'password' => Hash::make('Chabrin@2026!'),
                 'block' => false,
                 'sendEmail' => true,
@@ -35,13 +35,13 @@ class SuperUserSeeder extends Seeder
                 'requireReset' => false,
             ]
         );
-        $stanley->syncRoles(['super_admin']);
+        $stanely->syncRoles(['super_admin']);
 
-        // Kimathi - Super Admin
+        // Wilfred Kimathi Murungi - Super Admin
         $kimathi = User::updateOrCreate(
             ['email' => 'kimathiw@chabrinagencies.co.ke'],
             [
-                'name' => 'Kimathi',
+                'name' => 'Wilfred Kimathi Murungi',
                 'username' => 'kimathiw',
                 'password' => Hash::make('Chabrin@2026!'),
                 'block' => false,
@@ -54,11 +54,11 @@ class SuperUserSeeder extends Seeder
         );
         $kimathi->syncRoles(['super_admin']);
 
-        // Mark Nyaga - Super Admin
+        // Mark Nyaga Chabari - Super Admin
         $mark = User::updateOrCreate(
             ['email' => 'mark.nyaga@chabrinagencies.co.ke'],
             [
-                'name' => 'Mark Nyaga',
+                'name' => 'Mark Nyaga Chabari',
                 'username' => 'mark.nyaga',
                 'password' => Hash::make('Chabrin@2026!'),
                 'block' => false,
@@ -73,8 +73,8 @@ class SuperUserSeeder extends Seeder
 
         $this->command->info('Default admin user removed.');
         $this->command->info('Super users created:');
-        $this->command->info('  Stanley  | stanley.mash@chabrinagencies.co.ke | password: Chabrin@2026!');
-        $this->command->info('  Kimathi  | kimathiw@chabrinagencies.co.ke     | password: Chabrin@2026!');
-        $this->command->info('  Mark     | mark.nyaga@chabrinagencies.co.ke   | password: Chabrin@2026!');
+        $this->command->info('  Stanely  | stanely.macharia@chabrinagencies.co.ke | password: Chabrin@2026!');
+        $this->command->info('  Kimathi  | kimathiw@chabrinagencies.co.ke         | password: Chabrin@2026!');
+        $this->command->info('  Mark     | mark.nyaga@chabrinagencies.co.ke       | password: Chabrin@2026!');
     }
 }
