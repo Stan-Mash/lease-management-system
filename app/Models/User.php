@@ -82,25 +82,27 @@ class User extends Authenticatable implements FilamentUser
     }
 
     // ── Role checks ──
+    // The authoritative role is the `role` column on the users table.
+    // Spatie HasRoles is used for fine-grained permissions, not identity.
 
     public function isSuperAdmin(): bool
     {
-        return $this->hasRole('super_admin');
+        return $this->role === 'super_admin';
     }
 
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->role === 'admin';
     }
 
     public function isZoneManager(): bool
     {
-        return $this->hasRole('zone_manager');
+        return $this->role === 'zone_manager';
     }
 
     public function isFieldOfficer(): bool
     {
-        return $this->hasRole(['field_officer', 'senior_field_officer']);
+        return in_array($this->role, ['field_officer', 'senior_field_officer']);
     }
 
     public function hasZoneRestriction(): bool
@@ -123,12 +125,10 @@ class User extends Authenticatable implements FilamentUser
 
     public function getRoleDisplayName(): string
     {
-        $role = $this->roles->first();
-
-        if (! $role) {
-            return 'No Role';
+        if ($this->role) {
+            return ucwords(str_replace('_', ' ', $this->role));
         }
 
-        return ucwords(str_replace('_', ' ', $role->name));
+        return 'No Role';
     }
 }
