@@ -70,10 +70,10 @@ class LeaseResource extends Resource
             'tenant.names',
             'tenant.national_id',
             'tenant.mobile_number',
-            'property.name',
+            'property.property_name',
             'property.reference_number',
             'unit.unit_number',
-            'landlord.name',
+            'landlord.names',
         ];
     }
 
@@ -157,7 +157,7 @@ class LeaseResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('landlord.name')
+                TextColumn::make('landlord.names')
                     ->label('Landlord')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -279,7 +279,7 @@ class LeaseResource extends Resource
 
                 SelectFilter::make('landlord_id')
                     ->label('Landlord')
-                    ->relationship('landlord', 'name')
+                    ->relationship('landlord', 'names')
                     ->searchable()
                     ->preload(),
 

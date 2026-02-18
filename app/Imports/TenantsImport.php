@@ -26,24 +26,24 @@ class TenantsImport implements ToModel, WithChunkReading, WithHeadingRow
 
         // 1. Try to find existing tenant by ID Number (if valid)
         if ($idNumber) {
-            $existingTenant = Tenant::where('id_number', $idNumber)->first();
+            $existingTenant = Tenant::where('national_id', $idNumber)->first();
             if ($existingTenant) {
                 return null; // Already exists, skip.
             }
         }
 
         // 2. Try to find existing tenant by Phone Number
-        $existingTenant = Tenant::where('phone_number', $phone)->first();
+        $existingTenant = Tenant::where('mobile_number', $phone)->first();
         if ($existingTenant) {
             return null; // Already exists, skip.
         }
 
         // 3. If not found by ID or Phone, create a NEW record
         return new Tenant([
-            'full_name' => $row['tenant'],
-            'phone_number' => $phone,
-            'id_number' => $idNumber,
-            'email' => null,
+            'names' => $row['tenant'],
+            'mobile_number' => $phone,
+            'national_id' => $idNumber,
+            'email_address' => null,
             'notification_preference' => 'SMS',
         ]);
     }
