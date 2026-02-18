@@ -52,25 +52,25 @@ h1, h2, h3,
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   2. SIDEBAR — Navy executive panel
+   2. SIDEBAR — Bright warm white with gold accents
    ══════════════════════════════════════════════════════════════════════ */
 
 .fi-sidebar {
-    background: linear-gradient(180deg, var(--chabrin-navy) 0%, var(--chabrin-navy-deep) 60%, var(--chabrin-navy-darker) 100%) !important;
-    border-right: 1px solid rgba(218,165,32,0.15) !important;
-    box-shadow: 4px 0 24px rgba(10,22,40,0.25) !important;
+    background: linear-gradient(180deg, #fffdf5 0%, #fefcf0 100%) !important;
+    border-right: 1px solid rgba(218,165,32,0.22) !important;
+    box-shadow: 3px 0 20px rgba(218,165,32,0.08) !important;
 }
 
 /* Sidebar header */
 .fi-sidebar-header {
-    border-bottom: 1px solid rgba(218,165,32,0.15) !important;
+    border-bottom: 1px solid rgba(218,165,32,0.18) !important;
     padding: 1.1rem 1rem !important;
-    background: rgba(0,0,0,0.15) !important;
+    background: rgba(255,255,255,0.8) !important;
 }
 
 /* Group labels */
 .fi-sidebar-group-label {
-    color: rgba(218,165,32,0.55) !important;
+    color: #b8960a !important;
     font-family: var(--font-body) !important;
     font-size: 0.6rem !important;
     font-weight: 700 !important;
@@ -82,14 +82,14 @@ h1, h2, h3,
 
 /* Sidebar nav items */
 .fi-sidebar-item-button {
-    border-radius: 8px !important;
-    margin: 1px 8px !important;
-    padding: 0.55rem 0.85rem !important;
-    color: rgba(203,213,225,0.85) !important;
+    border-radius: 9px !important;
+    margin: 2px 8px !important;
+    padding: 0.58rem 0.85rem !important;
+    color: #4a4a4a !important;
     font-family: var(--font-body) !important;
     font-size: 0.8rem !important;
     font-weight: 500 !important;
-    letter-spacing: 0.02em !important;
+    letter-spacing: 0.01em !important;
     transition:
         background 180ms ease,
         color 180ms ease,
@@ -99,36 +99,37 @@ h1, h2, h3,
     overflow: hidden;
 }
 
-/* Hover — gold shimmer */
+/* Hover — warm gold wash */
 .fi-sidebar-item-button:hover {
     background: rgba(218,165,32,0.1) !important;
-    color: #fff !important;
+    color: #1a1a1a !important;
     padding-left: 1.1rem !important;
+    box-shadow: 0 2px 8px rgba(218,165,32,0.12) !important;
 }
 
-/* Gold left-border glow on hover */
+/* Gold left bar on hover */
 .fi-sidebar-item-button::before {
     content: '';
     position: absolute;
     left: 0; top: 20%; bottom: 20%;
-    width: 2px;
+    width: 3px;
     border-radius: 2px;
-    background: var(--chabrin-gold);
+    background: linear-gradient(180deg, #f0c040, #DAA520);
     opacity: 0;
     transition: opacity 180ms ease, top 180ms ease, bottom 180ms ease;
 }
 .fi-sidebar-item-button:hover::before {
-    opacity: 0.6;
+    opacity: 0.7;
     top: 15%; bottom: 15%;
 }
 
-/* Active item */
+/* Active item — gold-washed with full bar */
 .fi-sidebar-item-active .fi-sidebar-item-button,
 .fi-sidebar-item-button[aria-current] {
-    background: linear-gradient(90deg, rgba(218,165,32,0.18) 0%, rgba(218,165,32,0.06) 100%) !important;
-    color: #fff !important;
-    font-weight: 600 !important;
-    box-shadow: inset 0 0 0 1px rgba(218,165,32,0.2) !important;
+    background: linear-gradient(90deg, rgba(218,165,32,0.16) 0%, rgba(218,165,32,0.05) 100%) !important;
+    color: #1a1a1a !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 10px rgba(218,165,32,0.15), inset 0 0 0 1px rgba(218,165,32,0.2) !important;
 }
 
 .fi-sidebar-item-active .fi-sidebar-item-button::before,
@@ -138,25 +139,26 @@ h1, h2, h3,
     width: 3px !important;
 }
 
-/* Icons */
+/* Icons — gold tint */
 .fi-sidebar-item-icon {
-    color: var(--chabrin-gold) !important;
-    opacity: 0.75;
+    color: #c9961a !important;
+    opacity: 0.8;
     transition: opacity 180ms ease, transform 180ms ease !important;
 }
 .fi-sidebar-item-button:hover .fi-sidebar-item-icon,
 .fi-sidebar-item-active .fi-sidebar-item-icon {
     opacity: 1;
+    color: #DAA520 !important;
     transform: scale(1.08);
 }
 
 /* Badges in sidebar */
 .fi-sidebar-item-badge {
-    background: rgba(218,165,32,0.18) !important;
-    color: var(--chabrin-gold-light) !important;
+    background: rgba(218,165,32,0.14) !important;
+    color: #8a6a00 !important;
     font-size: 0.6rem !important;
     font-weight: 700 !important;
-    border: 1px solid rgba(218,165,32,0.25) !important;
+    border: 1px solid rgba(218,165,32,0.28) !important;
     border-radius: 99px !important;
 }
 
@@ -487,9 +489,9 @@ h1, h2, h3,
 }
 
 .fi-section-header {
-    border-bottom: 1px solid rgba(218,165,32,0.1) !important;
+    border-bottom: 1px solid rgba(218,165,32,0.12) !important;
     padding: 1rem 1.25rem !important;
-    background: linear-gradient(90deg, rgba(26,54,93,0.025) 0%, transparent 100%) !important;
+    background: linear-gradient(90deg, rgba(218,165,32,0.05) 0%, transparent 100%) !important;
 }
 
 .fi-section-header-heading {
@@ -645,7 +647,7 @@ h1, h2, h3,
 .fi-modal-header {
     border-bottom: 1px solid rgba(218,165,32,0.12) !important;
     padding: 1.1rem 1.5rem !important;
-    background: linear-gradient(90deg, rgba(26,54,93,0.03) 0%, transparent 100%) !important;
+    background: linear-gradient(90deg, rgba(218,165,32,0.05) 0%, transparent 100%) !important;
 }
 
 .fi-modal-heading {
@@ -820,11 +822,11 @@ h1, h2, h3,
     max-width: none !important;
 }
 
-/* Subtle texture on cream background */
+/* Subtle warm-gold texture on cream background — no blue */
 .fi-main-ctn {
     background:
-        radial-gradient(ellipse at 80% 0%, rgba(218,165,32,0.04) 0%, transparent 60%),
-        radial-gradient(ellipse at 0% 80%, rgba(26,54,93,0.03) 0%, transparent 60%),
+        radial-gradient(ellipse at 85% 0%,   rgba(218,165,32,0.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 10% 90%,  rgba(218,165,32,0.04) 0%, transparent 50%),
         var(--chabrin-cream) !important;
     min-height: 100vh !important;
 }
