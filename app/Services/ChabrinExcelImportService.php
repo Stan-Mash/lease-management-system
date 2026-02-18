@@ -239,7 +239,7 @@ class ChabrinExcelImportService
                         }
 
                         // Skip if already exists
-                        if (Landlord::where('landlord_code', $lanid)->exists()) {
+                        if (Landlord::where('lan_id', $lanid)->exists()) {
                             continue;
                         }
 
@@ -249,10 +249,10 @@ class ChabrinExcelImportService
 
                         if (! $this->service->isDryRun()) {
                             Landlord::create([
-                                'landlord_code' => $lanid,
-                                'name' => $name,
-                                'email' => $email,
-                                'phone' => $this->service->formatPhonePublic($phone),
+                                'lan_id' => $lanid,
+                                'names' => $name,
+                                'email_address' => $email,
+                                'mobile_number' => $this->service->formatPhonePublic($phone),
                                 'is_active' => true,
                             ]);
                         }
@@ -323,14 +323,14 @@ class ChabrinExcelImportService
                         }
 
                         // Try to find landlord by exact match or without prefix
-                        $landlord = Landlord::where('landlord_code', $llordId)->first();
+                        $landlord = Landlord::where('lan_id', $llordId)->first();
                         if (! $landlord && str_starts_with($llordId, 'LAN-')) {
                             // Try without LAN- prefix
-                            $landlord = Landlord::where('landlord_code', substr($llordId, 4))->first();
+                            $landlord = Landlord::where('lan_id', substr($llordId, 4))->first();
                         }
                         if (! $landlord) {
                             // Try adding LAN- prefix
-                            $landlord = Landlord::where('landlord_code', 'LAN-' . $llordId)->first();
+                            $landlord = Landlord::where('lan_id', 'LAN-' . $llordId)->first();
                         }
                         if (! $landlord) {
                             throw new Exception("Landlord '{$llordId}' not found");
