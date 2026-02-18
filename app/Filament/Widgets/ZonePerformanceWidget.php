@@ -125,8 +125,8 @@ class ZonePerformanceWidget extends BaseWidget
             ->leftJoin('units as u', 'u.property_id', '=', 'p.id')
             ->selectRaw('z.id as zone_id,
                 CASE WHEN COUNT(u.id) = 0 THEN 0
-                     ELSE ROUND(SUM(CASE WHEN u.status = ? THEN 1 ELSE 0 END) * 100.0 / COUNT(u.id), 1)
-                END as occupancy_rate', ['occupied'])
+                     ELSE ROUND(SUM(CASE WHEN u.status_legacy = ? THEN 1 ELSE 0 END) * 100.0 / COUNT(u.id), 1)
+                END as occupancy_rate', ['OCCUPIED'])
             ->groupBy('z.id');
 
         return Zone::query()

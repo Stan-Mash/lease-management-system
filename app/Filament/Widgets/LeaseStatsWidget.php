@@ -84,7 +84,7 @@ class LeaseStatsWidget extends StatsOverviewWidget
             $unitStats = (clone $unitQuery)
                 ->selectRaw("
                     COUNT(*) as total_units,
-                    SUM(CASE WHEN status = 'occupied' THEN 1 ELSE 0 END) as occupied_units
+                    SUM(CASE WHEN status_legacy = 'OCCUPIED' THEN 1 ELSE 0 END) as occupied_units
                 ")
                 ->first();
 

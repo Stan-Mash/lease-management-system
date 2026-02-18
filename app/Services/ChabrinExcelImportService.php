@@ -318,7 +318,7 @@ class ChabrinExcelImportService
                         }
 
                         // Skip if already exists
-                        if (Property::where('property_code', $blockId)->exists()) {
+                        if (Property::where('reference_number', $blockId)->exists()) {
                             continue;
                         }
 
@@ -342,11 +342,11 @@ class ChabrinExcelImportService
 
                         if (! $this->service->isDryRun()) {
                             Property::create([
-                                'property_code' => $blockId,
-                                'name' => $blockDesc,
+                                'reference_number' => $blockId,
+                                'property_name' => $blockDesc,
                                 'zone' => strtoupper($zone) ?: 'A',
                                 'landlord_id' => $landlord->id,
-                                'management_commission' => 10.00,
+                                'commission' => 10.00,
                             ]);
                         }
 
@@ -374,7 +374,7 @@ class ChabrinExcelImportService
         $rowNumber = 1;
 
         // Pre-cache properties for faster lookup
-        $propertyCache = Property::pluck('id', 'property_code')->toArray();
+        $propertyCache = Property::pluck('id', 'reference_number')->toArray();
 
         Excel::import(new class($this, $rowNumber, $propertyCache) implements ToCollection, WithChunkReading, WithHeadingRow
         {
@@ -437,9 +437,9 @@ class ChabrinExcelImportService
                                 'property_id' => $propertyId,
                                 'unit_number' => $unitNo,
                                 'type' => $unitDesc ?: $blockId . '-' . $unitNo,
-                                'market_rent' => $rentAmt,
+                                'rent_amount' => $rentAmt,
                                 'deposit_required' => 0,
-                                'status' => 'VACANT',
+                                'status_legacy' => 'VACANT',
                             ]);
                         }
 
@@ -591,7 +591,7 @@ class ChabrinExcelImportService
                                     'signing_mode' => 'physical',
                                 ]);
 
-                                $unit->update(['status' => 'OCCUPIED']);
+                                $unit->update(['status_legacy' => 'OCCUPIED']);
                             }
 
                             $this->service->incrementStat('leases', 'imported');

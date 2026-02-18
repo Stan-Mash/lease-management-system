@@ -16,21 +16,21 @@ class PropertiesImport implements ToModel, WithHeadingRow
         }
 
         // 1. Find the Landlord using the landlord ID from Excel
-        $landlord = Landlord::where('landlord_code', $row['llordid'])->first();
+        $landlord = Landlord::where('lan_id', $row['llordid'])->first();
 
         // Safety: If landlord ID is wrong/missing, link to a placeholder so import doesn't fail
         if (! $landlord) {
             $landlord = Landlord::firstOrCreate(
-                ['landlord_code' => 'UNKNOWN'],
-                ['name' => 'Unknown Landlord', 'phone' => '000000'],
+                ['lan_id' => 'UNKNOWN'],
+                ['names' => 'Unknown Landlord', 'mobile_number' => '000000'],
             );
         }
 
         return new Property([
-            'name' => $row['blockdesc'],
-            'property_code' => $row['blockid'],
+            'property_name' => $row['blockdesc'],
+            'reference_number' => $row['blockid'],
             'zone' => $row['zone'] ?? 'A',
-            'management_commission' => 10.0,
+            'commission' => 10.0,
             'landlord_id' => $landlord->id,
         ]);
     }

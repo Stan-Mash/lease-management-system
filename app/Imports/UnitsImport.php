@@ -19,7 +19,7 @@ class UnitsImport implements ToModel, WithBatchInserts, WithChunkReading, WithHe
         }
 
         // 1. Find the Property using the Block ID (e.g. "157C")
-        $property = Property::where('property_code', $row['blockid'])->first();
+        $property = Property::where('reference_number', $row['blockid'])->first();
 
         // If Property doesn't exist yet, we can't create the unit. Skip it.
         if (! $property) {
@@ -29,10 +29,10 @@ class UnitsImport implements ToModel, WithBatchInserts, WithChunkReading, WithHe
         return new Unit([
             'property_id' => $property->id,
             'unit_number' => $row['unitno'],
-            'market_rent' => $row['rntamt'] ?? 0,
+            'rent_amount' => $row['rntamt'] ?? 0,
             'deposit_required' => 0, // Not in Excel, defaulting to 0
             'type' => 'Standard', // Default type
-            'status' => 'VACANT',
+            'status_legacy' => 'VACANT',
         ]);
     }
 

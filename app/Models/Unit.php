@@ -33,6 +33,10 @@ class Unit extends Model
         'initial_water_meter_reading',
         'topology_id',
         'block_owner_tenant_id',
+        // Legacy columns (kept from original schema)
+        'status_legacy',
+        'deposit_required',
+        'type',
     ];
 
     protected $casts = [
