@@ -27,12 +27,11 @@
             top:35%; left:50%; transform:translate(-50%,-50%);
         "></div>
 
-        {{-- TOP: Logo --}}
+        {{-- TOP: Logo — transparent PNG shows fine on dark background --}}
         <div style="position:relative; z-index:10; padding:2.5rem; flex-shrink:0;">
             <img src="{{ asset('images/chabrin-logo.png') }}"
                  alt="Chabrin Agencies"
-                 style="height:48px; width:auto; filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));"
-                 onerror="this.style.display='none';">
+                 style="height:52px; width:auto; filter:drop-shadow(0 2px 8px rgba(0,0,0,.5)) brightness(1.15);">
             <p style="color:#DAA520; font-size:.65rem; letter-spacing:.18em; text-transform:uppercase; margin-top:.6rem; font-weight:600;">
                 Lease Management System
             </p>
@@ -100,12 +99,11 @@
         background:#fff; overflow-y:auto; padding:3rem 1.5rem;
     ">
 
-        {{-- Mobile logo --}}
+        {{-- Mobile logo — use the version WITH background so it's visible on white --}}
         <div class="chabrin-mobile-logo" style="margin-bottom:2rem; text-align:center;">
-            <img src="{{ asset('images/chabrin-logo.png') }}"
+            <img src="{{ asset('images/Chabrin-Logo-background.png') }}"
                  alt="Chabrin Agencies"
-                 style="height:40px; width:auto; margin:0 auto;"
-                 onerror="this.style.display='none';">
+                 style="height:48px; width:auto; margin:0 auto;">
         </div>
 
         <div style="width:100%; max-width:360px;">
@@ -173,6 +171,10 @@
 </div>
 
 <style>
+    /* Force light mode — clear any cached dark preference */
+    html.dark, html[class~="dark"] { color-scheme: light !important; }
+    html { color-scheme: light !important; }
+
     /* Pulse animation */
     @keyframes chabrin-pulse {
         0%, 100% { opacity: 1; }
@@ -186,8 +188,13 @@
         .chabrin-mobile-logo { display: none !important; }
     }
 
-    /* Force body background */
-    body.fi-body { background: #f8f7f4 !important; margin: 0 !important; padding: 0 !important; }
+    /* Force body to light */
+    body.fi-body {
+        background: #f8f7f4 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color-scheme: light !important;
+    }
 
     /* Strip ALL Filament simple-page wrapper constraints */
     .fi-simple-layout,
@@ -198,3 +205,9 @@
         display: contents !important;
     }
 </style>
+
+<script>
+    /* Remove dark mode from localStorage so the page renders light */
+    localStorage.setItem('theme', 'light');
+    document.documentElement.classList.remove('dark');
+</script>
