@@ -3,9 +3,10 @@
 ## Project Overview
 Enterprise lease management system for Chabrin Agencies. Manages property leases, tenants, landlords, units, document workflows, digital signing, and zone-based RBAC.
 
-**Production URL:** https://leases-docs.chabrinagencies.com
-**Server:** DigitalOcean droplet (deploy@chips-leases-app-01, /var/www/chips)
+**Production URL:** https://leases-docs.chabrinagencies.com (hosted on DigitalOcean)
+**Server:** DigitalOcean droplet — `deploy@chips-leases-app-01`, app at `/var/www/chips`
 **GitHub:** git@github.com:Stan-Mash/lease-management-system.git
+**Sync (laptop, work desktop, GitHub, server):** See [docs/SYNC_AND_DEPLOY.md](docs/SYNC_AND_DEPLOY.md)
 
 ## Tech Stack
 - **Framework:** Laravel 11 + PHP 8.2+

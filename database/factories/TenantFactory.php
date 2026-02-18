@@ -20,13 +20,13 @@ class TenantFactory extends Factory
     public function definition(): array
     {
         return [
-            'full_name' => $this->faker->name(),
-            'email' => $this->faker->unique()->safeEmail(),
-            'phone_number' => '0' . $this->faker->numerify('#########'),
-            'id_number' => $this->faker->numerify('########'),
+            'names' => $this->faker->name(),
+            'email_address' => $this->faker->unique()->safeEmail(),
+            'mobile_number' => '0' . $this->faker->numerify('#########'),
+            'national_id' => $this->faker->numerify('########'),
             'occupation' => $this->faker->jobTitle(),
             'employer_name' => $this->faker->company(),
-            'kra_pin' => $this->faker->numerify('########'),
+            'pin_number' => $this->faker->numerify('########'),
             'notification_preference' => 'SMS',
         ];
     }

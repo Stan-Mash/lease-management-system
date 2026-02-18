@@ -82,6 +82,44 @@ class Tenant extends Model
         return $this->names;
     }
 
+    /**
+     * Backward-compat: allow `phone_number` attribute to read/write `mobile_number`.
+     */
+    public function getPhoneNumberAttribute(): ?string
+    {
+        return $this->mobile_number ?? null;
+    }
+
+    public function setPhoneNumberAttribute($value): void
+    {
+        $this->attributes['mobile_number'] = $value;
+    }
+
+    public function getEmailAttribute(): ?string
+    {
+        return $this->email_address ?? null;
+    }
+
+    public function setEmailAttribute($value): void
+    {
+        $this->attributes['email_address'] = $value;
+    }
+
+    public function getIdNumberAttribute(): ?string
+    {
+        return $this->national_id ?? null;
+    }
+
+    public function setIdNumberAttribute($value): void
+    {
+        $this->attributes['national_id'] = $value;
+    }
+
+    public function setFullNameAttribute($value): void
+    {
+        $this->attributes['names'] = $value;
+    }
+
     public function routeNotificationForMail(): ?string
     {
         return $this->email_address;

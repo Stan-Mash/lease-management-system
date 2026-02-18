@@ -42,6 +42,17 @@ class Unit extends Model
         'initial_water_meter_reading' => 'decimal:2',
     ];
 
+    // Backward-compat: `market_rent` ↔ `rent_amount`
+    public function getMarketRentAttribute(): ?string
+    {
+        return $this->attributes['rent_amount'] ?? null;
+    }
+
+    public function setMarketRentAttribute($value): void
+    {
+        $this->attributes['rent_amount'] = $value;
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

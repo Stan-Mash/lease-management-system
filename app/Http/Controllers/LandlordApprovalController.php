@@ -216,6 +216,8 @@ class LandlordApprovalController extends Controller
     public function apiShow(Request $request, int $landlordId, int $leaseId)
     {
         try {
+            $this->verifyLandlordOwnership($landlordId);
+
             $lease = Lease::where('id', $leaseId)
                 ->where('landlord_id', $landlordId)
                 ->with(['tenant', 'guarantors', 'approvals'])
@@ -279,6 +281,8 @@ class LandlordApprovalController extends Controller
             'comments' => 'nullable|string|max:1000',
         ]);
 
+        $this->verifyLandlordOwnership($landlordId);
+
         try {
             $lease = Lease::where('id', $leaseId)
                 ->where('landlord_id', $landlordId)
@@ -317,6 +321,8 @@ class LandlordApprovalController extends Controller
             'rejection_reason' => 'required|string|max:255',
             'comments' => 'nullable|string|max:1000',
         ]);
+
+        $this->verifyLandlordOwnership($landlordId);
 
         try {
             $lease = Lease::where('id', $leaseId)
