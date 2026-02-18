@@ -4,11 +4,13 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Models\Zone;
+use Exception;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 
 class ZonePerformanceWidget extends BaseWidget
@@ -103,6 +105,17 @@ class ZonePerformanceWidget extends BaseWidget
     }
 
     protected function getTableQuery(): Builder
+    {
+        try {
+            return $this->buildTableQuery();
+        } catch (Exception $e) {
+            Log::warning('ZonePerformanceWidget failed', ['message' => $e->getMessage()]);
+
+            return Zone::query()->whereRaw('1 = 0');
+        }
+    }
+
+    protected function buildTableQuery(): Builder
     {
         $dateColumn = 'created_at';
 

@@ -10,6 +10,7 @@ use Filament\Pages\Page;
 use FilesystemIterator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -43,14 +44,29 @@ class SystemPulse extends Page
 
     public function getViewData(): array
     {
-        return [
-            'queueStats' => $this->getQueueStats(),
-            'failedJobs' => $this->getFailedJobs(),
-            'systemHealth' => $this->getSystemHealth(),
-            'recentActivity' => $this->getRecentActivity(),
-            'storageStats' => $this->getStorageStats(),
-            'databaseStats' => $this->getDatabaseStats(),
+        $empty = [
+            'queueStats' => ['queues' => [], 'totalPending' => 0, 'status' => 'healthy'],
+            'failedJobs' => ['jobs' => [], 'total' => 0, 'last24Hours' => 0, 'status' => 'healthy'],
+            'systemHealth' => ['checks' => [], 'overall' => 'healthy'],
+            'recentActivity' => ['batches' => [], 'throughput' => ['last5min' => 0, 'lastHour' => 0]],
+            'storageStats' => ['total' => '0 B', 'used' => '0 B', 'free' => '0 B', 'usedPercentage' => 0, 'documents' => '0 B', 'status' => 'healthy'],
+            'databaseStats' => ['tables' => [], 'totalRecords' => 0, 'databaseSize' => '0 B'],
         ];
+
+        try {
+            return [
+                'queueStats' => $this->getQueueStats(),
+                'failedJobs' => $this->getFailedJobs(),
+                'systemHealth' => $this->getSystemHealth(),
+                'recentActivity' => $this->getRecentActivity(),
+                'storageStats' => $this->getStorageStats(),
+                'databaseStats' => $this->getDatabaseStats(),
+            ];
+        } catch (Exception $e) {
+            Log::warning('SystemPulse getViewData failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return $empty;
+        }
     }
 
     public function retryFailedJob(string $uuid): void
