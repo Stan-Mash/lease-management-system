@@ -5,9 +5,11 @@ namespace App\Filament\Widgets;
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
 use App\Models\Unit;
+use Exception;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 
 class LeaseStatsWidget extends StatsOverviewWidget
@@ -33,6 +35,28 @@ class LeaseStatsWidget extends StatsOverviewWidget
     }
 
     protected function getStats(): array
+    {
+        try {
+            return $this->getStatsOrFail();
+        } catch (Exception $e) {
+            Log::warning('LeaseStatsWidget failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return $this->getEmptyStats();
+        }
+    }
+
+    protected function getEmptyStats(): array
+    {
+        return [
+            Stat::make('Active Leases', '—')->description('Unable to load'),
+            Stat::make('Total Revenue (Ksh)', '—')->description('Unable to load'),
+            Stat::make('Pending Leases', '—')->description('Unable to load'),
+            Stat::make('Expiring Soon', '—')->description('Unable to load'),
+            Stat::make('Occupancy', '—')->description('Unable to load'),
+        ];
+    }
+
+    protected function getStatsOrFail(): array
     {
         $cacheKey = 'lease_stats_widget:' . ($this->zoneId ?? 'all') . ':' . ($this->fieldOfficerId ?? 'all') . ':' . ($this->dateFilter ?? 'none') . ':' . ($this->startDate ?? '') . ':' . ($this->endDate ?? '');
 

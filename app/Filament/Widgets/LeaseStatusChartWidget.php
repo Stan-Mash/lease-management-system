@@ -4,8 +4,10 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
+use Exception;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 
 class LeaseStatusChartWidget extends ChartWidget
@@ -35,6 +37,20 @@ class LeaseStatusChartWidget extends ChartWidget
     }
 
     protected function getData(): array
+    {
+        try {
+            return $this->getChartData();
+        } catch (Exception $e) {
+            Log::warning('LeaseStatusChartWidget failed', ['message' => $e->getMessage()]);
+
+            return [
+                'datasets' => [['label' => 'Leases', 'data' => [0], 'backgroundColor' => ['#94a3b8']]],
+                'labels' => ['No data'],
+            ];
+        }
+    }
+
+    protected function getChartData(): array
     {
         // Get base query with filters
         $query = $this->getFilteredQuery();

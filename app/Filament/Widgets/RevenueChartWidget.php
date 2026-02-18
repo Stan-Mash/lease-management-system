@@ -4,8 +4,10 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
+use Exception;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 
 class RevenueChartWidget extends ChartWidget
@@ -36,20 +38,44 @@ class RevenueChartWidget extends ChartWidget
 
     protected function getData(): array
     {
+        try {
+            return $this->getChartData();
+        } catch (Exception $e) {
+            Log::warning('RevenueChartWidget failed', ['message' => $e->getMessage()]);
+
+            return [
+                'datasets' => [
+                    [
+                        'label' => 'Revenue (Ksh)',
+                        'data' => [0],
+                        'borderColor' => '#10b981',
+                        'backgroundColor' => 'rgba(16, 185, 129, 0.1)',
+                        'fill' => true,
+                        'tension' => 0.4,
+                    ],
+                ],
+                'labels' => ['No data'],
+            ];
+        }
+    }
+
+    protected function getChartData(): array
+    {
         // Get base query with filters
         $query = $this->getFilteredQuery();
 
         // Determine grouping based on date filter
         $groupBy = $this->getGroupingPeriod();
+        $periodExpr = $this->getDateSelectExpression($groupBy);
 
-        // Get revenue data grouped by period
+        // Get revenue data grouped by period (use raw expression for PostgreSQL GROUP BY)
         $revenueData = (clone $query)
             ->where('workflow_state', 'active')
             ->select(
-                DB::raw($this->getDateSelectExpression($groupBy) . ' as period'),
+                DB::raw($periodExpr . ' as period'),
                 DB::raw('SUM(monthly_rent) as total_revenue'),
             )
-            ->groupBy('period')
+            ->groupBy(DB::raw($periodExpr))
             ->orderBy('period')
             ->get();
 
