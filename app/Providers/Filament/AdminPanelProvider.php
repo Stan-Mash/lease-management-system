@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\CompanyDashboard;
 use App\Filament\Pages\FieldOfficerDashboard;
 use App\Filament\Pages\ZoneDashboard;
@@ -29,7 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)
             ->brandName('Chabrin Lease System')
             ->brandLogo(fn () => view('components.brand-logo'))
             ->darkModeBrandLogo(fn () => view('components.brand-logo'))
