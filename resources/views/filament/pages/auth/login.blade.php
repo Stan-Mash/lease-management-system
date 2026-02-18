@@ -1,7 +1,7 @@
-<div style="display:flex; min-height:100vh; background:#f8f7f4;">
+<div style="display:flex; min-height:100vh; background:#fff;">
 
     {{-- ═══════════════════════════════════════════════════════
-         LEFT PANEL — Chabrin brand panel (desktop only)
+         LEFT PANEL — Warm champagne / gold brand panel
     ═══════════════════════════════════════════════════════ --}}
     <div style="
         display:none;
@@ -9,51 +9,78 @@
         flex-direction:column;
         position:relative;
         overflow:hidden;
-        background:linear-gradient(160deg, #1a365d 0%, #0f2240 55%, #0a1628 100%);
+        background: linear-gradient(150deg, #fffdf5 0%, #fef9e7 45%, #fdf3c8 100%);
     " class="chabrin-left-panel">
 
-        {{-- Geometric gold grid --}}
+        {{-- Decorative gold arc top-right --}}
         <div style="
-            position:absolute; inset:0; pointer-events:none;
-            background-image:
-                repeating-linear-gradient(45deg,  rgba(218,165,32,.07) 0px, rgba(218,165,32,.07) 1px, transparent 1px, transparent 70px),
-                repeating-linear-gradient(-45deg, rgba(218,165,32,.07) 0px, rgba(218,165,32,.07) 1px, transparent 1px, transparent 70px);
+            position:absolute; top:-120px; right:-120px;
+            width:420px; height:420px; border-radius:50%; pointer-events:none;
+            background: radial-gradient(circle, rgba(218,165,32,0.18) 0%, transparent 70%);
         "></div>
 
-        {{-- Gold radial glow --}}
+        {{-- Decorative small arc bottom-left --}}
         <div style="
-            position:absolute; width:520px; height:520px; border-radius:50%; pointer-events:none;
-            background:radial-gradient(circle, rgba(218,165,32,.13) 0%, transparent 70%);
-            top:35%; left:50%; transform:translate(-50%,-50%);
+            position:absolute; bottom:-80px; left:-80px;
+            width:280px; height:280px; border-radius:50%; pointer-events:none;
+            background: radial-gradient(circle, rgba(218,165,32,0.12) 0%, transparent 70%);
         "></div>
 
-        {{-- TOP: Logo — transparent PNG shows fine on dark background --}}
-        <div style="position:relative; z-index:10; padding:2.5rem; flex-shrink:0;">
-            <img src="{{ asset('images/chabrin-logo.png') }}"
+        {{-- Fine dot-grid pattern --}}
+        <div style="
+            position:absolute; inset:0; pointer-events:none; opacity:0.4;
+            background-image: radial-gradient(circle, rgba(218,165,32,0.4) 1px, transparent 1px);
+            background-size: 28px 28px;
+        "></div>
+
+        {{-- TOP: Logo --}}
+        <div style="position:relative; z-index:10; padding:2.5rem 3rem; flex-shrink:0;">
+            <img src="{{ asset('images/Chabrin-Logo-background.png') }}"
                  alt="Chabrin Agencies"
-                 style="height:52px; width:auto; filter:drop-shadow(0 2px 8px rgba(0,0,0,.5)) brightness(1.15);">
-            <p style="color:#DAA520; font-size:.65rem; letter-spacing:.18em; text-transform:uppercase; margin-top:.6rem; font-weight:600;">
-                Lease Management System
-            </p>
+                 style="height:52px; width:auto;">
+            <div style="
+                margin-top:0.9rem;
+                display:inline-flex; align-items:center; gap:6px;
+                background:rgba(218,165,32,0.14); border:1px solid rgba(218,165,32,0.3);
+                border-radius:99px; padding:3px 10px;
+            ">
+                <span style="width:6px;height:6px;border-radius:50%;background:#DAA520;display:inline-block;"></span>
+                <span style="font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:#8a6a00;">
+                    Lease Management System
+                </span>
+            </div>
         </div>
 
         {{-- CENTRE: Brand content --}}
-        <div style="position:relative; z-index:10; flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 3.5rem 2rem;">
+        <div style="position:relative; z-index:10; flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 3rem 2rem;">
 
-            {{-- Gold rule --}}
-            <div style="height:3px; width:48px; border-radius:99px; background:linear-gradient(90deg,#DAA520,#f0c040); margin-bottom:1.5rem;"></div>
+            {{-- Gold accent line --}}
+            <div style="
+                display:flex; align-items:center; gap:10px; margin-bottom:1.6rem;
+            ">
+                <div style="height:3px; width:40px; border-radius:99px; background:linear-gradient(90deg,#DAA520,#f0c040);"></div>
+                <div style="height:1px; flex:1; background:linear-gradient(90deg,rgba(218,165,32,0.3),transparent);"></div>
+            </div>
 
-            <h1 style="font-size:2.5rem; font-weight:800; line-height:1.15; color:#fff; margin:0 0 1rem; letter-spacing:-.02em;">
+            <h1 style="
+                font-size:2.4rem; font-weight:800; line-height:1.18;
+                color:#1a1a1a; margin:0 0 0.9rem; letter-spacing:-.025em;
+                font-family:'Century Gothic','Gill Sans',Arial,sans-serif;
+            ">
                 Lease Management<br>
-                <span style="color:#DAA520;">Made Simple.</span>
+                <span style="
+                    background:linear-gradient(135deg,#b8860b,#DAA520,#f0c040);
+                    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                    background-clip:text;
+                ">Made Simple.</span>
             </h1>
 
-            <p style="color:#94a3b8; font-size:.95rem; line-height:1.7; max-width:300px; margin:0 0 2.5rem;">
+            <p style="color:#5a5a5a; font-size:.94rem; line-height:1.75; max-width:310px; margin:0 0 2.2rem;">
                 Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
             </p>
 
-            {{-- Feature bullets --}}
-            <div style="display:flex; flex-direction:column; gap:.75rem;">
+            {{-- Feature list --}}
+            <div style="display:flex; flex-direction:column; gap:.65rem;">
                 @foreach ([
                     ['icon' => '🏢', 'text' => 'Multi-zone property management'],
                     ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
@@ -62,11 +89,12 @@
                 ] as $f)
                 <div style="display:flex; align-items:center; gap:.75rem;">
                     <div style="
-                        flex-shrink:0; width:34px; height:34px; border-radius:8px;
-                        display:flex; align-items:center; justify-content:center; font-size:.85rem;
-                        background:rgba(218,165,32,.1); border:1px solid rgba(218,165,32,.22);
+                        flex-shrink:0; width:34px; height:34px; border-radius:9px;
+                        display:flex; align-items:center; justify-content:center; font-size:.9rem;
+                        background:#fff; border:1px solid rgba(218,165,32,0.35);
+                        box-shadow:0 2px 6px rgba(218,165,32,0.12);
                     ">{{ $f['icon'] }}</div>
-                    <span style="color:#cbd5e1; font-size:.88rem;">{{ $f['text'] }}</span>
+                    <span style="color:#444; font-size:.87rem; font-weight:500;">{{ $f['text'] }}</span>
                 </div>
                 @endforeach
             </div>
@@ -75,17 +103,18 @@
         {{-- BOTTOM: Footer --}}
         <div style="
             position:relative; z-index:10; flex-shrink:0;
-            padding:1.25rem 3.5rem;
-            border-top:1px solid rgba(218,165,32,.15);
+            padding:1.1rem 3rem;
+            border-top:1px solid rgba(218,165,32,0.2);
             display:flex; align-items:center; justify-content:space-between;
+            background:rgba(255,255,255,0.5);
         ">
-            <p style="color:#475569; font-size:.72rem; margin:0;">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
+            <p style="color:#999; font-size:.72rem; margin:0;">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
             <div style="display:flex; align-items:center; gap:.4rem;">
                 <span class="chabrin-pulse" style="
                     display:inline-block; width:7px; height:7px; border-radius:50%;
-                    background:#34d399;
+                    background:#22c55e;
                 "></span>
-                <span style="color:#475569; font-size:.72rem;">System Online</span>
+                <span style="color:#888; font-size:.72rem;">System Online</span>
             </div>
         </div>
     </div>
@@ -99,11 +128,11 @@
         background:#fff; overflow-y:auto; padding:3rem 1.5rem;
     ">
 
-        {{-- Mobile logo — use the version WITH background so it's visible on white --}}
+        {{-- Mobile logo --}}
         <div class="chabrin-mobile-logo" style="margin-bottom:2rem; text-align:center;">
             <img src="{{ asset('images/Chabrin-Logo-background.png') }}"
                  alt="Chabrin Agencies"
-                 style="height:48px; width:auto; margin:0 auto;">
+                 style="height:44px; width:auto; margin:0 auto;">
         </div>
 
         <div style="width:100%; max-width:360px;">
@@ -113,19 +142,23 @@
                 <span style="
                     display:inline-flex; align-items:center; gap:.4rem;
                     border-radius:99px; padding:.3rem .85rem;
-                    font-size:.72rem; font-weight:600;
-                    background:rgba(218,165,32,.08); color:#a07818;
-                    border:1px solid rgba(218,165,32,.22);
-                    margin-bottom:.85rem;
+                    font-size:.72rem; font-weight:700; letter-spacing:.05em;
+                    background:rgba(218,165,32,0.09); color:#8a6a00;
+                    border:1px solid rgba(218,165,32,0.25);
+                    margin-bottom:.9rem;
                 ">
                     <span style="width:6px;height:6px;border-radius:50%;background:#DAA520;flex-shrink:0;"></span>
                     Secure Access Portal
                 </span>
 
-                <h2 style="font-size:1.65rem; font-weight:800; color:#0f172a; margin:0 0 .35rem; letter-spacing:-.02em;">
+                <h2 style="
+                    font-size:1.7rem; font-weight:800; color:#1a1a1a;
+                    margin:0 0 .35rem; letter-spacing:-.025em;
+                    font-family:'Century Gothic','Gill Sans',Arial,sans-serif;
+                ">
                     Welcome back
                 </h2>
-                <p style="font-size:.875rem; color:#64748b; margin:0;">
+                <p style="font-size:.875rem; color:#888; margin:0; line-height:1.5;">
                     Sign in to your Chabrin account to continue
                 </p>
             </div>
@@ -133,8 +166,8 @@
             {{-- Login card --}}
             <div style="
                 border-radius:16px; background:#fff;
-                box-shadow:0 1px 3px rgba(0,0,0,.07), 0 8px 32px rgba(0,0,0,.07);
-                border:1px solid rgba(0,0,0,.06);
+                box-shadow:0 2px 4px rgba(0,0,0,0.04), 0 12px 40px rgba(218,165,32,0.1);
+                border:1px solid rgba(218,165,32,0.2);
                 border-top:3px solid #DAA520;
                 overflow:hidden;
             ">
@@ -147,7 +180,7 @@
             <div style="
                 margin-top:1.75rem;
                 display:flex; align-items:center; justify-content:center; gap:.75rem;
-                font-size:.72rem; color:#94a3b8;
+                font-size:.72rem; color:#aaa;
             ">
                 <span style="display:flex; align-items:center; gap:.3rem;">
                     <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,13 +189,13 @@
                     </svg>
                     SSL Secured
                 </span>
-                <span style="width:1px;height:12px;background:#e2e8f0;"></span>
+                <span style="width:1px;height:12px;background:#e5e7eb;"></span>
                 <span>Chabrin Agencies Ltd</span>
-                <span style="width:1px;height:12px;background:#e2e8f0;"></span>
+                <span style="width:1px;height:12px;background:#e5e7eb;"></span>
                 <span>{{ date('Y') }}</span>
             </div>
 
-            <p class="chabrin-mobile-logo" style="margin-top:1.25rem; text-align:center; font-size:.72rem; color:#94a3b8;">
+            <p class="chabrin-mobile-logo" style="margin-top:1.25rem; text-align:center; font-size:.72rem; color:#aaa;">
                 &copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.
             </p>
         </div>
@@ -171,43 +204,38 @@
 </div>
 
 <style>
-    /* Force light mode — clear any cached dark preference */
+    /* Force light mode */
     html.dark, html[class~="dark"] { color-scheme: light !important; }
     html { color-scheme: light !important; }
 
     /* Pulse animation */
     @keyframes chabrin-pulse {
         0%, 100% { opacity: 1; }
-        50%       { opacity: 0.3; }
+        50%       { opacity: 0.25; }
     }
-    .chabrin-pulse { animation: chabrin-pulse 2s ease-in-out infinite; }
+    .chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
 
-    /* Show left panel only on desktop */
+    /* Show left panel on desktop only */
     @media (min-width: 1024px) {
         .chabrin-left-panel  { display: flex !important; }
         .chabrin-mobile-logo { display: none !important; }
     }
 
-    /* Force body to light */
     body.fi-body {
-        background: #f8f7f4 !important;
-        margin: 0 !important;
-        padding: 0 !important;
+        background: #fff !important;
+        margin: 0 !important; padding: 0 !important;
         color-scheme: light !important;
     }
 
-    /* Strip ALL Filament simple-page wrapper constraints */
-    .fi-simple-layout,
-    .fi-simple-main-ctn,
-    .fi-simple-main,
-    .fi-simple-page {
+    /* Strip Filament wrapper constraints */
+    .fi-simple-layout, .fi-simple-main-ctn,
+    .fi-simple-main, .fi-simple-page {
         all: unset !important;
         display: contents !important;
     }
 </style>
 
 <script>
-    /* Remove dark mode from localStorage so the page renders light */
     localStorage.setItem('theme', 'light');
     document.documentElement.classList.remove('dark');
 </script>
