@@ -1,151 +1,200 @@
-<x-filament-panels::layout.base :livewire="$this">
-<div class="min-h-screen flex" style="background: #f8f7f4;">
+<div style="display:flex; min-height:100vh; background:#f8f7f4;">
 
-    {{-- LEFT PANEL — Chabrin brand panel (desktop only) --}}
-    <div class="hidden lg:flex lg:w-[52%] flex-col relative overflow-hidden"
-         style="background: linear-gradient(160deg, #1a365d 0%, #0f2240 55%, #0a1628 100%);">
+    {{-- ═══════════════════════════════════════════════════════
+         LEFT PANEL — Chabrin brand panel (desktop only)
+    ═══════════════════════════════════════════════════════ --}}
+    <div style="
+        display:none;
+        width:52%;
+        flex-direction:column;
+        position:relative;
+        overflow:hidden;
+        background:linear-gradient(160deg, #1a365d 0%, #0f2240 55%, #0a1628 100%);
+    " class="chabrin-left-panel">
 
-        {{-- Subtle geometric grid --}}
-        <div class="absolute inset-0"
-             style="background-image:
-                 repeating-linear-gradient(45deg, rgba(218,165,32,0.06) 0px, rgba(218,165,32,0.06) 1px, transparent 1px, transparent 70px),
-                 repeating-linear-gradient(-45deg, rgba(218,165,32,0.06) 0px, rgba(218,165,32,0.06) 1px, transparent 1px, transparent 70px);
-             ">
-        </div>
+        {{-- Geometric gold grid --}}
+        <div style="
+            position:absolute; inset:0; pointer-events:none;
+            background-image:
+                repeating-linear-gradient(45deg,  rgba(218,165,32,.07) 0px, rgba(218,165,32,.07) 1px, transparent 1px, transparent 70px),
+                repeating-linear-gradient(-45deg, rgba(218,165,32,.07) 0px, rgba(218,165,32,.07) 1px, transparent 1px, transparent 70px);
+        "></div>
 
         {{-- Gold radial glow --}}
-        <div class="absolute w-[500px] h-[500px] rounded-full"
-             style="background: radial-gradient(circle, rgba(218,165,32,0.12) 0%, transparent 70%);
-                    top: 30%; left: 50%; transform: translate(-50%, -50%);">
-        </div>
+        <div style="
+            position:absolute; width:520px; height:520px; border-radius:50%; pointer-events:none;
+            background:radial-gradient(circle, rgba(218,165,32,.13) 0%, transparent 70%);
+            top:35%; left:50%; transform:translate(-50%,-50%);
+        "></div>
 
-        {{-- Top: Logo --}}
-        <div class="relative z-10 p-10 flex-shrink-0">
+        {{-- TOP: Logo --}}
+        <div style="position:relative; z-index:10; padding:2.5rem; flex-shrink:0;">
             <img src="{{ asset('images/chabrin-logo.png') }}"
                  alt="Chabrin Agencies"
-                 class="h-12 w-auto drop-shadow-lg"
-                 onerror="this.src='{{ asset('images/Chabrin-Logo-background.png') }}'">
+                 style="height:48px; width:auto; filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));"
+                 onerror="this.style.display='none';">
+            <p style="color:#DAA520; font-size:.65rem; letter-spacing:.18em; text-transform:uppercase; margin-top:.6rem; font-weight:600;">
+                Lease Management System
+            </p>
         </div>
 
-        {{-- Centre: Brand content --}}
-        <div class="relative z-10 flex-1 flex flex-col justify-center px-14 pb-8">
-            <div class="mb-5 h-[3px] w-12 rounded-full" style="background: linear-gradient(90deg, #DAA520, #f0c040);"></div>
+        {{-- CENTRE: Brand content --}}
+        <div style="position:relative; z-index:10; flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 3.5rem 2rem;">
 
-            <h1 class="text-[2.6rem] font-bold leading-tight text-white mb-4 tracking-tight">
+            {{-- Gold rule --}}
+            <div style="height:3px; width:48px; border-radius:99px; background:linear-gradient(90deg,#DAA520,#f0c040); margin-bottom:1.5rem;"></div>
+
+            <h1 style="font-size:2.5rem; font-weight:800; line-height:1.15; color:#fff; margin:0 0 1rem; letter-spacing:-.02em;">
                 Lease Management<br>
-                <span style="color: #DAA520;">Made Simple.</span>
+                <span style="color:#DAA520;">Made Simple.</span>
             </h1>
 
-            <p class="text-slate-300 text-base leading-relaxed max-w-xs mb-10">
+            <p style="color:#94a3b8; font-size:.95rem; line-height:1.7; max-width:300px; margin:0 0 2.5rem;">
                 Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
             </p>
 
-            {{-- Feature list --}}
-            <div class="space-y-3">
+            {{-- Feature bullets --}}
+            <div style="display:flex; flex-direction:column; gap:.75rem;">
                 @foreach ([
                     ['icon' => '🏢', 'text' => 'Multi-zone property management'],
                     ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
                     ['icon' => '📄', 'text' => 'Automated lease document generation'],
                     ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
-                ] as $feature)
-                <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm"
-                         style="background: rgba(218,165,32,0.12); border: 1px solid rgba(218,165,32,0.25);">
-                        {{ $feature['icon'] }}
-                    </div>
-                    <span class="text-slate-300 text-sm">{{ $feature['text'] }}</span>
+                ] as $f)
+                <div style="display:flex; align-items:center; gap:.75rem;">
+                    <div style="
+                        flex-shrink:0; width:34px; height:34px; border-radius:8px;
+                        display:flex; align-items:center; justify-content:center; font-size:.85rem;
+                        background:rgba(218,165,32,.1); border:1px solid rgba(218,165,32,.22);
+                    ">{{ $f['icon'] }}</div>
+                    <span style="color:#cbd5e1; font-size:.88rem;">{{ $f['text'] }}</span>
                 </div>
                 @endforeach
             </div>
         </div>
 
-        {{-- Bottom footer --}}
-        <div class="relative z-10 flex-shrink-0 px-14 py-6"
-             style="border-top: 1px solid rgba(218,165,32,0.15);">
-            <div class="flex items-center justify-between">
-                <p class="text-slate-500 text-xs">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
-                <div class="flex items-center gap-1.5">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 chabrin-pulse"></span>
-                    <span class="text-slate-500 text-xs">System Online</span>
-                </div>
+        {{-- BOTTOM: Footer --}}
+        <div style="
+            position:relative; z-index:10; flex-shrink:0;
+            padding:1.25rem 3.5rem;
+            border-top:1px solid rgba(218,165,32,.15);
+            display:flex; align-items:center; justify-content:space-between;
+        ">
+            <p style="color:#475569; font-size:.72rem; margin:0;">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
+            <div style="display:flex; align-items:center; gap:.4rem;">
+                <span class="chabrin-pulse" style="
+                    display:inline-block; width:7px; height:7px; border-radius:50%;
+                    background:#34d399;
+                "></span>
+                <span style="color:#475569; font-size:.72rem;">System Online</span>
             </div>
         </div>
     </div>
 
-    {{-- RIGHT PANEL — Login form --}}
-    <div class="flex w-full lg:w-[48%] flex-col items-center justify-center bg-white overflow-y-auto px-6 py-12">
+    {{-- ═══════════════════════════════════════════════════════
+         RIGHT PANEL — Login form
+    ═══════════════════════════════════════════════════════ --}}
+    <div style="
+        flex:1;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        background:#fff; overflow-y:auto; padding:3rem 1.5rem;
+    ">
 
         {{-- Mobile logo --}}
-        <div class="lg:hidden mb-8 text-center">
+        <div class="chabrin-mobile-logo" style="margin-bottom:2rem; text-align:center;">
             <img src="{{ asset('images/chabrin-logo.png') }}"
                  alt="Chabrin Agencies"
-                 class="h-10 w-auto mx-auto"
-                 onerror="this.src='{{ asset('images/Chabrin-Logo-background.png') }}'">
+                 style="height:40px; width:auto; margin:0 auto;"
+                 onerror="this.style.display='none';">
         </div>
 
-        <div class="w-full max-w-sm">
+        <div style="width:100%; max-width:360px;">
 
-            {{-- Heading --}}
-            <div class="mb-7">
-                <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium mb-3"
-                      style="background: rgba(218,165,32,0.08); color: #a07818; border: 1px solid rgba(218,165,32,0.2);">
-                    <span class="h-1.5 w-1.5 rounded-full" style="background:#DAA520;"></span>
+            {{-- Badge + heading --}}
+            <div style="margin-bottom:1.75rem;">
+                <span style="
+                    display:inline-flex; align-items:center; gap:.4rem;
+                    border-radius:99px; padding:.3rem .85rem;
+                    font-size:.72rem; font-weight:600;
+                    background:rgba(218,165,32,.08); color:#a07818;
+                    border:1px solid rgba(218,165,32,.22);
+                    margin-bottom:.85rem;
+                ">
+                    <span style="width:6px;height:6px;border-radius:50%;background:#DAA520;flex-shrink:0;"></span>
                     Secure Access Portal
                 </span>
-                <h2 class="text-2xl font-bold text-slate-800">Welcome back</h2>
-                <p class="mt-1 text-sm text-slate-500">Sign in to your Chabrin account to continue</p>
+
+                <h2 style="font-size:1.65rem; font-weight:800; color:#0f172a; margin:0 0 .35rem; letter-spacing:-.02em;">
+                    Welcome back
+                </h2>
+                <p style="font-size:.875rem; color:#64748b; margin:0;">
+                    Sign in to your Chabrin account to continue
+                </p>
             </div>
 
-            {{-- Card with gold top accent --}}
-            <div class="rounded-2xl bg-white"
-                 style="box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.06);
-                        border: 1px solid rgba(0,0,0,0.06);
-                        border-top: 3px solid #DAA520;">
-                <div class="p-7">
-                    {{-- Filament renders the form via $this->content --}}
+            {{-- Login card --}}
+            <div style="
+                border-radius:16px; background:#fff;
+                box-shadow:0 1px 3px rgba(0,0,0,.07), 0 8px 32px rgba(0,0,0,.07);
+                border:1px solid rgba(0,0,0,.06);
+                border-top:3px solid #DAA520;
+                overflow:hidden;
+            ">
+                <div style="padding:1.75rem;">
                     {{ $this->content }}
                 </div>
             </div>
 
-            {{-- Bottom meta --}}
-            <div class="mt-7 flex items-center justify-center gap-3 text-xs text-slate-400">
-                <span class="flex items-center gap-1">
-                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {{-- Footer meta --}}
+            <div style="
+                margin-top:1.75rem;
+                display:flex; align-items:center; justify-content:center; gap:.75rem;
+                font-size:.72rem; color:#94a3b8;
+            ">
+                <span style="display:flex; align-items:center; gap:.3rem;">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                     </svg>
                     SSL Secured
                 </span>
-                <span class="h-3 w-px bg-slate-200"></span>
+                <span style="width:1px;height:12px;background:#e2e8f0;"></span>
                 <span>Chabrin Agencies Ltd</span>
-                <span class="h-3 w-px bg-slate-200"></span>
+                <span style="width:1px;height:12px;background:#e2e8f0;"></span>
                 <span>{{ date('Y') }}</span>
             </div>
 
-            <p class="lg:hidden mt-5 text-center text-xs text-slate-400">
+            <p class="chabrin-mobile-logo" style="margin-top:1.25rem; text-align:center; font-size:.72rem; color:#94a3b8;">
                 &copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.
             </p>
         </div>
     </div>
+
 </div>
 
 <style>
+    /* Pulse animation */
     @keyframes chabrin-pulse {
         0%, 100% { opacity: 1; }
-        50% { opacity: 0.35; }
+        50%       { opacity: 0.3; }
     }
     .chabrin-pulse { animation: chabrin-pulse 2s ease-in-out infinite; }
 
-    /* Override Filament simple-page centering so our layout takes full control */
+    /* Show left panel only on desktop */
+    @media (min-width: 1024px) {
+        .chabrin-left-panel  { display: flex !important; }
+        .chabrin-mobile-logo { display: none !important; }
+    }
+
+    /* Force body background */
+    body.fi-body { background: #f8f7f4 !important; margin: 0 !important; padding: 0 !important; }
+
+    /* Strip ALL Filament simple-page wrapper constraints */
     .fi-simple-layout,
     .fi-simple-main-ctn,
     .fi-simple-main,
     .fi-simple-page {
+        all: unset !important;
         display: contents !important;
-        width: 100% !important;
-        max-width: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
     }
 </style>
-</x-filament-panels::layout.base>
