@@ -68,7 +68,7 @@ class AdminPanelProvider extends PanelProvider
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
             ])
-            ->font('Inter')
+            ->font('DM Sans')
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('16rem')
             ->collapsedSidebarWidth('4.5rem')
