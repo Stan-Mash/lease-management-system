@@ -62,9 +62,10 @@ composer run dev                     # Full dev environment
 ```
 
 ## Deployment
-- Server: deploy@chips-leases-app-01:/var/www/chips
-- SSH key deployed for GitHub access
-- Deploy: ssh into server, git pull origin main, php artisan optimize:clear
+- Server IP: `161.35.74.238`, user: `deploy`, app: `/var/www/chips`
+- SSH: `ssh deploy@161.35.74.238` (password auth)
+- Deploy command: `cd /var/www/chips && git pull origin main && php artisan optimize:clear`
+- If server has local changes blocking pull: `git stash` first, then pull
 - Remote uses SSH URL: git@github.com:Stan-Mash/lease-management-system.git
 
 ## Machine Identification
