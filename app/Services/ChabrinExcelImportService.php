@@ -671,10 +671,11 @@ class ChabrinExcelImportService
                         $role = $this->service->mapPositionToRolePublic($position);
 
                         if (! $this->service->isDryRun()) {
+                            $defaultPassword = config('import.staff_default_password');
                             User::create([
                                 'name' => $fullName,
                                 'email' => $email,
-                                'password' => Hash::make('password123'),
+                                'password' => Hash::make($defaultPassword ?? Str::random(32)),
                                 'role' => $role,
                                 'phone' => $this->service->formatPhonePublic($mobile),
                                 'department' => $dept,

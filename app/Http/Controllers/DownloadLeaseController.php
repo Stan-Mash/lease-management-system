@@ -33,6 +33,8 @@ class DownloadLeaseController extends Controller
      */
     public function __invoke(Lease $lease): SymfonyResponse
     {
+        $this->authorize('view', $lease);
+
         return $this->generate($lease, 'download');
     }
 
@@ -41,6 +43,8 @@ class DownloadLeaseController extends Controller
      */
     public function preview(Lease $lease): SymfonyResponse
     {
+        $this->authorize('view', $lease);
+
         return $this->generate($lease, 'stream');
     }
 
