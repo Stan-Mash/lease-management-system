@@ -11,6 +11,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -30,7 +31,7 @@ class LawyerResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Section::make('Lawyer Information')
+                Section::make('Lawyer Information')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
