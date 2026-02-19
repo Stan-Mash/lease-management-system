@@ -40,7 +40,7 @@ class LeaseForm
 
                         // chabrin_issued
                         return [
-                            'residential_macro' => 'Residential (Macro)',
+                            'residential_major' => 'Residential (Major)',
                             'residential_micro' => 'Residential (Micro)',
                             'commercial' => 'Commercial',
                         ];
@@ -87,8 +87,10 @@ class LeaseForm
 
                 // --- Property & Tenant ---
                 Forms\Components\Select::make('tenant_id')
+                    ->label('Tenant')
                     ->relationship('tenant', 'names')
-                    ->searchable()
+                    ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->names} — {$record->mobile_number}")
+                    ->searchable(['names', 'mobile_number', 'national_id'])
                     ->preload()
                     ->required(),
 
