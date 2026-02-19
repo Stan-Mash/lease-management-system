@@ -25,110 +25,119 @@ class ViewLease extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+
+            // ── EDIT (draft / received only) ────────────────────────────────
             EditAction::make()
+                ->label('Edit Lease')
+                ->icon('heroicon-o-pencil-square')
+                ->color('gray')
                 ->visible(fn () => in_array($this->record->workflow_state, ['draft', 'received'])),
 
-            // Request Landlord Approval
+            // ── STEP 1: REQUEST LANDLORD APPROVAL ───────────────────────────
             Action::make('requestApproval')
-                ->label('Request Approval')
+                ->label('Send for Landlord Approval')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'draft' &&
-                    ! $this->record->hasPendingApproval() &&
-                    $this->record->client_id,
+                    fn () => $this->record->workflow_state === 'draft'
+                        && ! $this->record->hasPendingApproval()
+                        && $this->record->client_id,
                 )
                 ->requiresConfirmation()
-                ->modalHeading('Request Landlord Approval')
-                ->modalDescription('Send this lease to the landlord for review and approval.')
-                ->modalSubmitActionLabel('Send Request')
+                ->modalHeading('Send for Landlord Approval')
+                ->modalDescription(
+                    fn () => 'This will notify the landlord ('
+                        . ($this->record->landlord?->names ?? 'Landlord')
+                        . ') to review and approve the lease for '
+                        . ($this->record->tenant?->names ?? 'tenant')
+                        . '. An SMS and email will be sent to them.',
+                )
+                ->modalSubmitActionLabel('Yes, Send for Approval')
                 ->action(function () {
                     $result = LandlordApprovalService::requestApproval($this->record, 'email');
-
                     if ($result['success']) {
-                        Notification::make()
-                            ->success()
-                            ->title('Approval Requested')
-                            ->body('The landlord has been notified via email.')
+                        Notification::make()->success()
+                            ->title('Approval Request Sent')
+                            ->body('The landlord has been notified and is waiting to approve.')
                             ->send();
+                        $this->refreshFormData(['workflow_state']);
                     } else {
-                        Notification::make()
-                            ->danger()
-                            ->title('Request Failed')
+                        Notification::make()->danger()
+                            ->title('Could Not Send Request')
                             ->body($result['message'])
                             ->send();
                     }
                 }),
 
-            // Approve Lease (Landlord/Admin)
+            // ── STEP 1b: APPROVE LEASE (admin on behalf of landlord) ────────
             Action::make('approveLease')
                 ->label('Approve Lease')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'pending_landlord_approval' ||
-                    ($this->record->workflow_state === 'draft' && ! $this->record->hasPendingApproval()),
+                    fn () => in_array($this->record->workflow_state, ['pending_landlord_approval', 'draft'])
+                        && ! ($this->record->workflow_state === 'draft' && $this->record->hasPendingApproval()),
                 )
                 /** @phpstan-ignore-next-line */
                 ->schema([
                     Textarea::make('comments')
                         ->label('Approval Comments (Optional)')
-                        ->placeholder('Add any comments about this approval...')
+                        ->placeholder('Add any notes about this approval...')
                         ->rows(3)
                         ->maxLength(1000),
                 ])
-                ->modalHeading('Approve Lease')
-                ->modalDescription('Approve this lease agreement to proceed with tenant signing.')
-                ->modalSubmitActionLabel('Approve')
+                ->modalHeading('Approve This Lease')
+                ->modalDescription(
+                    fn () => 'Approving on behalf of the landlord ('
+                        . ($this->record->landlord?->names ?? 'Landlord')
+                        . '). Once approved, you can send the digital signing link to '
+                        . ($this->record->tenant?->names ?? 'the tenant')
+                        . ' (' . ($this->record->tenant?->mobile_number ?? '—') . ').',
+                )
+                ->modalSubmitActionLabel('Approve Lease')
                 ->action(function (array $data) {
                     $result = LandlordApprovalService::approveLease(
                         $this->record,
                         $data['comments'] ?? null,
                         'email',
                     );
-
                     if ($result['success']) {
-                        Notification::make()
-                            ->success()
-                            ->title('Lease Approved')
-                            ->body('The tenant has been notified via email.')
+                        Notification::make()->success()
+                            ->title('Lease Approved ✅')
+                            ->body('Next: Click "Send Signing Link to Tenant" to notify the tenant via SMS.')
+                            ->persistent()
                             ->send();
-
                         $this->refreshFormData(['workflow_state']);
                     } else {
-                        Notification::make()
-                            ->danger()
+                        Notification::make()->danger()
                             ->title('Approval Failed')
                             ->body($result['message'])
                             ->send();
                     }
                 }),
 
-            // Reject Lease (Landlord/Admin)
+            // ── STEP 1c: REJECT LEASE ────────────────────────────────────────
             Action::make('rejectLease')
                 ->label('Reject Lease')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(
-                    fn () => $this->record->workflow_state === 'pending_landlord_approval' ||
-                    ($this->record->workflow_state === 'draft' && ! $this->record->hasPendingApproval()),
-                )
+                ->visible(fn () => $this->record->workflow_state === 'pending_landlord_approval')
                 /** @phpstan-ignore-next-line */
                 ->schema([
                     TextInput::make('rejection_reason')
                         ->label('Reason for Rejection')
-                        ->placeholder('e.g., Rent amount too high')
+                        ->placeholder('e.g., Rent amount too high, wrong dates...')
                         ->required()
                         ->maxLength(255),
                     Textarea::make('comments')
                         ->label('Additional Comments (Optional)')
-                        ->placeholder('Provide details about required changes...')
+                        ->placeholder('Explain what needs to be changed...')
                         ->rows(3)
                         ->maxLength(1000),
                 ])
-                ->modalHeading('Reject Lease')
-                ->modalDescription('Reject this lease and provide feedback for revision.')
-                ->modalSubmitActionLabel('Reject')
+                ->modalHeading('Reject This Lease')
+                ->modalDescription('The landlord is rejecting this lease. A reason is required. The tenant will be notified.')
+                ->modalSubmitActionLabel('Reject Lease')
                 ->action(function (array $data) {
                     $result = LandlordApprovalService::rejectLease(
                         $this->record,
@@ -136,55 +145,124 @@ class ViewLease extends ViewRecord
                         $data['comments'] ?? null,
                         'email',
                     );
-
                     if ($result['success']) {
-                        Notification::make()
-                            ->warning()
+                        Notification::make()->warning()
                             ->title('Lease Rejected')
-                            ->body('The tenant has been notified to revise the lease.')
+                            ->body('The tenant has been notified. Edit the lease and re-submit for approval.')
                             ->send();
-
                         $this->refreshFormData(['workflow_state']);
                     } else {
-                        Notification::make()
-                            ->danger()
+                        Notification::make()->danger()
                             ->title('Rejection Failed')
                             ->body($result['message'])
                             ->send();
                     }
                 }),
 
-            // Resolve Dispute Action (visible only when lease is in DISPUTED state)
+            // ── RESOLVE / CANCEL DISPUTE ─────────────────────────────────────
             ResolveDisputeAction::make(),
-
-            // Cancel Disputed Lease Action
             CancelDisputedLeaseAction::make(),
 
+            // ── STEP 2: SEND DIGITAL SIGNING LINK (first send) ──────────────
             Action::make('sendDigital')
-                ->label('Send Digital Link')
-                ->icon('heroicon-o-paper-airplane')
+                ->label('Send Signing Link to Tenant')
+                ->icon('heroicon-o-device-phone-mobile')
                 ->color('info')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'approved' &&
-                    $this->record->signing_mode === 'digital',
+                    fn () => $this->record->workflow_state === 'approved'
+                        && $this->record->signing_mode === 'digital',
                 )
                 ->requiresConfirmation()
-                ->action(fn () => $this->record->sendDigitalSigningLink()),
+                ->modalHeading('Send SMS Signing Link to Tenant')
+                ->modalDescription(
+                    fn () => '📱 An SMS will be sent to '
+                        . ($this->record->tenant?->names ?? 'the tenant')
+                        . ' at ' . ($this->record->tenant?->mobile_number ?? '— no phone —')
+                        . ".\n\nThe tenant will:"
+                        . "\n 1. Receive an SMS with a secure link (valid 72 hours)"
+                        . "\n 2. Open the link and request a 6-digit OTP code"
+                        . "\n 3. Verify the OTP and read the full lease"
+                        . "\n 4. Draw their digital signature"
+                        . "\n\nSMS language: "
+                        . ($this->record->tenant?->preferred_language === 'sw' ? '🇰🇪 Kiswahili' : '🇬🇧 English'),
+                )
+                ->modalSubmitActionLabel('📱 Send SMS Now')
+                ->action(function () {
+                    try {
+                        $this->record->sendDigitalSigningLink();
+                        Notification::make()->success()
+                            ->title('SMS Sent! 📱')
+                            ->body(
+                                'Signing link sent to '
+                                . ($this->record->tenant?->mobile_number ?? 'tenant')
+                                . '. Status is now "Signing Link Sent". '
+                                . 'The tenant will receive an OTP when they open the link.',
+                            )
+                            ->persistent()
+                            ->send();
+                        $this->refreshFormData(['workflow_state']);
+                    } catch (Exception $e) {
+                        Notification::make()->danger()
+                            ->title('SMS Failed to Send')
+                            ->body('Error: ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
 
+            // ── RESEND SIGNING LINK ──────────────────────────────────────────
+            Action::make('resendSigningLink')
+                ->label('Resend Signing Link')
+                ->icon('heroicon-o-arrow-path')
+                ->color('warning')
+                ->visible(
+                    fn () => in_array($this->record->workflow_state, [
+                        'sent_digital', 'pending_otp', 'pending_tenant_signature',
+                    ]) && $this->record->signing_mode === 'digital',
+                )
+                ->requiresConfirmation()
+                ->modalHeading('Resend Signing Link')
+                ->modalDescription(
+                    fn () => 'A new SMS will be sent to '
+                        . ($this->record->tenant?->names ?? 'the tenant')
+                        . ' at ' . ($this->record->tenant?->mobile_number ?? '—')
+                        . '. Use this if the tenant says they didn\'t receive the link, or the link has expired.',
+                )
+                ->modalSubmitActionLabel('Resend SMS')
+                ->action(function () {
+                    try {
+                        $this->record->sendDigitalSigningLink();
+                        Notification::make()->success()
+                            ->title('Signing Link Resent')
+                            ->body('New SMS sent to ' . ($this->record->tenant?->mobile_number ?? 'tenant') . '.')
+                            ->send();
+                    } catch (Exception $e) {
+                        Notification::make()->danger()
+                            ->title('Failed to Resend')
+                            ->body('Error: ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
+
+            // ── PHYSICAL SIGNING: PRINT ──────────────────────────────────────
             Action::make('print')
                 ->label('Print Lease')
                 ->icon('heroicon-o-printer')
                 ->color('gray')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'approved' &&
-                    $this->record->signing_mode === 'physical',
+                    fn () => $this->record->workflow_state === 'approved'
+                        && $this->record->signing_mode === 'physical',
                 )
+                ->requiresConfirmation()
+                ->modalHeading('Print Physical Lease')
+                ->modalDescription('This will mark the lease as printed and log the print job.')
+                ->modalSubmitActionLabel('Print Now')
                 ->action(fn () => $this->record->markAsPrinted()),
 
+            // ── PREVIEW / DOWNLOAD PDF ───────────────────────────────────────
             Action::make('previewPdf')
                 ->label('Preview PDF')
                 ->icon('heroicon-o-eye')
-                ->color('info')
+                ->color('gray')
                 ->url(fn () => route('lease.preview', $this->record))
                 ->openUrlInNewTab(),
 
@@ -195,43 +273,46 @@ class ViewLease extends ViewRecord
                 ->url(fn () => route('lease.download', $this->record))
                 ->openUrlInNewTab(),
 
-            // Send lease via email to tenant
+            // ── EMAIL TO TENANT ──────────────────────────────────────────────
             Action::make('sendViaEmail')
-                ->label('Send via Email')
+                ->label('Email to Tenant')
                 ->icon('heroicon-o-envelope')
-                ->color('info')
-                ->visible(fn () => $this->record->tenant?->email_address && auth()->user()?->canManageLeases())
-                ->form([
+                ->color('gray')
+                ->visible(
+                    fn () => $this->record->tenant?->email_address
+                        && auth()->user()?->canManageLeases(),
+                )
+                /** @phpstan-ignore-next-line */
+                ->schema([
                     Textarea::make('custom_message')
                         ->label('Custom Message (optional)')
                         ->placeholder('Add a personal message to the tenant...')
                         ->rows(3),
-                    \Filament\Forms\Components\Toggle::make('attach_pdf')
+                    Toggle::make('attach_pdf')
                         ->label('Attach Lease PDF')
                         ->default(true),
                 ])
-                ->requiresConfirmation()
-                ->modalHeading('Send Lease via Email')
-                ->modalDescription(fn () => 'This will send an email to ' . ($this->record->tenant?->names ?? 'the tenant') . ' at ' . ($this->record->tenant?->email_address ?? 'N/A') . '.')
+                ->modalHeading('Email Lease to Tenant')
+                ->modalDescription(
+                    fn () => 'Will send to: '
+                        . ($this->record->tenant?->names ?? 'Tenant')
+                        . ' — ' . ($this->record->tenant?->email_address ?? 'N/A'),
+                )
                 ->action(function (array $data) {
                     $tenant = $this->record->tenant;
                     if (! $tenant || ! $tenant->email_address) {
-                        Notification::make()
-                            ->title('No Email')
-                            ->body('This tenant does not have an email address.')
-                            ->danger()
+                        Notification::make()->danger()
+                            ->title('No Email Address')
+                            ->body('This tenant does not have an email address on record.')
                             ->send();
 
                         return;
                     }
-
                     $tenant->notify(new \App\Notifications\LeaseDocumentEmailNotification(
                         lease: $this->record,
                         customMessage: $data['custom_message'] ?? '',
                         attachPdf: $data['attach_pdf'] ?? true,
                     ));
-
-                    // Log the event if TenantEventService exists
                     if (class_exists(\App\Services\TenantEventService::class)) {
                         \App\Services\TenantEventService::log(
                             tenant: $tenant,
@@ -241,25 +322,24 @@ class ViewLease extends ViewRecord
                             performedBy: auth()->user(),
                         );
                     }
-
-                    Notification::make()
+                    Notification::make()->success()
                         ->title('Email Sent')
-                        ->body('Lease document has been emailed to ' . $tenant->names . '.')
-                        ->success()
+                        ->body('Lease emailed to ' . $tenant->names . '.')
                         ->send();
                 }),
 
-            // Upload Scanned Physical Lease
+            // ── UPLOAD DOCUMENT ──────────────────────────────────────────────
             Action::make('uploadDocument')
-                ->label('Upload Documents')
+                ->label('Upload Document')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('warning')
                 ->visible(fn () => auth()->user()?->canManageLeases())
-                ->form([
+                /** @phpstan-ignore-next-line */
+                ->schema([
                     Select::make('document_type')
                         ->label('Document Type')
                         ->options([
-                            'signed_physical_lease' => 'Signed Physical Lease (Historical)',
+                            'signed_physical_lease' => 'Signed Physical Lease',
                             'original_signed' => 'Original Signed Lease',
                             'amendment' => 'Amendment',
                             'addendum' => 'Addendum',
@@ -274,45 +354,35 @@ class ViewLease extends ViewRecord
                         ->label('Document Title')
                         ->required()
                         ->maxLength(255)
-                        ->placeholder('e.g., Signed Lease - John Doe - Unit 314E-01'),
+                        ->placeholder('e.g., Signed Lease — John Doe — Unit 314E-01'),
                     DatePicker::make('document_date')
                         ->label('Original Document Date')
-                        ->helperText('Date on the physical document')
+                        ->helperText('Date printed on the physical document')
                         ->required(),
                     Textarea::make('description')
                         ->label('Notes (Optional)')
                         ->rows(2)
-                        ->maxLength(500)
-                        ->placeholder('e.g., Scanned from file cabinet A, folder 23'),
+                        ->maxLength(500),
                     FileUpload::make('file')
                         ->label('Scanned File')
                         ->required()
                         ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
-                        ->maxSize(10240) // 10MB
+                        ->maxSize(10240)
                         ->disk('local')
                         ->directory('temp-uploads')
-                        ->helperText('PDF or scanned images (max 10MB). Images will be compressed automatically to save storage.'),
+                        ->helperText('PDF or scanned image (max 10MB)'),
                 ])
-                ->modalHeading('Upload Scanned Physical Lease')
-                ->modalDescription('Digitize historical signed leases from physical files for easy retrieval.')
+                ->modalHeading('Upload Document')
                 ->modalSubmitActionLabel('Upload & Save')
                 ->action(function (array $data) {
                     $uploadService = new DocumentUploadService;
-
-                    // Get the uploaded file path
                     $filePath = $data['file'];
                     $fullPath = storage_path('app/' . $filePath);
-
                     if (! file_exists($fullPath)) {
-                        Notification::make()
-                            ->danger()
-                            ->title('Upload Failed')
-                            ->body('Could not find uploaded file.')
-                            ->send();
+                        Notification::make()->danger()->title('Upload Failed')->body('File not found.')->send();
 
                         return;
                     }
-
                     $file = new \Illuminate\Http\UploadedFile(
                         $fullPath,
                         basename($filePath),
@@ -330,32 +400,17 @@ class ViewLease extends ViewRecord
                             $data['description'] ?? null,
                             $data['document_date'] ?? null,
                         );
-
-                        // Tag the document with unit_code from the lease
                         if ($this->record->unit_code) {
                             $document->update(['unit_code' => $this->record->unit_code]);
                         }
-
-                        // Clean up temp file
                         @unlink($fullPath);
-
                         $message = 'Document uploaded successfully.';
                         if ($document->is_compressed && $document->compression_ratio) {
                             $message .= " Compressed by {$document->compression_ratio}%.";
                         }
-
-                        Notification::make()
-                            ->success()
-                            ->title('Document Uploaded')
-                            ->body($message)
-                            ->send();
-
+                        Notification::make()->success()->title('Document Uploaded')->body($message)->send();
                     } catch (Exception $e) {
-                        Notification::make()
-                            ->danger()
-                            ->title('Upload Failed')
-                            ->body($e->getMessage())
-                            ->send();
+                        Notification::make()->danger()->title('Upload Failed')->body($e->getMessage())->send();
                     }
                 }),
         ];
