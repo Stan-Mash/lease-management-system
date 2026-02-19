@@ -109,12 +109,14 @@ class LeaseForm
                         if ($unit) {
                             $set('monthly_rent', $unit->rent_amount ?? 0);
                             $set('property_id', $unit->property_id);
+                            $set('landlord_id', $unit->property?->landlord_id);
                             $set('client_id', $unit->property?->client_id);
                         }
                     }),
 
-                // Hidden fields
+                // Hidden fields — auto-populated when unit is selected
                 Forms\Components\Hidden::make('property_id'),
+                Forms\Components\Hidden::make('landlord_id'),
                 Forms\Components\Hidden::make('client_id'),
                 Forms\Components\Hidden::make('zone')->default('A'),
 
