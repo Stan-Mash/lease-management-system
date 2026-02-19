@@ -58,7 +58,7 @@ class DownloadLeaseController extends Controller
      */
     protected function generate(Lease $lease, string $method): SymfonyResponse
     {
-        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate']);
+        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
         $filename = 'Lease-' . $lease->reference_number . '.pdf';
 
         // Check cache first (keyed by lease ID, template version, and last update)
@@ -139,13 +139,16 @@ class DownloadLeaseController extends Controller
         string $method,
         string $cacheKey,
     ): SymfonyResponse {
+        $digitalSignature = $lease->digitalSignatures->sortByDesc('created_at')->first();
+
         $data = [
-            'lease' => $lease,
-            'tenant' => $lease->tenant,
-            'unit' => $lease->unit,
-            'landlord' => $lease->landlord,
-            'property' => $lease->property,
-            'today' => now()->format('d/m/Y'),
+            'lease'            => $lease,
+            'tenant'           => $lease->tenant,
+            'unit'             => $lease->unit,
+            'landlord'         => $lease->landlord,
+            'property'         => $lease->property,
+            'today'            => now()->format('d/m/Y'),
+            'digitalSignature' => $digitalSignature ?? null,
         ];
 
         $viewName = match ($lease->lease_type) {

@@ -211,7 +211,18 @@
     <p>SIGNED: <strong>MANAGING AGENT</strong> <span class="signature-line"></span> Date <span class="field-line">......./............/...........</span></p>
     <br><br>
     <p>SIGNED: <strong>TENANT</strong></p>
-    <p>Name <span class="signature-line">{{ $tenant->full_name ?? $tenant->name ?? '' }}</span> Signature <span class="field-line">............</span> Date <span class="field-line">......./............/...........</span></p>
+    <p>Name <span class="signature-line">{{ $tenant->names ?? $tenant->full_name ?? '' }}</span></p>
+    @if (!empty($digitalSignature) && !empty($digitalSignature->signature_data))
+        <img src="{{ $digitalSignature->data_uri }}"
+             style="max-width:200px; max-height:80px; border-bottom:1px solid #000; display:block; margin-top:8px;"
+             alt="Tenant Signature">
+        <p style="font-size:9pt; color:#555; margin-top:4px;">
+            Digitally signed: {{ $digitalSignature->created_at?->format('d M Y, h:i A') }}<br>
+            IP: {{ $digitalSignature->ip_address ?? 'N/A' }}
+        </p>
+    @else
+        <p>Signature <span class="field-line">............</span> Date <span class="field-line">......./............/...........</span></p>
+    @endif
 </div>
 
 </body>
