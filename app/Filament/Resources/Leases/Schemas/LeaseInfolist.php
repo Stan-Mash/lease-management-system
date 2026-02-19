@@ -78,11 +78,13 @@ class LeaseInfolist
 
                         TextEntry::make('start_date')
                             ->label('Start Date')
-                            ->date('d M Y'),
+                            ->date('d M Y')
+                            ->placeholder('—'),
 
                         TextEntry::make('end_date')
                             ->label('End Date')
-                            ->date('d M Y'),
+                            ->date('d M Y')
+                            ->placeholder('—'),
                     ]),
 
                     Grid::make(3)->schema([
@@ -210,7 +212,7 @@ class LeaseInfolist
                         TextEntry::make('latest_approval.reviewed_at')
                             ->label('Decision Date & Time')
                             ->dateTime('d M Y, H:i')
-                            ->default('—')
+                            ->placeholder('—')
                             ->visible(fn ($record) => $record->getLatestApproval() !== null),
                     ]),
 
@@ -454,8 +456,8 @@ class LeaseInfolist
                         TextEntry::make('deposit_verified_at')
                             ->label('Deposit Verified On')
                             ->dateTime('d M Y')
-                            ->visible(fn ($record) => (bool) $record->deposit_verified)
-                            ->default('—'),
+                            ->placeholder('—')
+                            ->visible(fn ($record) => (bool) $record->deposit_verified),
 
                         TextEntry::make('lease_term_months')
                             ->label('Lease Term')
@@ -539,7 +541,8 @@ class LeaseInfolist
                                     }),
                                 TextEntry::make('document_date')
                                     ->label('Doc Date')
-                                    ->date('d/m/Y'),
+                                    ->date('d/m/Y')
+                                    ->placeholder('—'),
                                 TextEntry::make('created_at')
                                     ->label('Uploaded')
                                     ->since(),
