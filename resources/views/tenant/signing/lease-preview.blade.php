@@ -118,10 +118,10 @@
                                     </div>
                                     <div class="bg-gray-50 p-4 rounded">
                                         <h3 class="font-semibold text-gray-700 mb-2">TENANT</h3>
-                                        <p class="text-sm">{{ $lease->tenant->name }}</p>
-                                        <p class="text-sm text-gray-600">ID: {{ $lease->tenant->id_number ?? 'N/A' }}</p>
-                                        <p class="text-sm text-gray-600">Phone: {{ $lease->tenant->phone }}</p>
-                                        <p class="text-sm text-gray-600">Email: {{ $lease->tenant->email }}</p>
+                                        <p class="text-sm">{{ $lease->tenant->names }}</p>
+                                        <p class="text-sm text-gray-600">ID: {{ $lease->tenant->national_id ?? 'N/A' }}</p>
+                                        <p class="text-sm text-gray-600">Phone: {{ $lease->tenant->mobile_number }}</p>
+                                        <p class="text-sm text-gray-600">Email: {{ $lease->tenant->email_address ?? 'N/A' }}</p>
                                     </div>
                                 </div>
                             </div>

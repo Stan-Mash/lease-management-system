@@ -32,7 +32,7 @@
                     </div>
                     <div>
                         <p class="text-gray-600">Tenant Name</p>
-                        <p class="font-semibold">{{ $lease->tenant->name }}</p>
+                        <p class="font-semibold">{{ $lease->tenant->names }}</p>
                     </div>
                     <div>
                         <p class="text-gray-600">Property Type</p>
