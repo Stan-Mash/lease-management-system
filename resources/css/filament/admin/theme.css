@@ -895,16 +895,18 @@ h1, h2, h3,
     max-width: 100% !important;
 }
 
-/* The form tag itself */
-.fi-sc-form {
+/* The form AND infolist containers */
+.fi-sc-form,
+.fi-sc-infolist {
     width: 100% !important;
     min-width: 0 !important;
 }
 
-/* Every fi-grid-col inside the form is full width
-   (overrides max-w-* set by fi-width-* on fi-grid-col) */
+/* Every fi-grid-col inside the form or infolist is full width */
 .fi-sc-form .fi-grid-col,
-.fi-sc-form .fi-sc {
+.fi-sc-form .fi-sc,
+.fi-sc-infolist .fi-grid-col,
+.fi-sc-infolist .fi-sc {
     max-width: 100% !important;
     min-width: 0 !important;
 }
@@ -914,6 +916,23 @@ h1, h2, h3,
 .fi-sc-section > .fi-section {
     width: 100% !important;
     min-width: 0 !important;
+}
+
+/* ── Header actions — wrap gracefully on view pages ──────────────────── */
+.fi-header-actions {
+    flex-wrap: wrap !important;
+    gap: 0.4rem !important;
+}
+.fi-header-actions .fi-btn {
+    white-space: nowrap !important;
+}
+
+/* ── Page heading — prevent long reference numbers from breaking layout ── */
+.fi-header-heading {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 60vw !important;
 }
 
 /* Subtle warm-gold texture on cream background — no blue */

@@ -25,7 +25,15 @@ class ViewLease extends ViewRecord
 
     public function getHeading(): string
     {
-        return 'View ' . ($this->record->reference_number ?? 'Lease');
+        return $this->record->reference_number ?? 'Lease';
+    }
+
+    public function getSubheading(): ?string
+    {
+        $tenant = $this->record->tenant?->names ?? '';
+        $state = ucwords(str_replace('_', ' ', $this->record->workflow_state ?? ''));
+
+        return $tenant ? "{$tenant} — {$state}" : $state;
     }
 
     public function getBreadcrumbs(): array
