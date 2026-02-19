@@ -60,7 +60,7 @@ class ViewLease extends ViewRecord
                             ->title('Approval Request Sent')
                             ->body('The landlord has been notified and is waiting to approve.')
                             ->send();
-                        $this->refreshFormData(['workflow_state']);
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } else {
                         Notification::make()->danger()
                             ->title('Could Not Send Request')
@@ -107,7 +107,7 @@ class ViewLease extends ViewRecord
                             ->body('Next: Click "Send Signing Link to Tenant" to notify the tenant via SMS.')
                             ->persistent()
                             ->send();
-                        $this->refreshFormData(['workflow_state']);
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } else {
                         Notification::make()->danger()
                             ->title('Approval Failed')
@@ -150,7 +150,7 @@ class ViewLease extends ViewRecord
                             ->title('Lease Rejected')
                             ->body('The tenant has been notified. Edit the lease and re-submit for approval.')
                             ->send();
-                        $this->refreshFormData(['workflow_state']);
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } else {
                         Notification::make()->danger()
                             ->title('Rejection Failed')
@@ -200,7 +200,7 @@ class ViewLease extends ViewRecord
                             )
                             ->persistent()
                             ->send();
-                        $this->refreshFormData(['workflow_state']);
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } catch (Exception $e) {
                         Notification::make()->danger()
                             ->title('SMS Failed to Send')
