@@ -204,28 +204,33 @@ class LeaseInfolist
                                 return 'gray';
                             }),
 
-                        TextEntry::make('latest_approval.reviewer.name')
+                        TextEntry::make('_approval_actioned_by')
                             ->label('Approved / Actioned By')
-                            ->default('—')
+                            ->state(fn ($record) => $record->getLatestApproval()?->reviewer?->name ?? '—')
                             ->visible(fn ($record) => $record->getLatestApproval() !== null),
 
-                        TextEntry::make('latest_approval.reviewed_at')
+                        TextEntry::make('_approval_reviewed_at')
                             ->label('Decision Date & Time')
-                            ->dateTime('d M Y, H:i')
-                            ->placeholder('—')
+                            ->state(function ($record) {
+                                $at = $record->getLatestApproval()?->reviewed_at;
+
+                                return $at ? \Carbon\Carbon::parse($at)->format('d M Y, H:i') : '—';
+                            })
                             ->visible(fn ($record) => $record->getLatestApproval() !== null),
                     ]),
 
-                    TextEntry::make('latest_approval.rejection_reason')
+                    TextEntry::make('_approval_rejection_reason')
                         ->label('❌ Rejection Reason')
+                        ->state(fn ($record) => $record->getLatestApproval()?->rejection_reason ?? '—')
                         ->visible(fn ($record) => $record->hasBeenRejected())
                         ->color('danger')
                         ->weight('bold')
                         ->columnSpanFull(),
 
-                    TextEntry::make('latest_approval.comments')
+                    TextEntry::make('_approval_comments')
                         ->label('Comments from Approver')
-                        ->visible(fn ($record) => $record->getLatestApproval()?->comments !== null)
+                        ->state(fn ($record) => $record->getLatestApproval()?->comments ?? '')
+                        ->visible(fn ($record) => filled($record->getLatestApproval()?->comments))
                         ->columnSpanFull(),
                 ])
                 ->collapsible()
