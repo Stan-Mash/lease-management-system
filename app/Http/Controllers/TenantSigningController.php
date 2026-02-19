@@ -240,7 +240,18 @@ class TenantSigningController extends Controller
      */
     private function verifySignedUrlAndTenant(Request $request, Lease $lease): void
     {
-        if (! $request->hasValidSignature()) {
+        // The signed URL was generated for GET /tenant/sign/{lease}.
+        // Sub-routes (request-otp, verify-otp, submit-signature) carry the same
+        // query params (expires, tenant, signature) but on a different path.
+        // Laravel's hasValidSignature() includes the path in the HMAC, so we
+        // reconstruct a fake request pointing at the original signed route to verify.
+        $signedRoute = route('tenant.sign-lease', ['lease' => $lease->id, 'tenant' => $request->get('tenant')]);
+        $queryParams = array_filter($request->only(['expires', 'tenant', 'signature']));
+        $reconstructed = $signedRoute . '?' . http_build_query($queryParams);
+
+        $fakeRequest = \Illuminate\Http\Request::create($reconstructed, 'GET');
+
+        if (! app('url')->hasValidSignature($fakeRequest)) {
             abort(403, 'This signing link has expired or is invalid.');
         }
 
