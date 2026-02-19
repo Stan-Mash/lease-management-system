@@ -866,24 +866,52 @@ h1, h2, h3,
 }
 
 /* ── Form Page Full-Width Fix ─────────────────────────────────────────
-   Filament 4 sets .fi-page-content to "grid auto-cols-fr" which sizes
-   grid children by content, leaving empty space on the right.
-   Force a single stretching column so the form fills the page. */
+   Filament 4 uses auto-cols-fr (implicit grid columns) on fi-page-content,
+   and inner fi-grid-col elements size by CSS var --col-span-default.
+   This combination leaves ~40% empty space on create/edit pages.
 
+   Fix: maxContentWidth(MaxWidth::Full) in AdminPanelProvider removes
+   max-w-7xl from fi-main. This CSS stretches the inner schema containers.
+
+   DOM structure on create/edit pages:
+     .fi-page-content
+       .fi-grid-col (or .fi-sc)
+         .fi-sc-form
+           .fi-sc > .fi-grid > .fi-grid-col
+             .fi-sc-section > .fi-section (the card)
+*/
+
+/* Explicit single track so children stretch to full width */
 .fi-page-content {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
 }
 
-/* Schema form container and sections must fill their parent */
-.fi-sc-form,
-.fi-sc-section,
-.fi-sc-section-content-ctn,
-.fi-sc-section-content {
+/* Top-level schema/grid-col children of page-content fill the track */
+.fi-page-content > .fi-grid-col,
+.fi-page-content > .fi-sc {
+    grid-column: 1 / -1 !important;
     width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
 }
 
-/* Ensure the schema (fi-sc) itself stretches to full width */
-.fi-sc {
+/* The form tag itself */
+.fi-sc-form {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Every fi-grid-col inside the form is full width
+   (overrides max-w-* set by fi-width-* on fi-grid-col) */
+.fi-sc-form .fi-grid-col,
+.fi-sc-form .fi-sc {
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* The section wrapper and the section card */
+.fi-sc-section,
+.fi-sc-section > .fi-section {
     width: 100% !important;
     min-width: 0 !important;
 }
