@@ -41,8 +41,7 @@ class ViewLease extends ViewRecord
                 ->color('primary')
                 ->visible(
                     fn () => $this->record->workflow_state === 'draft'
-                        && ! $this->record->hasPendingApproval()
-                        && $this->record->client_id,
+                        && ! $this->record->hasPendingApproval(),
                 )
                 ->requiresConfirmation()
                 ->modalHeading('Send for Landlord Approval')
