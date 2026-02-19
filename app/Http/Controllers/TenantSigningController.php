@@ -245,9 +245,14 @@ class TenantSigningController extends Controller
         // query params (expires, tenant, signature) but on a different path.
         // Laravel's hasValidSignature() includes the path in the HMAC, so we
         // reconstruct a fake request pointing at the original signed route to verify.
-        $signedRoute = route('tenant.sign-lease', ['lease' => $lease->id, 'tenant' => $request->get('tenant')]);
+        //
+        // NOTE: route() may append `tenant` as a query param (since it's not a path
+        // segment), so we strip everything after `?` to get a clean base URL before
+        // appending the signed params — avoids a double-`?` malformed URL.
+        $routeUrl = route('tenant.sign-lease', ['lease' => $lease->id]);
+        $baseUrl = explode('?', $routeUrl)[0];
         $queryParams = array_filter($request->only(['expires', 'tenant', 'signature']));
-        $reconstructed = $signedRoute . '?' . http_build_query($queryParams);
+        $reconstructed = $baseUrl . '?' . http_build_query($queryParams);
 
         $fakeRequest = \Illuminate\Http\Request::create($reconstructed, 'GET');
 
