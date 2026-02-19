@@ -31,7 +31,7 @@ class LeaseReferenceService
         ],
         'chabrin_issued' => [
             'commercial' => 'COM',
-            'residential_macro' => 'MAC',
+            'residential_major' => 'MAJ',
             'residential_micro' => 'MIC',
         ],
     ];
