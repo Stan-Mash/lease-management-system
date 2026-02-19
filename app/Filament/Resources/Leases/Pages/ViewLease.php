@@ -23,6 +23,19 @@ class ViewLease extends ViewRecord
 {
     protected static string $resource = LeaseResource::class;
 
+    public function getHeading(): string
+    {
+        return 'View ' . ($this->record->reference_number ?? 'Lease');
+    }
+
+    public function getBreadcrumbs(): array
+    {
+        return [
+            LeaseResource::getUrl() => 'Leases',
+            '' => $this->record->reference_number ?? 'View',
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [
