@@ -9,6 +9,7 @@ use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
 use Exception;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -285,161 +286,163 @@ class ViewLease extends ViewRecord
                 ->modalSubmitActionLabel('Print Now')
                 ->action(fn () => $this->record->markAsPrinted()),
 
-            // ── PREVIEW / DOWNLOAD PDF ───────────────────────────────────────
-            Action::make('previewPdf')
-                ->label('Preview PDF')
-                ->icon('heroicon-o-eye')
-                ->color('gray')
-                ->url(fn () => route('lease.preview', $this->record))
-                ->openUrlInNewTab(),
+            // ── MORE ACTIONS DROPDOWN (secondary/utility actions) ────────────
+            ActionGroup::make([
 
-            Action::make('generatePdf')
-                ->label('Download PDF')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('gray')
-                ->url(fn () => route('lease.download', $this->record))
-                ->openUrlInNewTab(),
+                Action::make('previewPdf')
+                    ->label('Preview PDF')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn () => route('lease.preview', $this->record))
+                    ->openUrlInNewTab(),
 
-            // ── EMAIL TO TENANT ──────────────────────────────────────────────
-            Action::make('sendViaEmail')
-                ->label('Email to Tenant')
-                ->icon('heroicon-o-envelope')
-                ->color('gray')
-                ->visible(
-                    fn () => $this->record->tenant?->email_address
-                        && auth()->user()?->canManageLeases(),
-                )
-                /** @phpstan-ignore-next-line */
-                ->schema([
-                    Textarea::make('custom_message')
-                        ->label('Custom Message (optional)')
-                        ->placeholder('Add a personal message to the tenant...')
-                        ->rows(3),
-                    Toggle::make('attach_pdf')
-                        ->label('Attach Lease PDF')
-                        ->default(true),
-                ])
-                ->modalHeading('Email Lease to Tenant')
-                ->modalDescription(
-                    fn () => 'Will send to: '
-                        . ($this->record->tenant?->names ?? 'Tenant')
-                        . ' — ' . ($this->record->tenant?->email_address ?? 'N/A'),
-                )
-                ->action(function (array $data) {
-                    $tenant = $this->record->tenant;
-                    if (! $tenant || ! $tenant->email_address) {
-                        Notification::make()->danger()
-                            ->title('No Email Address')
-                            ->body('This tenant does not have an email address on record.')
+                Action::make('generatePdf')
+                    ->label('Download PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->url(fn () => route('lease.download', $this->record))
+                    ->openUrlInNewTab(),
+
+                Action::make('sendViaEmail')
+                    ->label('Email to Tenant')
+                    ->icon('heroicon-o-envelope')
+                    ->visible(
+                        fn () => $this->record->tenant?->email_address
+                            && auth()->user()?->canManageLeases(),
+                    )
+                    /** @phpstan-ignore-next-line */
+                    ->schema([
+                        Textarea::make('custom_message')
+                            ->label('Custom Message (optional)')
+                            ->placeholder('Add a personal message to the tenant...')
+                            ->rows(3),
+                        Toggle::make('attach_pdf')
+                            ->label('Attach Lease PDF')
+                            ->default(true),
+                    ])
+                    ->modalHeading('Email Lease to Tenant')
+                    ->modalDescription(
+                        fn () => 'Will send to: '
+                            . ($this->record->tenant?->names ?? 'Tenant')
+                            . ' — ' . ($this->record->tenant?->email_address ?? 'N/A'),
+                    )
+                    ->action(function (array $data) {
+                        $tenant = $this->record->tenant;
+                        if (! $tenant || ! $tenant->email_address) {
+                            Notification::make()->danger()
+                                ->title('No Email Address')
+                                ->body('This tenant does not have an email address on record.')
+                                ->send();
+
+                            return;
+                        }
+                        $tenant->notify(new \App\Notifications\LeaseDocumentEmailNotification(
+                            lease: $this->record,
+                            customMessage: $data['custom_message'] ?? '',
+                            attachPdf: $data['attach_pdf'] ?? true,
+                        ));
+                        if (class_exists(\App\Services\TenantEventService::class)) {
+                            \App\Services\TenantEventService::log(
+                                tenant: $tenant,
+                                type: 'email_sent',
+                                title: 'Lease emailed',
+                                description: 'Lease ' . ($this->record->reference_number ?? '') . ' sent via email by ' . auth()->user()->name,
+                                performedBy: auth()->user(),
+                            );
+                        }
+                        Notification::make()->success()
+                            ->title('Email Sent')
+                            ->body('Lease emailed to ' . $tenant->names . '.')
                             ->send();
+                    }),
 
-                        return;
-                    }
-                    $tenant->notify(new \App\Notifications\LeaseDocumentEmailNotification(
-                        lease: $this->record,
-                        customMessage: $data['custom_message'] ?? '',
-                        attachPdf: $data['attach_pdf'] ?? true,
-                    ));
-                    if (class_exists(\App\Services\TenantEventService::class)) {
-                        \App\Services\TenantEventService::log(
-                            tenant: $tenant,
-                            type: 'email_sent',
-                            title: 'Lease emailed',
-                            description: 'Lease ' . ($this->record->reference_number ?? '') . ' sent via email by ' . auth()->user()->name,
-                            performedBy: auth()->user(),
-                        );
-                    }
-                    Notification::make()->success()
-                        ->title('Email Sent')
-                        ->body('Lease emailed to ' . $tenant->names . '.')
-                        ->send();
-                }),
+                Action::make('uploadDocument')
+                    ->label('Upload Document')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->visible(fn () => auth()->user()?->canManageLeases())
+                    /** @phpstan-ignore-next-line */
+                    ->schema([
+                        Select::make('document_type')
+                            ->label('Document Type')
+                            ->options([
+                                'signed_physical_lease' => 'Signed Physical Lease',
+                                'original_signed' => 'Original Signed Lease',
+                                'amendment' => 'Amendment',
+                                'addendum' => 'Addendum',
+                                'notice' => 'Notice',
+                                'id_copy' => 'Tenant ID Copy',
+                                'deposit_receipt' => 'Deposit Receipt',
+                                'other' => 'Other Document',
+                            ])
+                            ->default('signed_physical_lease')
+                            ->required(),
+                        TextInput::make('title')
+                            ->label('Document Title')
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder('e.g., Signed Lease — John Doe — Unit 314E-01'),
+                        DatePicker::make('document_date')
+                            ->label('Original Document Date')
+                            ->helperText('Date printed on the physical document')
+                            ->required(),
+                        Textarea::make('description')
+                            ->label('Notes (Optional)')
+                            ->rows(2)
+                            ->maxLength(500),
+                        FileUpload::make('file')
+                            ->label('Scanned File')
+                            ->required()
+                            ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+                            ->maxSize(10240)
+                            ->disk('local')
+                            ->directory('temp-uploads')
+                            ->helperText('PDF or scanned image (max 10MB)'),
+                    ])
+                    ->modalHeading('Upload Document')
+                    ->modalSubmitActionLabel('Upload & Save')
+                    ->action(function (array $data) {
+                        $uploadService = new DocumentUploadService;
+                        $filePath = $data['file'];
+                        $fullPath = storage_path('app/' . $filePath);
+                        if (! file_exists($fullPath)) {
+                            Notification::make()->danger()->title('Upload Failed')->body('File not found.')->send();
 
-            // ── UPLOAD DOCUMENT ──────────────────────────────────────────────
-            Action::make('uploadDocument')
-                ->label('Upload Document')
-                ->icon('heroicon-o-arrow-up-tray')
-                ->color('warning')
-                ->visible(fn () => auth()->user()?->canManageLeases())
-                /** @phpstan-ignore-next-line */
-                ->schema([
-                    Select::make('document_type')
-                        ->label('Document Type')
-                        ->options([
-                            'signed_physical_lease' => 'Signed Physical Lease',
-                            'original_signed' => 'Original Signed Lease',
-                            'amendment' => 'Amendment',
-                            'addendum' => 'Addendum',
-                            'notice' => 'Notice',
-                            'id_copy' => 'Tenant ID Copy',
-                            'deposit_receipt' => 'Deposit Receipt',
-                            'other' => 'Other Document',
-                        ])
-                        ->default('signed_physical_lease')
-                        ->required(),
-                    TextInput::make('title')
-                        ->label('Document Title')
-                        ->required()
-                        ->maxLength(255)
-                        ->placeholder('e.g., Signed Lease — John Doe — Unit 314E-01'),
-                    DatePicker::make('document_date')
-                        ->label('Original Document Date')
-                        ->helperText('Date printed on the physical document')
-                        ->required(),
-                    Textarea::make('description')
-                        ->label('Notes (Optional)')
-                        ->rows(2)
-                        ->maxLength(500),
-                    FileUpload::make('file')
-                        ->label('Scanned File')
-                        ->required()
-                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
-                        ->maxSize(10240)
-                        ->disk('local')
-                        ->directory('temp-uploads')
-                        ->helperText('PDF or scanned image (max 10MB)'),
-                ])
-                ->modalHeading('Upload Document')
-                ->modalSubmitActionLabel('Upload & Save')
-                ->action(function (array $data) {
-                    $uploadService = new DocumentUploadService;
-                    $filePath = $data['file'];
-                    $fullPath = storage_path('app/' . $filePath);
-                    if (! file_exists($fullPath)) {
-                        Notification::make()->danger()->title('Upload Failed')->body('File not found.')->send();
-
-                        return;
-                    }
-                    $file = new \Illuminate\Http\UploadedFile(
-                        $fullPath,
-                        basename($filePath),
-                        mime_content_type($fullPath),
-                        null,
-                        true,
-                    );
-
-                    try {
-                        $document = $uploadService->upload(
-                            $file,
-                            $this->record->id,
-                            $data['document_type'],
-                            $data['title'],
-                            $data['description'] ?? null,
-                            $data['document_date'] ?? null,
-                        );
-                        if ($this->record->unit_code) {
-                            $document->update(['unit_code' => $this->record->unit_code]);
+                            return;
                         }
-                        @unlink($fullPath);
-                        $message = 'Document uploaded successfully.';
-                        if ($document->is_compressed && $document->compression_ratio) {
-                            $message .= " Compressed by {$document->compression_ratio}%.";
+                        $file = new \Illuminate\Http\UploadedFile(
+                            $fullPath,
+                            basename($filePath),
+                            mime_content_type($fullPath),
+                            null,
+                            true,
+                        );
+
+                        try {
+                            $document = $uploadService->upload(
+                                $file,
+                                $this->record->id,
+                                $data['document_type'],
+                                $data['title'],
+                                $data['description'] ?? null,
+                                $data['document_date'] ?? null,
+                            );
+                            if ($this->record->unit_code) {
+                                $document->update(['unit_code' => $this->record->unit_code]);
+                            }
+                            @unlink($fullPath);
+                            $message = 'Document uploaded successfully.';
+                            if ($document->is_compressed && $document->compression_ratio) {
+                                $message .= " Compressed by {$document->compression_ratio}%.";
+                            }
+                            Notification::make()->success()->title('Document Uploaded')->body($message)->send();
+                        } catch (Exception $e) {
+                            Notification::make()->danger()->title('Upload Failed')->body($e->getMessage())->send();
                         }
-                        Notification::make()->success()->title('Document Uploaded')->body($message)->send();
-                    } catch (Exception $e) {
-                        Notification::make()->danger()->title('Upload Failed')->body($e->getMessage())->send();
-                    }
-                }),
+                    }),
+
+            ])
+                ->label('More')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->color('gray')
+                ->button(),
         ];
     }
 }
