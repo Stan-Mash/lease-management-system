@@ -25,8 +25,10 @@ class LeasePdfService
      */
     public function generate(Lease $lease): string
     {
-        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate']);
+        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
         $needsDraft = $this->needsDraftWatermark($lease);
+        // Get the latest digital signature (if any) to embed in the PDF
+        $digitalSignature = $lease->digitalSignatures->sortByDesc('created_at')->first();
 
         // Strategy 1: Assigned custom template
         if ($lease->lease_template_id && $lease->leaseTemplate) {
@@ -78,12 +80,13 @@ class LeasePdfService
         };
 
         $data = [
-            'lease'    => $lease,
-            'tenant'   => $lease->tenant,
-            'unit'     => $lease->unit,
-            'landlord' => $lease->landlord,
-            'property' => $lease->property,
-            'today'    => now()->format('d/m/Y'),
+            'lease'             => $lease,
+            'tenant'            => $lease->tenant,
+            'unit'              => $lease->unit,
+            'landlord'          => $lease->landlord,
+            'property'          => $lease->property,
+            'today'             => now()->format('d/m/Y'),
+            'digitalSignature'  => $digitalSignature ?? null,
         ];
 
         $pdf = Pdf::loadView($viewName, $data);
