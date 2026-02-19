@@ -346,7 +346,12 @@
             updateStepIndicator(3, 'active');
             document.getElementById('step2-content').classList.add('hidden');
             document.getElementById('step3-content').classList.remove('hidden');
-            initializeSignaturePad();
+            // Defer SignaturePad init until after browser reflow so offsetWidth is correct
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    initializeSignaturePad();
+                });
+            });
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -362,6 +367,15 @@
 
             try {
                 const signatureData = signaturePad.toDataURL();
+
+                // Guard: if canvas was 0-width at init, toDataURL returns a tiny blank image
+                if (!signatureData || signatureData.length < 1000) {
+                    showMessage('signature-message', 'error', 'Signature capture failed. Please clear and draw again.', true);
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Signature';
+                    return;
+                }
+
                 const url = new URL(window.location.href);
 
                 const payload = {
