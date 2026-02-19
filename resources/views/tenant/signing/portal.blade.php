@@ -207,43 +207,50 @@
             );
         }
 
-        // Initialize
+        // Initialize — set up OTP buttons immediately; defer signature pad to step 3
         document.addEventListener('DOMContentLoaded', function() {
-            initializeSignaturePad();
-            setupEventListeners();
+            setupOTPListeners();
         });
 
-        function initializeSignaturePad() {
-            const canvas = document.getElementById('signature-pad');
-            signaturePad = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255, 255, 255)',
-                penColor: 'rgb(0, 0, 0)',
-                minWidth: 0.5,
-                maxWidth: 2.5
-            });
-
-            signaturePad.addEventListener('endStroke', () => {
-                document.getElementById('submit-signature-btn').disabled = signaturePad.isEmpty();
-            });
-        }
-
-        function setupEventListeners() {
+        function setupOTPListeners() {
             document.getElementById('request-otp-btn').addEventListener('click', requestOTP);
             document.getElementById('verify-otp-btn').addEventListener('click', verifyOTP);
             document.getElementById('resend-otp-btn').addEventListener('click', requestOTP);
+        }
+
+        function setupStep2Listeners() {
             document.getElementById('agree-terms').addEventListener('change', function() {
                 document.getElementById('proceed-to-sign-btn').disabled = !this.checked;
             });
             document.getElementById('proceed-to-sign-btn').addEventListener('click', showStep3);
-            document.getElementById('clear-signature-btn').addEventListener('click', () => signaturePad.clear());
-            document.getElementById('undo-signature-btn').addEventListener('click', () => {
-                const data = signaturePad.toData();
-                if (data) {
-                    data.pop();
-                    signaturePad.fromData(data);
-                }
-            });
-            document.getElementById('submit-signature-btn').addEventListener('click', submitSignature);
+        }
+
+        function initializeSignaturePad() {
+            const canvas = document.getElementById('signature-pad');
+            try {
+                signaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgb(255, 255, 255)',
+                    penColor: 'rgb(0, 0, 0)',
+                    minWidth: 0.5,
+                    maxWidth: 2.5
+                });
+
+                signaturePad.addEventListener('endStroke', () => {
+                    document.getElementById('submit-signature-btn').disabled = signaturePad.isEmpty();
+                });
+
+                document.getElementById('clear-signature-btn').addEventListener('click', () => signaturePad.clear());
+                document.getElementById('undo-signature-btn').addEventListener('click', () => {
+                    const data = signaturePad.toData();
+                    if (data) {
+                        data.pop();
+                        signaturePad.fromData(data);
+                    }
+                });
+                document.getElementById('submit-signature-btn').addEventListener('click', submitSignature);
+            } catch (e) {
+                console.error('SignaturePad init failed:', e);
+            }
         }
 
         async function requestOTP(event) {
@@ -274,7 +281,8 @@
                     btn.textContent = 'Send Verification Code';
                 }
             } catch (error) {
-                showMessage('otp-message', 'error', 'Network error. Please check your connection and try again.', true);
+                console.error('OTP request error:', error);
+                showMessage('otp-message', 'error', 'Network error: ' + error.message + '. Please try again.', true);
                 btn.disabled = false;
                 btn.textContent = 'Send Verification Code';
             }
@@ -310,6 +318,7 @@
                     updateStepIndicator(2, 'active');
                     document.getElementById('step1-content').classList.add('hidden');
                     document.getElementById('step2-content').classList.remove('hidden');
+                    setupStep2Listeners();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     showMessage('otp-message', 'error', data.message, true);
@@ -328,6 +337,7 @@
             updateStepIndicator(3, 'active');
             document.getElementById('step2-content').classList.add('hidden');
             document.getElementById('step3-content').classList.remove('hidden');
+            initializeSignaturePad();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
