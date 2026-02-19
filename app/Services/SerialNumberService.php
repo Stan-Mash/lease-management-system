@@ -43,17 +43,32 @@ class SerialNumberService
     public static function generateUnique(string $prefix = 'LSE'): string
     {
         return DB::transaction(function () use ($prefix) {
-            $serialNumber = self::generate($prefix);
+            $year = date('Y');
 
-            // Double-check uniqueness
-            $attempts = 0;
-            while (Lease::where('serial_number', $serialNumber)->exists() && $attempts < 10) {
-                $attempts++;
-                $serialNumber = self::generate($prefix);
+            // Lock-read the highest existing sequence for this prefix+year
+            $lastLease = Lease::where('serial_number', 'like', "{$prefix}-{$year}-%")
+                ->orderBy('serial_number', 'desc')
+                ->lockForUpdate()
+                ->first();
+
+            $sequence = 1;
+            if ($lastLease && preg_match('/-(\d+)$/', $lastLease->serial_number, $matches)) {
+                $sequence = intval($matches[1]) + 1;
             }
 
-            if ($attempts >= 10) {
-                throw new Exception('Failed to generate unique serial number after 10 attempts');
+            // Increment until we find a genuinely unused number
+            $attempts = 0;
+            do {
+                $serialNumber = sprintf('%s-%s-%04d', $prefix, $year, $sequence);
+                if (! Lease::where('serial_number', $serialNumber)->exists()) {
+                    break;
+                }
+                $sequence++;
+                $attempts++;
+            } while ($attempts < 100);
+
+            if ($attempts >= 100) {
+                throw new Exception('Failed to generate unique serial number after 100 attempts');
             }
 
             return $serialNumber;
