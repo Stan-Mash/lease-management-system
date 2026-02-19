@@ -393,6 +393,16 @@
                     body: JSON.stringify(payload)
                 });
 
+                // If response is not JSON (413 too large, 419 CSRF, 500 error), show HTTP status
+                if (!response.ok && response.status !== 400) {
+                    const text = await response.text();
+                    console.error('Signature submit error HTTP ' + response.status, text.substring(0, 300));
+                    showMessage('signature-message', 'error', 'Server error (' + response.status + '). Please try again.', true);
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Signature';
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.success) {
@@ -413,7 +423,8 @@
                     btn.textContent = 'Submit Signature';
                 }
             } catch (error) {
-                showMessage('signature-message', 'error', 'Failed to submit signature. Please try again.');
+                console.error('Signature submit exception:', error);
+                showMessage('signature-message', 'error', 'Network error: ' + error.message, true);
                 btn.disabled = false;
                 btn.textContent = 'Submit Signature';
             }
