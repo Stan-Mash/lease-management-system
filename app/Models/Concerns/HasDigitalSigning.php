@@ -11,13 +11,23 @@ use App\Services\DigitalSigningService;
 trait HasDigitalSigning
 {
     /**
-     * Send digital signing link to tenant.
+     * Send digital signing link to tenant (first send — transitions state to sent_digital).
      *
      * @param string $method 'email', 'sms', or 'both'
      */
     public function sendDigitalSigningLink(string $method = 'both'): array
     {
         return DigitalSigningService::initiate($this, $method);
+    }
+
+    /**
+     * Resend digital signing link to tenant (no state transition — safe to call from any signing state).
+     *
+     * @param string $method 'email', 'sms', or 'both'
+     */
+    public function resendDigitalSigningLink(string $method = 'sms'): array
+    {
+        return DigitalSigningService::resendLink($this, $method);
     }
 
     /**

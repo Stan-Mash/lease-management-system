@@ -309,7 +309,7 @@ class ViewLease extends ViewRecord
                 ->action(function (array $data) {
                     try {
                         $method = $data['send_method'] ?? 'sms';
-                        $this->record->sendDigitalSigningLink($method);
+                        $this->record->resendDigitalSigningLink($method);
 
                         $sentTo = match ($method) {
                             'sms' => 'SMS to ' . ($this->record->tenant?->mobile_number ?? 'tenant'),

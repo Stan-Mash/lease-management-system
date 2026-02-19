@@ -154,6 +154,8 @@ class DigitalSigningService
 
     /**
      * Initiate digital signing process for a lease.
+     * Only transitions state if currently in 'approved' (first send).
+     * For resends (already sent_digital / pending_otp / etc.), use resendLink().
      *
      * @param string|null $method 'email', 'sms', or 'both' (default from config)
      *
@@ -167,8 +169,15 @@ class DigitalSigningService
         // Generate and send signing link
         $sent = self::sendSigningLink($lease, $method);
 
-        // Update lease state
-        $lease->transitionTo(LeaseWorkflowState::SENT_DIGITAL);
+        // Only transition to SENT_DIGITAL from approved (first send).
+        // Resends from sent_digital/pending_otp/pending_tenant_signature skip this.
+        $statesThatCanTransition = [
+            LeaseWorkflowState::APPROVED->value,
+        ];
+
+        if (in_array($lease->workflow_state, $statesThatCanTransition)) {
+            $lease->transitionTo(LeaseWorkflowState::SENT_DIGITAL);
+        }
 
         return [
             'success' => $sent,
@@ -179,11 +188,23 @@ class DigitalSigningService
     }
 
     /**
-     * Resend signing link to tenant.
+     * Resend signing link to tenant without changing workflow state.
+     * Safe to call from any post-approval signing state.
      */
     public static function resendLink(Lease $lease, ?string $method = null): array
     {
-        return self::initiate($lease, $method);
+        $method = $method ?? config('lease.signing.default_notification_method', 'both');
+        $expiryHours = config('lease.signing.link_expiry_hours', 72);
+
+        // Just send the link — do NOT attempt a state transition
+        $sent = self::sendSigningLink($lease, $method);
+
+        return [
+            'success' => $sent,
+            'expires_at' => now()->addHours($expiryHours),
+            'sent_via' => $method,
+            'lease_reference' => $lease->reference_number,
+        ];
     }
 
     /**
