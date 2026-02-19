@@ -79,10 +79,10 @@
 
             <div id="otp-verify-section" class="hidden">
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Enter 4-Digit Code</label>
-                    <input type="text" id="otp-code" maxlength="4" pattern="[0-9]{4}"
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Enter 6-Digit Code</label>
+                    <input type="text" id="otp-code" maxlength="6" pattern="[0-9]{6}"
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
-                           placeholder="0000">
+                           placeholder="000000">
                 </div>
                 <button id="verify-otp-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition">
                     Verify Code
@@ -246,7 +246,7 @@
             document.getElementById('submit-signature-btn').addEventListener('click', submitSignature);
         }
 
-        async function requestOTP() {
+        async function requestOTP(event) {
             const btn = event.target;
             btn.disabled = true;
             btn.textContent = 'Sending...';
@@ -269,12 +269,12 @@
                     startOTPTimer(data.expires_in_minutes * 60);
                     showMessage('otp-message', 'success', data.message);
                 } else {
-                    showMessage('otp-message', 'error', data.message);
+                    showMessage('otp-message', 'error', data.message, true);
                     btn.disabled = false;
                     btn.textContent = 'Send Verification Code';
                 }
             } catch (error) {
-                showMessage('otp-message', 'error', 'Failed to send OTP. Please try again.');
+                showMessage('otp-message', 'error', 'Network error. Please check your connection and try again.', true);
                 btn.disabled = false;
                 btn.textContent = 'Send Verification Code';
             }
@@ -282,8 +282,8 @@
 
         async function verifyOTP() {
             const code = document.getElementById('otp-code').value;
-            if (code.length !== 4) {
-                showMessage('otp-message', 'error', 'Please enter a 4-digit code.');
+            if (code.length !== 6) {
+                showMessage('otp-message', 'error', 'Please enter the 6-digit code sent to your phone.', true);
                 return;
             }
 
@@ -312,12 +312,12 @@
                     document.getElementById('step2-content').classList.remove('hidden');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                    showMessage('otp-message', 'error', data.message);
+                    showMessage('otp-message', 'error', data.message, true);
                     btn.disabled = false;
                     btn.textContent = 'Verify Code';
                 }
             } catch (error) {
-                showMessage('otp-message', 'error', 'Failed to verify OTP. Please try again.');
+                showMessage('otp-message', 'error', 'Network error. Please check your connection and try again.', true);
                 btn.disabled = false;
                 btn.textContent = 'Verify Code';
             }
@@ -406,15 +406,17 @@
             indicator.classList.add(`step-${status}`);
         }
 
-        function showMessage(elementId, type, message) {
+        function showMessage(elementId, type, message, persistent = false) {
             const element = document.getElementById(elementId);
             element.className = `mt-4 p-4 rounded-lg ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
             element.textContent = message;
             element.classList.remove('hidden');
 
-            setTimeout(() => {
-                element.classList.add('hidden');
-            }, 5000);
+            if (!persistent) {
+                setTimeout(() => {
+                    element.classList.add('hidden');
+                }, 5000);
+            }
         }
     </script>
 </body>
