@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Leases\Schemas;
 use App\Models\Unit;
 use Filament\Forms;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Str;
 
 class LeaseForm
 {
@@ -14,34 +13,38 @@ class LeaseForm
         return $schema
             ->components([
                 // --- Lease Details ---
-                Forms\Components\TextInput::make('reference_number')
-                    ->default('LSE-' . strtoupper(Str::random(10)))
-                    ->required()
-                    ->readOnly(),
+                // reference_number is auto-generated on save — hidden from the form
+                Forms\Components\Hidden::make('reference_number'),
 
-                Forms\Components\Select::make('workflow_state')
-                    ->options([
-                        'DRAFT' => 'Draft',
-                        'ACTIVE' => 'Active',
-                        'TERMINATED' => 'Terminated',
-                    ])
-                    ->default('DRAFT')
-                    ->required(),
+                // workflow_state is set to 'draft' on create — hidden from the form
+                Forms\Components\Hidden::make('workflow_state')->default('draft'),
 
                 Forms\Components\Select::make('source')
                     ->options([
-                        'chabrin' => 'Chabrin Generated',
-                        'landlord' => 'Landlord Provided',
+                        'chabrin_issued' => 'Chabrin Generated',
+                        'landlord_provided' => 'Landlord Provided',
                     ])
-                    ->default('chabrin')
-                    ->required(),
+                    ->default('chabrin_issued')
+                    ->required()
+                    ->reactive(),
 
                 Forms\Components\Select::make('lease_type')
-                    ->options([
-                        'residential_major' => 'Residential Major',
-                        'residential_micro' => 'Residential Micro',
-                        'commercial' => 'Commercial',
-                    ])
+                    ->options(function ($get) {
+                        $source = $get('source') ?? 'chabrin_issued';
+                        if ($source === 'landlord_provided') {
+                            return [
+                                'residential' => 'Residential',
+                                'commercial' => 'Commercial',
+                            ];
+                        }
+
+                        // chabrin_issued
+                        return [
+                            'residential_macro' => 'Residential (Macro)',
+                            'residential_micro' => 'Residential (Micro)',
+                            'commercial' => 'Commercial',
+                        ];
+                    })
                     ->required()
                     ->reactive(),
 
