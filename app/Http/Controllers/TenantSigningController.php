@@ -54,7 +54,7 @@ class TenantSigningController extends Controller
         try {
             $otp = OTPService::generateAndSend(
                 $lease,
-                $lease->tenant->phone,
+                $lease->tenant->mobile_number,
             );
 
             Log::info('OTP requested for signing', [

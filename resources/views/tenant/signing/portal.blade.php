@@ -40,8 +40,8 @@
                     <p class="text-sm text-gray-600 mt-1">Reference: {{ $lease->reference_number }}</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm font-medium text-gray-700">{{ $tenant->name }}</p>
-                    <p class="text-xs text-gray-500">{{ $tenant->phone }}</p>
+                    <p class="text-sm font-medium text-gray-700">{{ $tenant->names }}</p>
+                    <p class="text-xs text-gray-500">{{ $tenant->mobile_number }}</p>
                 </div>
             </div>
         </div>
@@ -69,7 +69,7 @@
         <!-- Step 1: OTP Verification -->
         <div id="step1-content" class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Step 1: Verify Your Identity</h2>
-            <p class="text-gray-600 mb-6">We'll send a verification code to your registered phone number ending in {{ substr($tenant->phone, -4) }}</p>
+            <p class="text-gray-600 mb-6">We'll send a verification code to your registered phone number ending in {{ substr($tenant->mobile_number, -4) }}</p>
 
             <div id="otp-request-section">
                 <button id="request-otp-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition">
