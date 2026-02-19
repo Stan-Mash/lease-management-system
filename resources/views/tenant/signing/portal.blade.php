@@ -228,6 +228,15 @@
         function initializeSignaturePad() {
             const canvas = document.getElementById('signature-pad');
             try {
+                // Fix canvas internal resolution to match its CSS dimensions.
+                // Without this, SignaturePad's isEmpty() check uses a mismatched
+                // buffer and can incorrectly report empty after the first stroke,
+                // causing the first submit click to be silently rejected.
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+
                 signaturePad = new SignaturePad(canvas, {
                     backgroundColor: 'rgb(255, 255, 255)',
                     penColor: 'rgb(0, 0, 0)',
@@ -375,11 +384,15 @@
                 if (data.success) {
                     updateStepIndicator(3, 'completed');
                     showMessage('signature-message', 'success',
-                        'Lease signed successfully! You will receive a confirmation via email and SMS.');
+                        '✅ Lease signed successfully! A confirmation has been sent to your phone and email. Redirecting...');
 
+                    // Disable submit button to prevent double-submit
+                    btn.disabled = true;
+
+                    // Reload shows the "already-signed" confirmation page
                     setTimeout(() => {
                         window.location.reload();
-                    }, 3000);
+                    }, 2500);
                 } else {
                     showMessage('signature-message', 'error', data.message);
                     btn.disabled = false;

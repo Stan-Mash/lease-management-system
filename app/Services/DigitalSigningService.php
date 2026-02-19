@@ -8,6 +8,7 @@ use App\Enums\LeaseWorkflowState;
 use App\Models\DigitalSignature;
 use App\Models\Lease;
 use App\Models\Tenant;
+use App\Notifications\LeaseSignedConfirmationNotification;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -114,6 +115,9 @@ class DigitalSigningService
             'signature_id' => $signature->id,
             'tenant_id' => $lease->tenant_id,
         ]);
+
+        // Send confirmation notifications to tenant
+        self::sendSignedConfirmations($lease);
 
         return $signature;
     }
@@ -243,5 +247,52 @@ class DigitalSigningService
         // For now, just return original URL
         // In production, integrate with bit.ly or similar
         return $url;
+    }
+
+    /**
+     * Send post-signing confirmation to tenant via SMS and email.
+     * Failures are logged but do not throw — the signature is already saved.
+     */
+    private static function sendSignedConfirmations(Lease $lease): void
+    {
+        $tenant = $lease->tenant;
+
+        if (! $tenant) {
+            return;
+        }
+
+        // SMS confirmation
+        if ($tenant->mobile_number) {
+            try {
+                SMSService::sendLeaseSigned(
+                    $tenant,
+                    $lease->reference_number,
+                    $lease->start_date?->format('d M Y') ?? 'N/A',
+                );
+            } catch (Exception $e) {
+                Log::warning('Failed to send lease-signed SMS', [
+                    'lease_id' => $lease->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Email confirmation
+        if ($tenant->email_address) {
+            try {
+                $tenant->notify(new LeaseSignedConfirmationNotification($lease));
+            } catch (Exception $e) {
+                Log::warning('Failed to send lease-signed confirmation email', [
+                    'lease_id' => $lease->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::info('Post-signing confirmations dispatched', [
+            'lease_id' => $lease->id,
+            'sms' => (bool) $tenant->mobile_number,
+            'email' => (bool) $tenant->email_address,
+        ]);
     }
 }
