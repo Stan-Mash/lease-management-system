@@ -59,11 +59,11 @@ class DigitalSigningService
         $tenant = $lease->tenant;
 
         try {
-            if (in_array($method, ['email', 'both']) && $tenant->email) {
+            if (in_array($method, ['email', 'both']) && $tenant->email_address) {
                 self::sendEmail($lease, $tenant, $link);
             }
 
-            if (in_array($method, ['sms', 'both']) && $tenant->phone) {
+            if (in_array($method, ['sms', 'both']) && $tenant->mobile_number) {
                 self::sendSMS($lease, $tenant, $link);
             }
 
@@ -191,14 +191,12 @@ class DigitalSigningService
      */
     private static function sendEmail(Lease $lease, Tenant $tenant, string $link): void
     {
-        // Note: Never log the actual signing link or email content
-        Log::info('Signing email queued', [
+        Log::info('Sending signing link email', [
             'tenant_id' => $tenant->id,
             'lease_reference' => $lease->reference_number,
         ]);
 
-        // TODO: Implement actual email sending
-        // Mail::to($tenant->email)->send(new LeaseSigningLinkMail($lease, $link));
+        $tenant->notify(new \App\Notifications\LeaseSigningLinkNotification($lease, $link));
     }
 
     /**
@@ -210,7 +208,7 @@ class DigitalSigningService
 
         // Use centralized SMS service
         SMSService::sendSigningLink(
-            $tenant->phone,
+            $tenant->mobile_number,
             $lease->reference_number,
             $shortLink,
         );
