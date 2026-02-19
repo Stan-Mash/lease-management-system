@@ -96,6 +96,12 @@ class ViewLease extends ViewRecord
                 )
                 ->modalSubmitActionLabel('Approve Lease')
                 ->action(function (array $data) {
+                    // If already approved (e.g. page was stale), just redirect
+                    if ($this->record->workflow_state === 'approved') {
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+
+                        return;
+                    }
                     $result = LandlordApprovalService::approveLease(
                         $this->record,
                         $data['comments'] ?? null,
