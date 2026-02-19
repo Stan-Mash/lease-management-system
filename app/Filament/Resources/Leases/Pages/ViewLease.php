@@ -270,7 +270,7 @@ class ViewLease extends ViewRecord
                 ->color('warning')
                 ->visible(
                     fn () => in_array($this->record->workflow_state, [
-                        'sent_digital', 'pending_otp', 'pending_tenant_signature',
+                        'sent_digital', 'pending_otp', 'pending_tenant_signature', 'tenant_signed',
                     ]) && $this->record->signing_mode === 'digital',
                 )
                 ->modalHeading('Resend Signing Link')
