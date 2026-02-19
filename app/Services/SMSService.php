@@ -152,12 +152,12 @@ class SMSService
         ]);
 
         if ($queued) {
-            self::sendQueued($tenant->phone_number, $message, $mergedContext);
+            self::sendQueued($tenant->mobile_number, $message, $mergedContext);
 
             return true;
         }
 
-        return self::send($tenant->phone_number, $message, $mergedContext);
+        return self::send($tenant->mobile_number, $message, $mergedContext);
     }
 
     /**
@@ -252,7 +252,7 @@ class SMSService
         ?string $locale = null,
     ): bool {
         // Try to find tenant by phone to get their language preference
-        $tenant = Tenant::where('phone_number', $phone)->first();
+        $tenant = Tenant::where('mobile_number', $phone)->first();
 
         if ($tenant) {
             return self::sendOTPToTenant($tenant, $code, $reference, $expiryMinutes);
@@ -298,7 +298,7 @@ class SMSService
             $tenant,
             'sms.lease_created',
             [
-                'tenant_name' => $tenant->full_name,
+                'tenant_name' => $tenant->names,
                 'reference' => $reference,
             ],
             ['type' => 'lease_created', 'reference' => $reference],
@@ -331,7 +331,7 @@ class SMSService
      */
     public static function sendApprovalNotification(string $phone, string $reference): bool
     {
-        $tenant = Tenant::where('phone_number', $phone)->first();
+        $tenant = Tenant::where('mobile_number', $phone)->first();
 
         if ($tenant) {
             return self::sendLocalized(
@@ -355,7 +355,7 @@ class SMSService
      */
     public static function sendRejectionNotification(string $phone, string $reference, string $reason): bool
     {
-        $tenant = Tenant::where('phone_number', $phone)->first();
+        $tenant = Tenant::where('mobile_number', $phone)->first();
 
         if ($tenant) {
             return self::sendLocalized(
@@ -418,7 +418,7 @@ class SMSService
      */
     public static function sendSigningLink(string $phone, string $reference, string $link): bool
     {
-        $tenant = Tenant::where('phone_number', $phone)->first();
+        $tenant = Tenant::where('mobile_number', $phone)->first();
 
         if ($tenant) {
             return self::sendLocalized(
@@ -544,7 +544,7 @@ class SMSService
             $tenant,
             'sms.welcome',
             [
-                'tenant_name' => $tenant->full_name,
+                'tenant_name' => $tenant->names,
                 'tenant_id' => $tenant->id,
             ],
             ['type' => 'welcome'],

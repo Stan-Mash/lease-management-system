@@ -200,38 +200,64 @@ class ViewLease extends ViewRecord
                     fn () => $this->record->workflow_state === 'approved'
                         && $this->record->signing_mode === 'digital',
                 )
-                ->requiresConfirmation()
-                ->modalHeading('Send SMS Signing Link to Tenant')
+                ->modalHeading('Send Signing Link to Tenant')
                 ->modalDescription(
-                    fn () => '📱 An SMS will be sent to '
-                        . ($this->record->tenant?->names ?? 'the tenant')
-                        . ' at ' . ($this->record->tenant?->mobile_number ?? '— no phone —')
-                        . ".\n\nThe tenant will:"
-                        . "\n 1. Receive an SMS with a secure link (valid 72 hours)"
-                        . "\n 2. Open the link and request a 6-digit OTP code"
-                        . "\n 3. Verify the OTP and read the full lease"
-                        . "\n 4. Draw their digital signature"
-                        . "\n\nSMS language: "
-                        . ($this->record->tenant?->preferred_language === 'sw' ? '🇰🇪 Kiswahili' : '🇬🇧 English'),
+                    fn () => 'The tenant will receive a secure link to digitally sign their lease (valid 72 hours). '
+                        . 'They will open the link, request a 6-digit OTP, verify it, and draw their signature.',
                 )
-                ->modalSubmitActionLabel('📱 Send SMS Now')
-                ->action(function () {
+                ->modalSubmitActionLabel('Send Now')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('send_method')
+                        ->label('Send Via')
+                        ->options(function () {
+                            $options = [];
+                            if ($this->record->tenant?->mobile_number) {
+                                $options['sms'] = '📱 SMS — ' . ($this->record->tenant->mobile_number);
+                            }
+                            if ($this->record->tenant?->email_address) {
+                                $options['email'] = '✉️ Email — ' . ($this->record->tenant->email_address);
+                            }
+                            if (count($options) === 2) {
+                                $options['both'] = '📱 + ✉️ Both SMS & Email';
+                            }
+
+                            return $options;
+                        })
+                        ->default(function () {
+                            if ($this->record->tenant?->mobile_number) {
+                                return 'sms';
+                            }
+                            if ($this->record->tenant?->email_address) {
+                                return 'email';
+                            }
+
+                            return 'both';
+                        })
+                        ->required()
+                        ->helperText('Choose how to send the signing link to the tenant'),
+                ])
+                ->action(function (array $data) {
                     try {
-                        $this->record->sendDigitalSigningLink();
+                        $method = $data['send_method'] ?? 'sms';
+                        $this->record->sendDigitalSigningLink($method);
+
+                        $sentTo = match ($method) {
+                            'sms' => 'SMS to ' . ($this->record->tenant?->mobile_number ?? 'tenant'),
+                            'email' => 'email to ' . ($this->record->tenant?->email_address ?? 'tenant'),
+                            'both' => 'SMS & email to ' . ($this->record->tenant?->names ?? 'tenant'),
+                            default => 'tenant',
+                        };
+
                         Notification::make()->success()
-                            ->title('SMS Sent! 📱')
-                            ->body(
-                                'Signing link sent to '
-                                . ($this->record->tenant?->mobile_number ?? 'tenant')
-                                . '. Status is now "Signing Link Sent". '
-                                . 'The tenant will receive an OTP when they open the link.',
-                            )
+                            ->title('Signing Link Sent ✅')
+                            ->body("Link sent via {$sentTo}. Status is now \"Signing Link Sent\". The tenant will receive an OTP when they open the link.")
                             ->persistent()
                             ->send();
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } catch (Exception $e) {
                         Notification::make()->danger()
-                            ->title('SMS Failed to Send')
+                            ->title('Failed to Send Signing Link')
                             ->body('Error: ' . $e->getMessage())
                             ->send();
                     }
@@ -247,22 +273,56 @@ class ViewLease extends ViewRecord
                         'sent_digital', 'pending_otp', 'pending_tenant_signature',
                     ]) && $this->record->signing_mode === 'digital',
                 )
-                ->requiresConfirmation()
                 ->modalHeading('Resend Signing Link')
-                ->modalDescription(
-                    fn () => 'A new SMS will be sent to '
-                        . ($this->record->tenant?->names ?? 'the tenant')
-                        . ' at ' . ($this->record->tenant?->mobile_number ?? '—')
-                        . '. Use this if the tenant says they didn\'t receive the link, or the link has expired.',
-                )
-                ->modalSubmitActionLabel('Resend SMS')
-                ->action(function () {
+                ->modalDescription('Send a fresh signing link to the tenant. Use this if the link expired or was not received.')
+                ->modalSubmitActionLabel('Resend Now')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('send_method')
+                        ->label('Send Via')
+                        ->options(function () {
+                            $options = [];
+                            if ($this->record->tenant?->mobile_number) {
+                                $options['sms'] = '📱 SMS — ' . ($this->record->tenant->mobile_number);
+                            }
+                            if ($this->record->tenant?->email_address) {
+                                $options['email'] = '✉️ Email — ' . ($this->record->tenant->email_address);
+                            }
+                            if (count($options) === 2) {
+                                $options['both'] = '📱 + ✉️ Both SMS & Email';
+                            }
+
+                            return $options;
+                        })
+                        ->default(function () {
+                            if ($this->record->tenant?->mobile_number) {
+                                return 'sms';
+                            }
+                            if ($this->record->tenant?->email_address) {
+                                return 'email';
+                            }
+
+                            return 'sms';
+                        })
+                        ->required(),
+                ])
+                ->action(function (array $data) {
                     try {
-                        $this->record->sendDigitalSigningLink();
+                        $method = $data['send_method'] ?? 'sms';
+                        $this->record->sendDigitalSigningLink($method);
+
+                        $sentTo = match ($method) {
+                            'sms' => 'SMS to ' . ($this->record->tenant?->mobile_number ?? 'tenant'),
+                            'email' => 'email to ' . ($this->record->tenant?->email_address ?? 'tenant'),
+                            'both' => 'SMS & email to ' . ($this->record->tenant?->names ?? 'tenant'),
+                            default => 'tenant',
+                        };
+
                         Notification::make()->success()
-                            ->title('Signing Link Resent')
-                            ->body('New SMS sent to ' . ($this->record->tenant?->mobile_number ?? 'tenant') . '.')
+                            ->title('Signing Link Resent ✅')
+                            ->body("New link sent via {$sentTo}.")
                             ->send();
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } catch (Exception $e) {
                         Notification::make()->danger()
                             ->title('Failed to Resend')
