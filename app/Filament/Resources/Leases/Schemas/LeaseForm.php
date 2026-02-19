@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Leases\Schemas;
 
+use App\Models\Tenant;
 use App\Models\Unit;
 use Filament\Forms;
 use Filament\Schemas\Schema;
@@ -26,7 +27,8 @@ class LeaseForm
                     ])
                     ->default('chabrin_issued')
                     ->required()
-                    ->reactive(),
+                    ->live()
+                    ->afterStateUpdated(fn (callable $set) => $set('lease_type', null)),
 
                 Forms\Components\Select::make('lease_type')
                     ->options(function ($get) {
@@ -38,32 +40,31 @@ class LeaseForm
                             ];
                         }
 
-                        // chabrin_issued
                         return [
                             'residential_major' => 'Residential (Major)',
                             'residential_micro' => 'Residential (Micro)',
                             'commercial' => 'Commercial',
                         ];
                     })
+                    ->default('residential_major')
                     ->required()
-                    ->reactive(),
+                    ->live(),
 
                 Forms\Components\Select::make('lease_template_id')
                     ->label('Template')
-                    ->relationship('leaseTemplate', 'name', function ($query, $get) {
+                    ->options(function ($get) {
                         $leaseType = $get('lease_type');
+                        $query = \App\Models\LeaseTemplate::where('is_active', true);
                         if ($leaseType) {
-                            $query->where('template_type', $leaseType)
-                                ->where('is_active', true);
+                            $query->where('template_type', $leaseType);
                         }
 
-                        return $query;
+                        return $query->orderBy('name')->pluck('name', 'id');
                     })
                     ->searchable()
-                    ->preload()
-                    ->helperText('Select a custom template or leave blank to use the default template for this lease type')
-                    ->visible(fn ($get) => ! empty($get('lease_type')))
-                    ->reactive()
+                    ->placeholder('Default template for this lease type')
+                    ->helperText('Optional — leave blank to use the system default template')
+                    ->live()
                     ->afterStateUpdated(function ($state, callable $set) {
                         if ($state) {
                             $template = \App\Models\LeaseTemplate::find($state);
@@ -88,10 +89,12 @@ class LeaseForm
                 // --- Property & Tenant ---
                 Forms\Components\Select::make('tenant_id')
                     ->label('Tenant')
-                    ->relationship('tenant', 'names')
-                    ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->names} — {$record->mobile_number}")
-                    ->searchable(['names', 'mobile_number', 'national_id'])
-                    ->preload()
+                    ->options(
+                        Tenant::orderBy('names')
+                            ->get()
+                            ->mapWithKeys(fn ($t) => [$t->id => "{$t->names} — {$t->mobile_number}"]),
+                    )
+                    ->searchable()
                     ->required(),
 
                 // Smart Unit Search
@@ -100,7 +103,7 @@ class LeaseForm
                     ->options(Unit::pluck('unit_number', 'id'))
                     ->searchable()
                     ->required()
-                    ->reactive()
+                    ->live()
                     ->afterStateUpdated(function ($state, callable $set) {
                         $unit = Unit::with('property.client')->find($state);
                         if ($unit) {
@@ -134,7 +137,7 @@ class LeaseForm
                 // --- Guarantor Section ---
                 Forms\Components\Toggle::make('requires_guarantor')
                     ->label('Requires Guarantor')
-                    ->reactive()
+                    ->live()
                     ->default(false),
 
                 Forms\Components\Repeater::make('guarantors')
