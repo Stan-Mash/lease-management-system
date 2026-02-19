@@ -769,18 +769,44 @@ h1, h2, h3,
    15. GLOBAL SEARCH
    ══════════════════════════════════════════════════════════════════════ */
 
+/* Wrapper / field container */
+.fi-global-search-field-ctn,
 .fi-global-search-field {
     border-radius: 10px !important;
-    border: 1px solid rgba(218,165,32,0.2) !important;
+    background: rgba(255,255,255,0.92) !important;
+    border: 1px solid rgba(218,165,32,0.28) !important;
+    box-shadow: 0 1px 4px rgba(218,165,32,0.08), inset 0 1px 2px rgba(0,0,0,0.02) !important;
     font-family: var(--font-body) !important;
     font-size: 0.83rem !important;
     transition: border-color 150ms ease, box-shadow 150ms ease !important;
-}
-.fi-global-search-field:focus {
-    border-color: var(--chabrin-gold) !important;
-    box-shadow: 0 0 0 3px rgba(218,165,32,0.12) !important;
+    outline: none !important;
 }
 
+/* The actual <input> inside the search */
+.fi-global-search-field input,
+.fi-global-search-field-ctn input {
+    font-family: var(--font-body) !important;
+    font-size: 0.83rem !important;
+    color: #1e293b !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+.fi-global-search-field input::placeholder,
+.fi-global-search-field-ctn input::placeholder {
+    color: #a0a0a0 !important;
+}
+
+/* Focus state */
+.fi-global-search-field:focus-within,
+.fi-global-search-field-ctn:focus-within {
+    border-color: var(--chabrin-gold) !important;
+    box-shadow: 0 0 0 3px rgba(218,165,32,0.15), 0 1px 4px rgba(218,165,32,0.1) !important;
+    background: #fff !important;
+}
+
+/* Search results dropdown */
 .fi-global-search-result {
     font-family: var(--font-body) !important;
     font-size: 0.82rem !important;
@@ -789,6 +815,23 @@ h1, h2, h3,
 }
 .fi-global-search-result:hover {
     background: rgba(218,165,32,0.06) !important;
+}
+
+/* Results container */
+.fi-global-search-results-container {
+    border-radius: 12px !important;
+    border: 1px solid rgba(218,165,32,0.18) !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1), 0 2px 8px rgba(218,165,32,0.08) !important;
+}
+
+/* Group heading inside results */
+.fi-global-search-results-group-title {
+    font-family: var(--font-body) !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    color: #b8960a !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -820,6 +863,29 @@ h1, h2, h3,
 
 .fi-page {
     max-width: none !important;
+}
+
+/* ── Form Page Full-Width Fix ─────────────────────────────────────────
+   Filament 4 sets .fi-page-content to "grid auto-cols-fr" which sizes
+   grid children by content, leaving empty space on the right.
+   Force a single stretching column so the form fills the page. */
+
+.fi-page-content {
+    grid-template-columns: 1fr !important;
+}
+
+/* Schema form container and sections must fill their parent */
+.fi-sc-form,
+.fi-sc-section,
+.fi-sc-section-content-ctn,
+.fi-sc-section-content {
+    width: 100% !important;
+}
+
+/* Ensure the schema (fi-sc) itself stretches to full width */
+.fi-sc {
+    width: 100% !important;
+    min-width: 0 !important;
 }
 
 /* Subtle warm-gold texture on cream background — no blue */
