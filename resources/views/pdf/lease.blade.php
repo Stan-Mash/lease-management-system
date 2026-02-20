@@ -251,14 +251,14 @@
             <div class="signature-line">
                 <strong>Tenant</strong><br>
                 {{ $lease->tenant->names ?? $lease->tenant->full_name ?? 'N/A' }}
-                @if (!empty($digitalSignature) && !empty($digitalSignature->signature_data))
+                @if (!empty($signatureImagePath) && file_exists($signatureImagePath))
                     <br>
-                    <img src="{{ $digitalSignature->data_uri }}"
+                    <img src="{{ $signatureImagePath }}"
                          style="max-width:180px; max-height:70px; margin-top:6px; border-bottom:1px solid #000;"
                          alt="Tenant Signature">
                     <br>
                     <span style="font-size:9pt; color:#555;">
-                        Digitally signed: {{ $digitalSignature->created_at?->format('d M Y, h:i A') }}
+                        Digitally signed: {{ $digitalSignature?->created_at?->format('d M Y, h:i A') }}
                     </span>
                 @endif
             </div>

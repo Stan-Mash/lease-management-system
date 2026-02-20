@@ -29,6 +29,8 @@ class LeasePdfService
         $needsDraft = $this->needsDraftWatermark($lease);
         // Get the latest digital signature (if any) to embed in the PDF
         $digitalSignature = $lease->digitalSignatures->sortByDesc('created_at')->first();
+        // Write signature to temp file so DomPDF can render it (data: URIs are not supported)
+        $signatureImagePath = $digitalSignature ? $this->writeSignatureTempFile($digitalSignature) : null;
 
         // Strategy 1: Assigned custom template
         if ($lease->lease_template_id && $lease->leaseTemplate) {
@@ -80,19 +82,26 @@ class LeasePdfService
         };
 
         $data = [
-            'lease'             => $lease,
-            'tenant'            => $lease->tenant,
-            'unit'              => $lease->unit,
-            'landlord'          => $lease->landlord,
-            'property'          => $lease->property,
-            'today'             => now()->format('d/m/Y'),
-            'digitalSignature'  => $digitalSignature ?? null,
+            'lease'                => $lease,
+            'tenant'               => $lease->tenant,
+            'unit'                 => $lease->unit,
+            'landlord'             => $lease->landlord,
+            'property'             => $lease->property,
+            'today'                => now()->format('d/m/Y'),
+            'digitalSignature'     => $digitalSignature ?? null,
+            'signatureImagePath'   => $signatureImagePath,
         ];
 
         $pdf = Pdf::loadView($viewName, $data);
         $this->setPdfMetadata($pdf, $lease);
+        $output = $pdf->output();
 
-        return $pdf->output();
+        // Clean up temp signature file
+        if ($signatureImagePath && file_exists($signatureImagePath)) {
+            @unlink($signatureImagePath);
+        }
+
+        return $output;
     }
 
     /**
@@ -101,6 +110,33 @@ class LeasePdfService
     public function filename(Lease $lease): string
     {
         return 'Lease-' . $lease->reference_number . '.pdf';
+    }
+
+    /**
+     * Write the signature data URI to a temp PNG file and return its path.
+     * DomPDF cannot render data: URIs directly — it needs a real file path.
+     * Caller is responsible for deleting the file after PDF generation.
+     */
+    public function writeSignatureTempFile(\App\Models\DigitalSignature $signature): ?string
+    {
+        try {
+            $dataUri = $signature->data_uri;
+            // Strip "data:image/png;base64," prefix
+            $base64 = preg_replace('/^data:image\/\w+;base64,/', '', $dataUri);
+            $imageData = base64_decode($base64);
+
+            if (! $imageData) {
+                return null;
+            }
+
+            $path = sys_get_temp_dir() . '/sig_' . $signature->id . '_' . uniqid() . '.png';
+            file_put_contents($path, $imageData);
+
+            return $path;
+        } catch (\Exception $e) {
+            Log::warning('Could not write signature temp file', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     private function renderTemplate(LeaseTemplate $template, Lease $lease): string
