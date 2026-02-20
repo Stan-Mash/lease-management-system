@@ -38,6 +38,9 @@ Route::prefix('tenant')->name('tenant.')->middleware('throttle:30,1')->group(fun
     Route::post('/sign/{lease}/reject', [TenantSigningController::class, 'rejectLease'])
         ->middleware('throttle:5,1')
         ->name('reject-lease');
+    Route::post('/sign/{lease}/upload-id', [TenantSigningController::class, 'uploadIdCopy'])
+        ->middleware('throttle:5,1')
+        ->name('upload-id');
 });
 
 // Landlord approval portal routes (for landlord app integration)

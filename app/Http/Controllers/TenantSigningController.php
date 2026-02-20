@@ -254,6 +254,54 @@ class TenantSigningController extends Controller
     }
 
     /**
+     * Handle ID copy upload from the tenant after signing.
+     *
+     * Accepts one or more image/PDF files (JPG, PNG, PDF, max 5 MB each).
+     * Files are stored in storage/app/tenant-ids/{lease_id}/ for staff review.
+     */
+    public function uploadIdCopy(Request $request, Lease $lease): JsonResponse
+    {
+        $this->verifySignedUrlAndTenant($request, $lease);
+
+        $request->validate([
+            'id_documents'   => ['required', 'array', 'min:1', 'max:5'],
+            'id_documents.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        try {
+            $storedPaths = [];
+            $directory   = 'tenant-ids/' . $lease->id;
+
+            foreach ($request->file('id_documents') as $file) {
+                $path = $file->store($directory, 'local');
+                $storedPaths[] = $path;
+            }
+
+            Log::info('Tenant ID copy uploaded', [
+                'lease_id'  => $lease->id,
+                'tenant_id' => $lease->tenant_id,
+                'files'     => count($storedPaths),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'ID document(s) uploaded successfully. Thank you!',
+                'count'   => count($storedPaths),
+            ]);
+        } catch (Exception $e) {
+            Log::error('Tenant ID upload failed', [
+                'lease_id' => $lease->id,
+                'error'    => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Upload failed. Please try again or contact support.',
+            ], 500);
+        }
+    }
+
+    /**
      * Verify both the signed URL and tenant ownership on every request.
      *
      * Prevents IDOR where a valid signed URL for one lease could be
