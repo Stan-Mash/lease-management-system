@@ -93,20 +93,11 @@ class ExactLeaseTemplateSeeder extends Seeder
     }
 
     /**
-     * =========================================================================
-     * RESIDENTIAL MAJOR — "TENANCY LEASE AGREEMENT" (5-page PDF)
-     * Matches: CHABRIN AGENCIES TENANCY LEASE AGREEMENT - MAJOR DWELLING.pdf
-     * =========================================================================
+     * Shared CSS for both residential templates (major + micro).
      */
-    private function getResidentialMajorTemplate(): string
+    private function getResidentialSharedStyles(): string
     {
-        return <<<'HTML'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Tenancy Lease Agreement</title>
-    <style>
+        return <<<'CSS'
         @page {
             margin: 120px 50px 80px 50px;
         }
@@ -147,7 +138,7 @@ class ExactLeaseTemplateSeeder extends Seeder
             line-height: 1.4;
             color: #1a365d;
         }
-        .company-info .gold {
+        .company-info .gold, .gold {
             color: #DAA520;
         }
         .header-line {
@@ -210,6 +201,30 @@ class ExactLeaseTemplateSeeder extends Seeder
             display: inline-block;
             min-width: 300px;
         }
+        .dotted-line-full {
+            border-bottom: 1px dotted #000;
+            display: inline-block;
+            min-width: 450px;
+        }
+
+        /* Info rows & conditions (micro) */
+        .info-row {
+            margin: 8px 0;
+        }
+        .conditions-title {
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 20px 0 12px 0;
+        }
+        .condition {
+            margin: 8px 0 8px 25px;
+            text-align: justify;
+        }
+        .witness-text {
+            font-weight: bold;
+            font-style: italic;
+            margin: 25px 0 15px 0;
+        }
 
         /* Numbered clauses */
         .clause-main {
@@ -250,9 +265,15 @@ class ExactLeaseTemplateSeeder extends Seeder
         .page-break {
             page-break-before: always;
         }
-    </style>
-</head>
-<body>
+CSS;
+    }
+
+    /**
+     * Shared header block for residential templates.
+     */
+    private function getResidentialHeaderHtml(): string
+    {
+        return <<<'HTML'
     <!-- Fixed Header -->
     <header>
         <table class="header-table">
@@ -272,12 +293,64 @@ class ExactLeaseTemplateSeeder extends Seeder
         </table>
         <div class="header-line"></div>
     </header>
+HTML;
+    }
 
+    /**
+     * Shared watermark block for residential templates.
+     */
+    private function getResidentialWatermarkHtml(): string
+    {
+        return <<<'HTML'
     <!-- Watermark -->
     <div class="watermark">
         <img src="{{ public_path('images/Chabrin-Logo-background.png') }}" alt="">
     </div>
+HTML;
+    }
 
+    /**
+     * Wrap residential inner content with shared layout (doctype, head, styles, header, watermark).
+     */
+    private function wrapResidentialLayout(string $innerContent, string $pageTitle): string
+    {
+        $styles = $this->getResidentialSharedStyles();
+        $header = $this->getResidentialHeaderHtml();
+        $watermark = $this->getResidentialWatermarkHtml();
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>{$pageTitle}</title>
+    <style>
+{$styles}
+    </style>
+</head>
+<body>
+{$header}
+{$watermark}
+{$innerContent}
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * =========================================================================
+     * RESIDENTIAL MAJOR — "TENANCY LEASE AGREEMENT" (5-page PDF)
+     * Matches: CHABRIN AGENCIES TENANCY LEASE AGREEMENT - MAJOR DWELLING.pdf
+     * =========================================================================
+     */
+    private function getResidentialMajorTemplate(): string
+    {
+        return $this->wrapResidentialLayout($this->getResidentialMajorContent(), 'Tenancy Lease Agreement');
+    }
+
+    private function getResidentialMajorContent(): string
+    {
+        return <<<'HTML'
     <!-- Page 1: Title and Parties -->
     <div class="content">
         <div class="title">TENANCY LEASE AGREEMENT</div>
@@ -578,8 +651,6 @@ class ExactLeaseTemplateSeeder extends Seeder
             </div>
         </div>
     </div>
-</body>
-</html>
 HTML;
     }
 
@@ -592,155 +663,12 @@ HTML;
      */
     private function getResidentialMicroTemplate(): string
     {
+        return $this->wrapResidentialLayout($this->getResidentialMicroContent(), 'Tenancy Agreement');
+    }
+
+    private function getResidentialMicroContent(): string
+    {
         return <<<'HTML'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Tenancy Agreement</title>
-    <style>
-        @page {
-            margin: 120px 50px 80px 50px;
-        }
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 11pt;
-            line-height: 1.5;
-            color: #000;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            position: fixed;
-            top: -100px;
-            left: 0;
-            right: 0;
-            height: 90px;
-        }
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .header-table td {
-            vertical-align: top;
-        }
-        .logo-cell {
-            width: 200px;
-        }
-        .logo-img {
-            width: 180px;
-            height: auto;
-        }
-        .company-info {
-            text-align: right;
-            font-size: 10pt;
-            line-height: 1.4;
-            color: #1a365d;
-        }
-        .gold {
-            color: #DAA520;
-        }
-        .header-line {
-            border-bottom: 3px solid #DAA520;
-            margin-top: 5px;
-        }
-        .watermark {
-            position: fixed;
-            top: 25%;
-            left: 10%;
-            width: 80%;
-            opacity: 0.08;
-            z-index: -1;
-        }
-        .watermark img {
-            width: 100%;
-        }
-        .title {
-            text-align: center;
-            font-size: 14pt;
-            font-weight: bold;
-            text-decoration: underline;
-            margin: 25px 0 20px 0;
-        }
-        .dotted-line {
-            border-bottom: 1px dotted #000;
-            display: inline-block;
-            min-width: 200px;
-        }
-        .dotted-line-short {
-            border-bottom: 1px dotted #000;
-            display: inline-block;
-            min-width: 100px;
-        }
-        .dotted-line-medium {
-            border-bottom: 1px dotted #000;
-            display: inline-block;
-            min-width: 150px;
-        }
-        .dotted-line-long {
-            border-bottom: 1px dotted #000;
-            display: inline-block;
-            min-width: 350px;
-        }
-        .dotted-line-full {
-            border-bottom: 1px dotted #000;
-            display: inline-block;
-            min-width: 450px;
-        }
-        .info-row {
-            margin: 8px 0;
-        }
-        .conditions-title {
-            font-weight: bold;
-            text-decoration: underline;
-            margin: 20px 0 12px 0;
-        }
-        .condition {
-            margin: 8px 0 8px 25px;
-            text-align: justify;
-        }
-        .witness-text {
-            font-weight: bold;
-            font-style: italic;
-            margin: 25px 0 15px 0;
-        }
-        .sig-line {
-            border-bottom: 1px solid #000;
-            display: inline-block;
-            width: 250px;
-            margin-left: 5px;
-        }
-        .sig-row {
-            margin: 15px 0;
-        }
-    </style>
-</head>
-<body>
-    <!-- Fixed Header -->
-    <header>
-        <table class="header-table">
-            <tr>
-                <td class="logo-cell">
-                    <img src="{{ public_path('images/chabrin-logo.png') }}" class="logo-img" alt="Chabrin Agencies Ltd">
-                </td>
-                <td class="company-info">
-                    <strong>NACICO PLAZA, LANDHIES ROAD</strong><br>
-                    5<sup>TH</sup> FLOOR &ndash; ROOM 517<br>
-                    P.O. Box 16659 &ndash; 00620<br>
-                    NAIROBI<br>
-                    <span class="gold">CELL : +254-720-854-389</span><br>
-                    <span class="gold">MAIL: info@chabrinagencies.co.ke</span>
-                </td>
-            </tr>
-        </table>
-        <div class="header-line"></div>
-    </header>
-
-    <!-- Watermark -->
-    <div class="watermark">
-        <img src="{{ public_path('images/Chabrin-Logo-background.png') }}" alt="">
-    </div>
-
     <div class="title">TENANCY AGREEMENT</div>
 
     <p style="text-align: justify;">
@@ -809,7 +737,7 @@ HTML;
     </div>
 
     <div class="condition">
-        4. The property owner will only allow established occupants before renting a out a unit
+        4. The property owner will only allow established occupants before renting out a unit
         in the premise.
     </div>
 
@@ -903,9 +831,6 @@ HTML;
         Signature <span class="sig-line" style="width:120px;"></span>
         Date <span class="dotted-line-short">{{ $lease->start_date ? $lease->start_date->format('d/m/Y') : '' }}</span>
     </div>
-
-</body>
-</html>
 HTML;
     }
 
@@ -919,15 +844,9 @@ HTML;
      * Entire Agreement, Legal Fees, Second Schedule, Signatures.
      * =========================================================================
      */
-    private function getCommercialTemplate(): string
+    private function getCommercialStyles(): string
     {
-        return <<<'HTML'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Commercial Lease Agreement</title>
-    <style>
+        return <<<'CSS'
         @page {
             margin: 80px 50px 80px 50px;
         }
@@ -1069,14 +988,48 @@ HTML;
             height: 8px;
             margin-bottom: 20px;
         }
-    </style>
-</head>
-<body>
+CSS;
+    }
+
+    private function getCommercialHeaderHtml(): string
+    {
+        return <<<'HTML'
     <!-- Header on every page (logo top-right) -->
     <header>
         <img src="{{ public_path('images/chabrin-logo.png') }}" class="header-logo-small" alt="Chabrin Agencies Ltd">
     </header>
+HTML;
+    }
 
+    private function wrapCommercialLayout(string $bodyContent): string
+    {
+        $styles = $this->getCommercialStyles();
+        $header = $this->getCommercialHeaderHtml();
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Commercial Lease Agreement</title>
+    <style>
+{$styles}
+    </style>
+</head>
+<body>
+{$header}
+{$bodyContent}
+HTML;
+    }
+
+    private function getCommercialTemplate(): string
+    {
+        return $this->wrapCommercialLayout($this->getCommercialTemplateContent());
+    }
+
+    private function getCommercialTemplateContent(): string
+    {
+        return <<<'HTML'
     <!-- ============================== -->
     <!-- COVER PAGE                     -->
     <!-- ============================== -->
