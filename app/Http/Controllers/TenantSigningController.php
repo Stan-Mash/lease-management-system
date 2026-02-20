@@ -12,10 +12,12 @@ use App\Http\Requests\VerifyOTPRequest;
 use App\Models\Lease;
 use App\Services\DigitalSigningService;
 use App\Services\LeaseDisputeService;
+use App\Services\LeasePdfService;
 use App\Services\OTPService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -186,13 +188,32 @@ class TenantSigningController extends Controller
     }
 
     /**
-     * Display lease PDF for review.
+     * Stream the lease PDF inline for tenant review.
+     * Falls back to the Blade preview page if PDF generation fails.
      */
-    public function viewLease(Request $request, Lease $lease): View
+    public function viewLease(Request $request, Lease $lease): Response|View
     {
         $this->verifySignedUrlAndTenant($request, $lease);
 
-        return view('tenant.signing.lease-preview', compact('lease'));
+        try {
+            $pdfService = app(LeasePdfService::class);
+            $pdfContent = $pdfService->generate($lease);
+            $filename = $pdfService->filename($lease);
+
+            return response($pdfContent, 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Content-Length'      => strlen($pdfContent),
+                'Cache-Control'       => 'private, max-age=300',
+            ]);
+        } catch (Exception $e) {
+            Log::warning('TenantSigningController: PDF generation failed, falling back to preview', [
+                'lease_id' => $lease->id,
+                'error'    => $e->getMessage(),
+            ]);
+
+            return view('tenant.signing.lease-preview', compact('lease'));
+        }
     }
 
     /**
