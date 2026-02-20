@@ -345,13 +345,13 @@
                 <p>In the presence of: ) <span class="signature-line"></span></p>
             </td>
             <td width="50%">
-                @if (!empty($digitalSignature) && !empty($digitalSignature->signature_data))
-                    <img src="{{ $digitalSignature->data_uri }}"
+                @if (!empty($signatureImagePath) && file_exists($signatureImagePath))
+                    <img src="{{ $signatureImagePath }}"
                          style="max-width:200px; max-height:80px; border-bottom:1px solid #000;"
                          alt="Tenant Signature">
                     <p style="font-size:9pt; color:#555; margin-top:4px;">
-                        Digitally signed: {{ $digitalSignature->created_at?->format('d M Y, h:i A') }}<br>
-                        IP: {{ $digitalSignature->ip_address ?? 'N/A' }}
+                        Digitally signed: {{ $digitalSignature?->created_at?->format('d M Y, h:i A') }}<br>
+                        IP: {{ $digitalSignature?->ip_address ?? 'N/A' }}
                     </p>
                 @else
                     <p><span class="signature-line"></span></p>

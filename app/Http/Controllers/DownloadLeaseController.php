@@ -140,15 +140,18 @@ class DownloadLeaseController extends Controller
         string $cacheKey,
     ): SymfonyResponse {
         $digitalSignature = $lease->digitalSignatures->sortByDesc('created_at')->first();
+        $pdfService = app(\App\Services\LeasePdfService::class);
+        $signatureImagePath = $digitalSignature ? $pdfService->writeSignatureTempFile($digitalSignature) : null;
 
         $data = [
-            'lease'            => $lease,
-            'tenant'           => $lease->tenant,
-            'unit'             => $lease->unit,
-            'landlord'         => $lease->landlord,
-            'property'         => $lease->property,
-            'today'            => now()->format('d/m/Y'),
-            'digitalSignature' => $digitalSignature ?? null,
+            'lease'              => $lease,
+            'tenant'             => $lease->tenant,
+            'unit'               => $lease->unit,
+            'landlord'           => $lease->landlord,
+            'property'           => $lease->property,
+            'today'              => now()->format('d/m/Y'),
+            'digitalSignature'   => $digitalSignature ?? null,
+            'signatureImagePath' => $signatureImagePath,
         ];
 
         $viewName = match ($lease->lease_type) {
@@ -169,8 +172,18 @@ class DownloadLeaseController extends Controller
                 'view_name' => $viewName,
             ]);
 
-            return $this->cacheAndRespond($pdf, $filename, $method, $cacheKey);
+            $response = $this->cacheAndRespond($pdf, $filename, $method, $cacheKey);
+
+            // Clean up signature temp file after PDF is built
+            if ($signatureImagePath && file_exists($signatureImagePath)) {
+                @unlink($signatureImagePath);
+            }
+
+            return $response;
         } catch (Exception $e) {
+            if ($signatureImagePath && file_exists($signatureImagePath)) {
+                @unlink($signatureImagePath);
+            }
             Log::error('Failed to generate PDF with hardcoded views', [
                 'lease_id' => $lease->id,
                 'view_name' => $viewName,
