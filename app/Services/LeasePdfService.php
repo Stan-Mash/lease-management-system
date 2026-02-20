@@ -115,6 +115,7 @@ class LeasePdfService
     /**
      * Write the signature data URI to a temp PNG file and return its path.
      * DomPDF cannot render data: URIs directly — it needs a real file path.
+     * File must be within DomPDF's chroot (base_path()), so we use storage/app/signatures/.
      * Caller is responsible for deleting the file after PDF generation.
      */
     public function writeSignatureTempFile(\App\Models\DigitalSignature $signature): ?string
@@ -129,7 +130,13 @@ class LeasePdfService
                 return null;
             }
 
-            $path = sys_get_temp_dir() . '/sig_' . $signature->id . '_' . uniqid() . '.png';
+            // Must be within base_path() due to DomPDF chroot restriction
+            $dir = storage_path('app/signatures');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+
+            $path = $dir . '/sig_' . $signature->id . '_' . uniqid() . '.png';
             file_put_contents($path, $imageData);
 
             return $path;
