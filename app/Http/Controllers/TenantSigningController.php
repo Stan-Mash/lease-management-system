@@ -20,6 +20,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class TenantSigningController extends Controller
@@ -257,7 +259,8 @@ class TenantSigningController extends Controller
      * Handle ID copy upload from the tenant after signing.
      *
      * Accepts one or more image/PDF files (JPG, PNG, PDF, max 5 MB each).
-     * Files are stored in storage/app/tenant-ids/{lease_id}/ for staff review.
+     * Files are stored in storage/app/private/tenant-id-documents/{lease_uuid}/
+     * using UUID filenames to prevent path traversal and enumeration attacks.
      */
     public function uploadIdCopy(Request $request, Lease $lease): JsonResponse
     {
@@ -265,15 +268,39 @@ class TenantSigningController extends Controller
 
         $request->validate([
             'id_documents'   => ['required', 'array', 'min:1', 'max:5'],
-            'id_documents.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'id_documents.*' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         try {
             $storedPaths = [];
-            $directory   = 'tenant-ids/' . $lease->id;
 
             foreach ($request->file('id_documents') as $file) {
-                $path = $file->store($directory, 'local');
+                // 1. Validate the ACTUAL file magic bytes — not just the declared MIME type.
+                //    This prevents attackers from renaming malware.php → malware.pdf.
+                $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+                $realMime = $finfo->file($file->getRealPath());
+                $allowed  = ['image/jpeg', 'image/png', 'application/pdf'];
+
+                if (! in_array($realMime, $allowed, strict: true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "File type [{$realMime}] is not permitted. Upload JPG, PNG, or PDF only.",
+                    ], 422);
+                }
+
+                // 2. Map real MIME to a safe extension — never trust the original filename
+                $extension = match ($realMime) {
+                    'image/jpeg'      => 'jpg',
+                    'image/png'       => 'png',
+                    'application/pdf' => 'pdf',
+                };
+
+                // 3. Use UUID filename + lease UUID directory — no user input in path ever
+                //    Stored in the private disk (storage/app/private) — never web-accessible
+                $filename = Str::uuid()->toString() . '.' . $extension;
+                $directory = 'tenant-id-documents/' . ($lease->uuid ?? $lease->id);
+
+                $path = $file->storeAs($directory, $filename, 'local');
                 $storedPaths[] = $path;
             }
 
@@ -304,32 +331,45 @@ class TenantSigningController extends Controller
     /**
      * Verify both the signed URL and tenant ownership on every request.
      *
-     * Prevents IDOR where a valid signed URL for one lease could be
-     * used to interact with a different lease's signing endpoints.
+     * Uses Laravel's built-in URL signature verification instead of manually
+     * reconstructing the signed URL — the old approach did not guarantee
+     * query parameter ordering, creating a potential signature bypass.
+     *
+     * The signed URL was generated for GET /tenant/sign/{lease}.
+     * Sub-routes carry the same query params (expires, tenant, signature)
+     * on a different path. We reconstruct a fake request pointing at the
+     * canonical signed route so hasValidSignature() checks the correct path.
      */
     private function verifySignedUrlAndTenant(Request $request, Lease $lease): void
     {
-        // The signed URL was generated for GET /tenant/sign/{lease}.
-        // Sub-routes (request-otp, verify-otp, submit-signature) carry the same
-        // query params (expires, tenant, signature) but on a different path.
-        // Laravel's hasValidSignature() includes the path in the HMAC, so we
-        // reconstruct a fake request pointing at the original signed route to verify.
-        //
-        // NOTE: route() may append `tenant` as a query param (since it's not a path
-        // segment), so we strip everything after `?` to get a clean base URL before
-        // appending the signed params — avoids a double-`?` malformed URL.
+        // Build canonical base URL for the original signed route
         $routeUrl = route('tenant.sign-lease', ['lease' => $lease->id]);
-        $baseUrl = explode('?', $routeUrl)[0];
-        $queryParams = array_filter($request->only(['expires', 'tenant', 'signature']));
-        $reconstructed = $baseUrl . '?' . http_build_query($queryParams);
+        $baseUrl  = explode('?', $routeUrl)[0];
 
-        $fakeRequest = \Illuminate\Http\Request::create($reconstructed, 'GET');
+        // Extract only the signing params and sort them deterministically
+        // so parameter order never causes a false-positive HMAC mismatch.
+        $signingParams = array_filter($request->only(['expires', 'signature', 'tenant']));
+        ksort($signingParams); // deterministic order for reproducible HMAC
+
+        $canonicalUrl = $baseUrl . '?' . http_build_query($signingParams);
+
+        // Delegate HMAC verification entirely to Laravel's UrlGenerator —
+        // never roll your own signature verification logic.
+        $fakeRequest = \Illuminate\Http\Request::create($canonicalUrl, 'GET');
 
         if (! app('url')->hasValidSignature($fakeRequest)) {
             abort(403, 'This signing link has expired or is invalid.');
         }
 
+        // Verify the tenant ID embedded in the URL matches the lease record —
+        // prevents a valid signed URL for lease A being used on lease B.
         if ((int) $request->get('tenant') !== $lease->tenant_id) {
+            Log::warning('Tenant ID mismatch in signing portal', [
+                'lease_id'       => $lease->id,
+                'url_tenant_id'  => $request->get('tenant'),
+                'lease_tenant_id' => $lease->tenant_id,
+                'ip'             => $request->ip(),
+            ]);
             abort(403, 'Unauthorized access.');
         }
     }

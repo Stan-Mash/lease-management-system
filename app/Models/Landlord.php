@@ -65,7 +65,13 @@ class Landlord extends Model
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'       => 'boolean',
+        // PII encrypted at rest — Kenya Data Protection Act 2019 compliance.
+        // Stored as AES-256-CBC ciphertext using the application's APP_KEY.
+        // Run `php artisan pii:encrypt` after first deploy to encrypt existing plain-text rows.
+        'national_id'     => 'encrypted',
+        'passport_number' => 'encrypted',
+        'pin_number'      => 'encrypted',
     ];
 
     /**
