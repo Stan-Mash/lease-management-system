@@ -51,13 +51,10 @@ class DatabaseBackupCommand extends Command
 
         $fullPath = Storage::disk($disk)->path("{$this->backupPath}/{$filename}");
 
-        // Build pg_dump command
-        $command = $this->buildPgDumpCommand($dbConfig, $fullPath, $compress);
-
         $this->line('Executing backup command...');
 
-        // Execute backup
-        $result = $this->executeBackup($command, $dbConfig);
+        // Execute backup — password handled via secure .pgpass temp file internally
+        $result = $this->executeBackup($dbConfig, $fullPath, $compress);
 
         if ($result !== 0) {
             $this->error("Backup failed with exit code: {$result}");
@@ -87,15 +84,19 @@ class DatabaseBackupCommand extends Command
         return Command::SUCCESS;
     }
 
-    protected function buildPgDumpCommand(array $dbConfig, string $outputPath, bool $compress): string
+    protected function buildPgDumpCommand(array $dbConfig, string $pgpassFile, string $outputPath, bool $compress): string
     {
         $host = $dbConfig['host'] ?? 'localhost';
         $port = $dbConfig['port'] ?? 5432;
         $database = $dbConfig['database'];
         $username = $dbConfig['username'];
 
+        // Use PGPASSFILE env var pointing to a temp .pgpass file instead of
+        // PGPASSWORD, which would expose the password to all child processes
+        // and make it visible in /proc/<pid>/environ on Linux.
         $command = sprintf(
-            'pg_dump -h %s -p %s -U %s -F p -b -v %s',
+            'PGPASSFILE=%s pg_dump -h %s -p %s -U %s -F p -b -v %s',
+            escapeshellarg($pgpassFile),
             escapeshellarg($host),
             escapeshellarg((string) $port),
             escapeshellarg($username),
@@ -111,20 +112,54 @@ class DatabaseBackupCommand extends Command
         return $command;
     }
 
-    protected function executeBackup(string $command, array $dbConfig): int
+    /**
+     * Write a temporary .pgpass file and return its path.
+     *
+     * Format: hostname:port:database:username:password
+     * The file is chmod 0600 — PostgreSQL refuses to read it otherwise.
+     * Caller is responsible for deleting it in a finally block.
+     */
+    protected function writePgPassFile(array $dbConfig): string
     {
-        // Set PGPASSWORD environment variable
-        $env = ['PGPASSWORD' => $dbConfig['password'] ?? ''];
+        $host     = $dbConfig['host'] ?? 'localhost';
+        $port     = $dbConfig['port'] ?? 5432;
+        $database = $dbConfig['database'];
+        $username = $dbConfig['username'];
+        $password = $dbConfig['password'] ?? '';
 
-        $descriptorspec = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ];
+        // Escape colons and backslashes inside the password field per pgpass spec
+        $escapedPassword = str_replace(['\\', ':'], ['\\\\', '\\:'], $password);
 
-        $process = proc_open($command, $descriptorspec, $pipes, null, $env);
+        $line = implode(':', [$host, $port, $database, $username, $escapedPassword]);
 
-        if (is_resource($process)) {
+        $path = tempnam(sys_get_temp_dir(), 'pgpass_');
+        file_put_contents($path, $line . PHP_EOL);
+        chmod($path, 0600); // Owner-readable only — required by PostgreSQL
+
+        return $path;
+    }
+
+    protected function executeBackup(array $dbConfig, string $outputPath, bool $compress): int
+    {
+        // Write a temporary .pgpass file so the password is never passed via
+        // environment variable (which leaks into /proc/<pid>/environ on Linux).
+        $pgpassFile = $this->writePgPassFile($dbConfig);
+
+        try {
+            $command = $this->buildPgDumpCommand($dbConfig, $pgpassFile, $outputPath, $compress);
+
+            $descriptorspec = [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ];
+
+            $process = proc_open($command, $descriptorspec, $pipes);
+
+            if (! is_resource($process)) {
+                return 1;
+            }
+
             fclose($pipes[0]);
 
             $stdout = stream_get_contents($pipes[1]);
@@ -144,9 +179,12 @@ class DatabaseBackupCommand extends Command
             }
 
             return $exitCode;
+        } finally {
+            // Always clean up — even on exception or early return
+            if (file_exists($pgpassFile)) {
+                unlink($pgpassFile);
+            }
         }
-
-        return 1;
     }
 
     protected function logBackup(string $filename, string $fullPath, string $database): void

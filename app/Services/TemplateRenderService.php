@@ -6,6 +6,7 @@ use App\Models\Lease;
 use App\Models\LeaseTemplate;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Log;
 
 class TemplateRenderService
 {
@@ -61,7 +62,24 @@ class TemplateRenderService
             'landlord' => $lease->landlord ?? ($lease->property->landlord ?? null),
         ];
 
-        // 3. Render the HTML string using Laravel's Blade engine
+        // 3. Defense-in-depth: re-validate template content at render time.
+        // Even if stored content passed form validation, this catches any
+        // content that was inserted directly into the database.
+        try {
+            app(TemplateSanitizer::class)->assertSafe($templateContent);
+        } catch (\InvalidArgumentException $e) {
+            Log::critical('Unsafe template content detected at render time', [
+                'template_id'   => $template->id,
+                'template_name' => $template->name,
+                'error'         => $e->getMessage(),
+            ]);
+            throw new Exception(
+                "Template '{$template->name}' contains disallowed content and cannot be rendered. " .
+                'Contact a system administrator.'
+            );
+        }
+
+        // 4. Render the HTML string using Laravel's Blade engine
         try {
             return Blade::render($templateContent, $data);
         } catch (Exception $e) {

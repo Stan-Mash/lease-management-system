@@ -150,45 +150,52 @@ class DatabaseRestoreCommand extends Command
 
     protected function executeRestore(string $fullPath, array $dbConfig): int
     {
-        $host = $dbConfig['host'] ?? 'localhost';
-        $port = $dbConfig['port'] ?? 5432;
+        $host     = $dbConfig['host'] ?? 'localhost';
+        $port     = $dbConfig['port'] ?? 5432;
         $database = $dbConfig['database'];
         $username = $dbConfig['username'];
 
-        $isCompressed = str_ends_with($fullPath, '.gz');
+        // Write temporary .pgpass file — avoids PGPASSWORD leaking into
+        // /proc/<pid>/environ and all child process environments on Linux.
+        $pgpassFile = $this->writePgPassFile($dbConfig);
 
-        if ($isCompressed) {
-            $command = sprintf(
-                'gunzip -c %s | psql -h %s -p %s -U %s -d %s',
-                escapeshellarg($fullPath),
-                escapeshellarg($host),
-                escapeshellarg((string) $port),
-                escapeshellarg($username),
-                escapeshellarg($database),
-            );
-        } else {
-            $command = sprintf(
-                'psql -h %s -p %s -U %s -d %s -f %s',
-                escapeshellarg($host),
-                escapeshellarg((string) $port),
-                escapeshellarg($username),
-                escapeshellarg($database),
-                escapeshellarg($fullPath),
-            );
-        }
+        try {
+            $isCompressed = str_ends_with($fullPath, '.gz');
 
-        // Set PGPASSWORD environment variable
-        $env = ['PGPASSWORD' => $dbConfig['password'] ?? ''];
+            if ($isCompressed) {
+                $command = sprintf(
+                    'PGPASSFILE=%s gunzip -c %s | psql -h %s -p %s -U %s -d %s',
+                    escapeshellarg($pgpassFile),
+                    escapeshellarg($fullPath),
+                    escapeshellarg($host),
+                    escapeshellarg((string) $port),
+                    escapeshellarg($username),
+                    escapeshellarg($database),
+                );
+            } else {
+                $command = sprintf(
+                    'PGPASSFILE=%s psql -h %s -p %s -U %s -d %s -f %s',
+                    escapeshellarg($pgpassFile),
+                    escapeshellarg($host),
+                    escapeshellarg((string) $port),
+                    escapeshellarg($username),
+                    escapeshellarg($database),
+                    escapeshellarg($fullPath),
+                );
+            }
 
-        $descriptorspec = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ];
+            $descriptorspec = [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ];
 
-        $process = proc_open($command, $descriptorspec, $pipes, null, $env);
+            $process = proc_open($command, $descriptorspec, $pipes);
 
-        if (is_resource($process)) {
+            if (! is_resource($process)) {
+                return 1;
+            }
+
             fclose($pipes[0]);
 
             $stdout = stream_get_contents($pipes[1]);
@@ -209,9 +216,38 @@ class DatabaseRestoreCommand extends Command
             }
 
             return $exitCode;
+        } finally {
+            // Always clean up the temp .pgpass file — even on exception
+            if (file_exists($pgpassFile)) {
+                unlink($pgpassFile);
+            }
         }
+    }
 
-        return 1;
+    /**
+     * Write a temporary .pgpass file and return its path.
+     *
+     * Format per PostgreSQL spec: hostname:port:database:username:password
+     * Permissions must be 0600 — PostgreSQL refuses any broader file access.
+     */
+    protected function writePgPassFile(array $dbConfig): string
+    {
+        $host     = $dbConfig['host'] ?? 'localhost';
+        $port     = $dbConfig['port'] ?? 5432;
+        $database = $dbConfig['database'];
+        $username = $dbConfig['username'];
+        $password = $dbConfig['password'] ?? '';
+
+        // Escape colons and backslashes in the password field per pgpass spec
+        $escapedPassword = str_replace(['\\', ':'], ['\\\\', '\\:'], $password);
+
+        $line = implode(':', [$host, $port, $database, $username, $escapedPassword]);
+
+        $path = tempnam(sys_get_temp_dir(), 'pgpass_');
+        file_put_contents($path, $line . PHP_EOL);
+        chmod($path, 0600);
+
+        return $path;
     }
 
     protected function logRestore(string $filename, string $database): void

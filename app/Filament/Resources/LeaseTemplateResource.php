@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LeaseTemplateResource\Pages;
 use App\Models\LeaseTemplate;
+use App\Services\TemplateSanitizer;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -116,8 +117,19 @@ class LeaseTemplateResource extends Resource
                                     ->required()
                                     ->rows(30)
                                     ->columnSpanFull()
-                                    ->helperText('Edit the Blade template code. Use {{ $variable }} syntax for dynamic content. Variables are auto-detected on save.')
+                                    ->helperText('Use {{ $variable }} and @if/@foreach Blade syntax. PHP system functions (exec, system, file_get_contents, etc.) are blocked for security.')
                                     ->extraAttributes(['style' => 'font-family: "Courier New", Courier, monospace; font-size: 12px; line-height: 1.5; tab-size: 4;'])
+                                    ->rules([
+                                        'required',
+                                        'string',
+                                        static function (string $attribute, mixed $value, \Closure $fail) {
+                                            try {
+                                                app(TemplateSanitizer::class)->assertSafe($value);
+                                            } catch (\InvalidArgumentException $e) {
+                                                $fail($e->getMessage());
+                                            }
+                                        },
+                                    ])
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, \Filament\Schemas\Components\Utilities\Set $set) {
                                         // Auto-detect variables from template content
