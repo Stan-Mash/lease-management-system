@@ -105,6 +105,21 @@ class LeaseResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // Eager-load all relationships used in table columns to prevent N+1 queries.
+            // Without this, Filament fires a separate SQL query per row for every
+            // dotted column (e.g. tenant.names → 1 query × N rows = N queries).
+            ->modifyQueryUsing(fn (\Illuminate\Database\Eloquent\Builder $query) => $query
+                ->with([
+                    'tenant:id,names,national_id,mobile_number',
+                    'property:id,property_name,reference_number',
+                    'unit:id,unit_number,unit_code,rent_amount',
+                    'landlord:id,names,mobile_number',
+                    'assignedZone:id,name',
+                    'assignedFieldOfficer:id,name',
+                    'zoneManager:id,name',
+                ])
+                ->accessibleByUser(auth()->user())
+            )
             ->columns([
                 TextColumn::make('date_created')
                     ->label('Date Created')

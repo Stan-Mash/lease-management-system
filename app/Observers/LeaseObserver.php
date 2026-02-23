@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Lease;
+use App\Services\DashboardStatsService;
 use App\Services\QRCodeService;
 use App\Services\SerialNumberService;
 use Exception;
@@ -55,6 +56,12 @@ class LeaseObserver
      */
     public function updated(Lease $lease): void
     {
+        // Invalidate dashboard stat caches whenever workflow_state changes —
+        // ensures admin/zone manager dashboards show current counts.
+        if ($lease->wasChanged('workflow_state')) {
+            DashboardStatsService::invalidate($lease->zone_id);
+        }
+
         // If workflow state changed to 'approved', ensure QR code exists
         if ($lease->wasChanged('workflow_state') && $lease->workflow_state === 'approved') {
             if (config('lease.qr_codes.auto_generate', true)) {

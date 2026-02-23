@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Lease;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -112,24 +113,36 @@ class QRCodeService
     }
 
     /**
-     * Get QR code as base64 data URI for embedding in PDFs
+     * Get QR code as base64 data URI for embedding in PDFs.
+     *
+     * Result is cached for 24 hours keyed by lease ID + updated_at timestamp.
+     * The timestamp component means the cache auto-invalidates whenever the
+     * lease record is saved (e.g. serial number changes → new cache entry).
+     * QR code generation is CPU-intensive (GD image rendering); caching
+     * prevents it from running on every PDF download request.
      */
     public static function getBase64DataUri(Lease $lease): string
     {
-        $verificationUrl = $lease->verification_url ?? route('lease.verify', [
-            'serial' => $lease->serial_number ?? $lease->reference_number,
-            'hash' => self::generateVerificationHash($lease),
-        ]);
+        // Cache key includes updated_at timestamp so cache auto-invalidates
+        // when the lease is saved (new timestamp → new cache key, old expires naturally)
+        $cacheKey = 'qr:base64:' . $lease->id . ':' . ($lease->updated_at?->timestamp ?? 0);
 
-        $qrCodePng = QrCode::renderer('gd')->format('png')
-            ->size(300)
-            ->style('round')
-            ->eye('circle')
-            ->margin(1)
-            ->errorCorrection('H')
-            ->generate($verificationUrl);
+        return Cache::remember($cacheKey, now()->addHours(24), function () use ($lease) {
+            $verificationUrl = $lease->verification_url ?? route('lease.verify', [
+                'serial' => $lease->serial_number ?? $lease->reference_number,
+                'hash'   => self::generateVerificationHash($lease),
+            ]);
 
-        return 'data:image/png;base64,' . base64_encode($qrCodePng);
+            $qrCodePng = QrCode::renderer('gd')->format('png')
+                ->size(300)
+                ->style('round')
+                ->eye('circle')
+                ->margin(1)
+                ->errorCorrection('H')
+                ->generate($verificationUrl);
+
+            return 'data:image/png;base64,' . base64_encode($qrCodePng);
+        });
     }
 
     /**

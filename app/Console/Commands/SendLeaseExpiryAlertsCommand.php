@@ -38,7 +38,9 @@ class SendLeaseExpiryAlertsCommand extends Command
 
     private function processExpiringLeases(int $days, SMSService $smsService, bool $dryRun): int
     {
-        $targetDate = now()->addDays($days)->format('Y-m-d');
+        // Explicitly use app timezone (Africa/Nairobi) so date boundaries are
+        // correct regardless of the server's system timezone setting.
+        $targetDate = now(config('app.timezone', 'Africa/Nairobi'))->addDays($days)->format('Y-m-d');
 
         $leases = Lease::query()
             ->where('status', 'active')

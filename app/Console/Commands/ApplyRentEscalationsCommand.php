@@ -93,12 +93,16 @@ class ApplyRentEscalationsCommand extends Command
     {
         $this->info('Checking for upcoming rent escalations (30 days)...');
 
+        // Use explicit app timezone for date calculations — server system timezone
+        // may differ from Africa/Nairobi which would produce wrong date boundaries.
+        $tz = config('app.timezone', 'Africa/Nairobi');
+
         $upcomingEscalations = RentEscalation::query()
             ->where('applied', false)
             ->where('tenant_notified', false)
             ->whereBetween('effective_date', [
-                now()->addDays(25),
-                now()->addDays(35),
+                now($tz)->addDays(25),
+                now($tz)->addDays(35),
             ])
             ->with(['lease.tenant', 'lease.landlord', 'lease.unit.property'])
             ->get();

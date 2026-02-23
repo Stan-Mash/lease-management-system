@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\DisputeReason;
 use App\Enums\LeaseWorkflowState;
+use App\Exceptions\LeaseSigningException;
 use App\Http\Requests\RejectLeaseRequest;
 use App\Http\Requests\SubmitSignatureRequest;
 use App\Http\Requests\VerifyOTPRequest;
@@ -141,13 +142,14 @@ class TenantSigningController extends Controller
                 // Lock the lease row to prevent concurrent signature submissions
                 $lockedLease = Lease::lockForUpdate()->findOrFail($lease->id);
 
-                // Re-check inside transaction with locked row
+                // Re-check inside transaction with locked row — use typed exceptions
+                // so callers can differentiate domain errors from unexpected failures
                 if (! DigitalSigningService::canSign($lockedLease)) {
-                    throw new Exception('Please verify your OTP before signing.');
+                    throw LeaseSigningException::otpNotVerified();
                 }
 
                 if ($lockedLease->hasDigitalSignature()) {
-                    throw new Exception('This lease has already been signed.');
+                    throw LeaseSigningException::alreadySigned($lockedLease->id);
                 }
 
                 $latestOTP = OTPService::getLatestOTP($lockedLease);
@@ -176,16 +178,27 @@ class TenantSigningController extends Controller
                 'message' => 'Lease signed successfully!',
                 'signature_id' => $signature->id,
             ]);
+        } catch (LeaseSigningException $e) {
+            // Known domain error — return structured response with machine-readable code
+            Log::warning('Lease signing domain error', [
+                'lease_id'   => $lease->id,
+                'error_code' => $e->getErrorCode(),
+                'message'    => $e->getMessage(),
+            ]);
+
+            return $e->toJsonResponse();
         } catch (Exception $e) {
-            Log::error('Signature submission failed', [
+            // Unexpected error — log full detail, return generic message to client
+            Log::error('Signature submission failed unexpectedly', [
                 'lease_id' => $lease->id,
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
+                'trace'    => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
+                'message' => 'An unexpected error occurred. Please try again or contact support.',
+            ], 500);
         }
     }
 

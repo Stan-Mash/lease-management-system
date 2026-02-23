@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\LeaseWorkflowState;
 use App\Models\Lease;
 use App\Models\User;
+use App\Support\MoneyHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -47,12 +48,16 @@ class LeaseRenewalService
 
     /**
      * Calculate the renewal rent based on escalation rate.
+     * Always uses BCMath (MoneyHelper::applyRate) for exact decimal arithmetic.
+     * The float fallback has been removed — bcmath is required by composer.json.
      */
     public function calculateRenewalRent(Lease $lease, ?float $customRate = null): float
     {
-        $rate = $customRate ?? config('lease.renewal.default_escalation_rate', 0.10);
+        $rate   = $customRate ?? config('lease.renewal.default_escalation_rate', 0.10);
+        $amount = (string) $lease->monthly_rent;
 
-        return round($lease->monthly_rent * (1 + $rate), 2);
+        // applyRate uses bcmath internally: amount * (1 + rate) with 6 decimal precision
+        return (float) MoneyHelper::applyRate($amount, (string) $rate);
     }
 
     /**
