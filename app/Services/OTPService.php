@@ -18,8 +18,9 @@ class OTPService
     /**
      * The time window (in minutes) within which a verified OTP remains valid
      * for signing. After this window, a new OTP must be requested.
+     * Reduced from 30 → 15 minutes to limit the replay attack window.
      */
-    private const VERIFIED_OTP_VALIDITY_MINUTES = 30;
+    private const VERIFIED_OTP_VALIDITY_MINUTES = 15;
 
     /**
      * Generate and send OTP for digital signing.
@@ -162,6 +163,22 @@ class OTPService
             Log::warning('No valid OTP found for lease', [
                 'lease_id' => $lease->id,
             ]);
+
+            return false;
+        }
+
+        // Server-side expiry enforcement — the client-side countdown timer is
+        // purely cosmetic; an attacker could clear localStorage or manipulate JS
+        // variables to bypass it. The authoritative check must be server-side.
+        $expiryMinutes = (int) config('lease.otp.expiry_minutes', 10);
+        if ($otp->expires_at && now()->isAfter($otp->expires_at)) {
+            Log::info('OTP rejected — server-side expiry enforced', [
+                'lease_id' => $lease->id,
+                'otp_id'   => $otp->id,
+                'expired_at' => $otp->expires_at->toIso8601String(),
+            ]);
+            // Mark as expired so it is excluded from future valid() queries
+            $otp->update(['is_expired' => true]);
 
             return false;
         }

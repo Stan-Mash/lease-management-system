@@ -320,12 +320,31 @@
         let userLocation  = null;
         let selectedFiles = [];
 
-        // ── Geolocation ──
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => { userLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }; },
-                ()    => {}
-            );
+        // ── Geolocation (with consent) ──
+        // Location data is optional and only collected after explicit tenant consent.
+        // Kenya Data Protection Act 2019 requires informed, freely given consent
+        // before collecting any personal location data.
+        function requestGeolocationWithConsent() {
+            if (! navigator.geolocation) return;
+
+            const modal = document.getElementById('geolocation-consent-modal');
+            if (modal) modal.classList.remove('hidden');
+
+            document.getElementById('geo-consent-accept').addEventListener('click', function () {
+                modal.classList.add('hidden');
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        userLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                    },
+                    () => { /* User denied browser permission — proceed without location */ },
+                    { timeout: 10000, maximumAge: 300000 }
+                );
+            }, { once: true });
+
+            document.getElementById('geo-consent-decline').addEventListener('click', function () {
+                modal.classList.add('hidden');
+                // Proceed without location — signing is never blocked by this
+            }, { once: true });
         }
 
         // ── Boot ──
@@ -334,6 +353,9 @@
             setupStep2Listeners();
             setupDisputeListeners();
             setupIDUploadListeners();
+            // Show geolocation consent modal 1.5s after page is interactive
+            // (gives the tenant time to read the page before the modal appears)
+            setTimeout(requestGeolocationWithConsent, 1500);
         });
 
         // ═══════════ STEP 1 — OTP ═══════════
@@ -754,5 +776,43 @@
             if (!persistent) setTimeout(() => el.classList.add('hidden'), 5000);
         }
     </script>
+
+    {{-- ── Geolocation Consent Modal ── --}}
+    {{-- Shown before requesting navigator.geolocation to comply with KDPA 2019. --}}
+    <div id="geolocation-consent-modal"
+         class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+         role="dialog" aria-modal="true" aria-labelledby="geo-consent-title">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4">
+            <div class="flex items-start gap-3 mb-4">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 id="geo-consent-title" class="font-semibold text-gray-900">Location Permission</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Optional — for audit trail only</p>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-5 leading-relaxed">
+                We request your approximate location as part of the digital signing audit trail.
+                This helps verify the signing event in case of a future dispute.
+                <strong>You can decline and still complete the signing.</strong>
+            </p>
+            <div class="flex gap-3">
+                <button id="geo-consent-accept"
+                        class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
+                    Allow Location
+                </button>
+                <button id="geo-consent-decline"
+                        class="flex-1 border border-gray-300 hover:border-gray-400 text-gray-700 text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
+                    No Thanks
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
