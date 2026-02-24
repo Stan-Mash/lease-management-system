@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\DocumentAudit;
 use App\Models\LeaseDocument;
 use App\Services\DocumentCompressionService;
+use App\Support\SafeDownloadFilename;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -38,7 +39,7 @@ class LeaseDocumentController extends Controller
         );
 
         $filePath = $leaseDocument->getFullPath();
-        $downloadName = $leaseDocument->original_filename;
+        $downloadName = SafeDownloadFilename::make($leaseDocument->original_filename, 'document-' . $leaseDocument->id);
 
         // If compressed, extract for download
         if ($leaseDocument->is_compressed && $leaseDocument->compression_method === 'zip') {
@@ -87,15 +88,17 @@ class LeaseDocumentController extends Controller
                 abort(500, 'Failed to extract compressed file');
             }
 
+            $safeName = SafeDownloadFilename::make($leaseDocument->original_filename, 'document-' . $leaseDocument->id);
             return response()->file($extractedPath, [
                 'Content-Type' => $leaseDocument->mime_type,
-                'Content-Disposition' => 'inline; filename="' . $leaseDocument->original_filename . '"',
+                'Content-Disposition' => 'inline; filename="' . addslashes($safeName) . '"',
             ])->deleteFileAfterSend(true);
         }
 
+        $safeName = SafeDownloadFilename::make($leaseDocument->original_filename, 'document-' . $leaseDocument->id);
         return response()->file($filePath, [
             'Content-Type' => $leaseDocument->mime_type,
-            'Content-Disposition' => 'inline; filename="' . $leaseDocument->original_filename . '"',
+            'Content-Disposition' => 'inline; filename="' . addslashes($safeName) . '"',
         ]);
     }
 

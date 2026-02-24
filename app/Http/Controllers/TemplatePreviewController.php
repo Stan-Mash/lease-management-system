@@ -118,13 +118,46 @@ class TemplatePreviewController extends Controller
     }
 
     /**
-     * Preview template with direct blade rendering (for testing new templates)
+     * Allowed view names for direct preview (whitelist to prevent LFI).
+     */
+    private static function allowedPreviewViews(): array
+    {
+        return [
+            'templates.lease-residential-major',
+            'templates.lease-residential-micro',
+            'templates.lease-commercial',
+            'pdf.residential-major',
+            'pdf.residential-micro',
+            'pdf.commercial',
+        ];
+    }
+
+    /**
+     * Allowed template types for sample data (whitelist).
+     */
+    private static function allowedPreviewTypes(): array
+    {
+        return ['residential_major', 'residential_micro', 'commercial'];
+    }
+
+    /**
+     * Preview template with direct blade rendering (for testing new templates).
+     * View and type are whitelisted to prevent path traversal / LFI.
      */
     public function previewDirect(Request $request)
     {
         try {
             $templateType = $request->input('type', 'residential_major');
             $viewName = $request->input('view', 'templates.lease-residential-major');
+
+            $allowedViews = self::allowedPreviewViews();
+            $allowedTypes = self::allowedPreviewTypes();
+            if (! in_array($viewName, $allowedViews, true)) {
+                $viewName = 'templates.lease-residential-major';
+            }
+            if (! in_array($templateType, $allowedTypes, true)) {
+                $templateType = 'residential_major';
+            }
 
             Log::info('Direct template preview requested', [
                 'view' => $viewName,

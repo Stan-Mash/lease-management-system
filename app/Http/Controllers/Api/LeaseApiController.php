@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LeaseTransitionRequest;
 use App\Models\Lease;
+use App\Services\QRCodeService;
 use Exception;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class LeaseApiController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of leases.
      *
@@ -36,10 +41,40 @@ class LeaseApiController extends Controller
     }
 
     /**
-     * Verify lease authenticity via QR code.
+     * Deprecated: verification by lease ID is disabled (IDOR risk).
+     * Returns 410 Gone so clients migrate to verifyBySerialAndHash with serial + hash.
      */
-    public function verify(Lease $lease): JsonResponse
+    public function verifyDeprecated(Lease $lease): JsonResponse
     {
+        return response()->json([
+            'error' => 'gone',
+            'message' => 'This endpoint has been deprecated. Use GET /api/v1/verify/lease with query parameters serial and hash (from the lease QR code or verification data) instead.',
+            'new_endpoint' => url('/api/v1/verify/lease'),
+        ], 410);
+    }
+
+    /**
+     * Verify lease authenticity via serial + hash (public endpoint).
+     * Does not accept lease ID to prevent IDOR; requires proof (hash) from QR/data.
+     */
+    public function verifyBySerialAndHash(Request $request): JsonResponse
+    {
+        $request->validate([
+            'serial' => ['required', 'string', 'max:100'],
+            'hash' => ['required', 'string', 'max:255'],
+        ]);
+
+        $lease = Lease::where('serial_number', $request->input('serial'))
+            ->orWhere('reference_number', $request->input('serial'))
+            ->first();
+
+        if (! $lease || ! QRCodeService::verifyHash($lease, $request->input('hash'))) {
+            return response()->json([
+                'verified' => false,
+                'error' => 'Lease not found or verification code invalid.',
+            ], 404);
+        }
+
         return response()->json([
             'verified' => true,
             'lease' => [
@@ -58,16 +93,12 @@ class LeaseApiController extends Controller
     /**
      * Transition lease to a new state.
      */
-    public function transition(Lease $lease): JsonResponse
+    public function transition(LeaseTransitionRequest $request, Lease $lease): JsonResponse
     {
         $this->authorize('update', $lease);
 
-        request()->validate([
-            'new_state' => ['required', 'string'],
-        ]);
-
         try {
-            $lease->transitionTo(request('new_state'));
+            $lease->transitionTo($request->validated('new_state'));
 
             return response()->json([
                 'message' => 'Lease transitioned successfully',

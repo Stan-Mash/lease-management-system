@@ -7,6 +7,7 @@ use App\Filament\Pages\CompanyDashboard;
 use App\Filament\Pages\FieldOfficerDashboard;
 use App\Filament\Pages\ZoneDashboard;
 use App\Http\Middleware\ResolveActingPermissions;
+use App\Http\Middleware\ThrottleFilamentLogin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -99,6 +100,7 @@ class AdminPanelProvider extends PanelProvider
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
+                ThrottleFilamentLogin::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
