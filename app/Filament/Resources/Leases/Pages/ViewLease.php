@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Leases\Pages;
 
+use App\Enums\LeaseWorkflowState;
 use App\Filament\Resources\Leases\Actions\CancelDisputedLeaseAction;
 use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
@@ -19,6 +20,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Auth;
 
 class ViewLease extends ViewRecord
 {
@@ -326,6 +328,75 @@ class ViewLease extends ViewRecord
                     } catch (Exception $e) {
                         Notification::make()->danger()
                             ->title('Failed to Resend')
+                            ->body('Error: ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
+
+            // ── COUNTERSIGN & ACTIVATE (after tenant has signed digitally) ───
+            Action::make('countersignActivate')
+                ->label('Countersign & Activate Lease')
+                ->icon('heroicon-o-check-badge')
+                ->color('success')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'tenant_signed'
+                        && auth()->user()?->canManageLeases(),
+                )
+                ->modalHeading('Countersign & Activate Lease')
+                ->modalDescription(
+                    fn () => 'You are about to countersign and activate lease '
+                        . ($this->record->reference_number ?? '')
+                        . ' for ' . ($this->record->tenant?->names ?? 'the tenant')
+                        . '. Once activated, the tenant will automatically receive a copy of the fully executed lease by email.',
+                )
+                ->modalSubmitActionLabel('Countersign & Activate')
+                ->modalSubmitAction(
+                    fn ($action) => $action->color('success')->icon('heroicon-o-check-badge'),
+                )
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    TextInput::make('countersigned_by')
+                        ->label('Your Full Name')
+                        ->default(fn () => Auth::user()?->name ?? '')
+                        ->required()
+                        ->maxLength(255)
+                        ->helperText('This will be recorded as the countersignature on the lease.'),
+                    Textarea::make('countersign_notes')
+                        ->label('Notes (Optional)')
+                        ->placeholder('e.g. Deposit received, keys handed over...')
+                        ->rows(2)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    try {
+                        // Record the countersignature details on the lease
+                        $this->record->update([
+                            'countersigned_by'   => $data['countersigned_by'],
+                            'countersigned_at'   => now(),
+                            'countersign_notes'  => $data['countersign_notes'] ?? null,
+                        ]);
+
+                        // Transition to ACTIVE — LeaseObserver will fire
+                        // sendSignedConfirmations() automatically, sending
+                        // the tenant their copy.
+                        $this->record->transitionTo(LeaseWorkflowState::ACTIVE);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Lease Activated ✅')
+                            ->body(
+                                'Lease ' . ($this->record->reference_number ?? '') . ' is now ACTIVE. '
+                                . ($this->record->tenant?->names ?? 'The tenant')
+                                . ' will receive their copy by email shortly.'
+                            )
+                            ->persistent()
+                            ->send();
+
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                    } catch (Exception $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Activation Failed')
                             ->body('Error: ' . $e->getMessage())
                             ->send();
                     }

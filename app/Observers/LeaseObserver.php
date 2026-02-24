@@ -3,6 +3,8 @@
 namespace App\Observers;
 
 use App\Models\Lease;
+use App\Models\User;
+use App\Notifications\LeaseTenantSignedNotification;
 use App\Services\DashboardStatsService;
 use App\Services\DigitalSigningService;
 use App\Services\QRCodeService;
@@ -95,6 +97,19 @@ class LeaseObserver
             $this->generateQRCode($lease);
         }
 
+        // When a tenant completes their digital signature, notify the zone manager (or admins)
+        // so they know to review and countersign. The tenant does NOT get their copy yet.
+        if ($lease->wasChanged('workflow_state') && $lease->workflow_state === 'tenant_signed') {
+            try {
+                $this->notifyManagerTenantSigned($lease);
+            } catch (Exception $e) {
+                Log::warning('Failed to notify manager of tenant signing', [
+                    'lease_id' => $lease->id,
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
         // When a digitally-signed lease becomes ACTIVE (property manager has countersigned /
         // all approvals complete), send the tenant their final confirmation email + PDF.
         // We do NOT send this immediately after the tenant signs — the manager must sign first.
@@ -136,6 +151,41 @@ class LeaseObserver
                 ]);
             }
         }
+    }
+
+    /**
+     * Notify the zone manager (or all admins as fallback) that a tenant has signed.
+     * Mirrors the same pattern used by LeaseDisputeService::notifyResponsibleParties().
+     */
+    protected function notifyManagerTenantSigned(Lease $lease): void
+    {
+        $notification = new LeaseTenantSignedNotification($lease);
+
+        // Prefer the zone manager for this lease's zone
+        $zoneManager = $lease->assignedZone?->zoneManager;
+
+        if ($zoneManager) {
+            $zoneManager->notify($notification);
+            Log::info('Zone manager notified of tenant signing', [
+                'lease_id'       => $lease->id,
+                'zone_manager_id' => $zoneManager->id,
+            ]);
+            return;
+        }
+
+        // Fallback: notify all super_admin / admin users
+        $admins = User::whereHas('roles', function ($query): void {
+            $query->whereIn('name', ['super_admin', 'admin']);
+        })->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify($notification);
+        }
+
+        Log::info('Admins notified of tenant signing (no zone manager set)', [
+            'lease_id'    => $lease->id,
+            'admin_count' => $admins->count(),
+        ]);
     }
 
     /**

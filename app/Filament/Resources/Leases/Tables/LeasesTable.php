@@ -2,19 +2,25 @@
 
 namespace App\Filament\Resources\Leases\Tables;
 
+use App\Enums\LeaseWorkflowState;
 use App\Models\Lease;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 
 class LeasesTable
@@ -273,6 +279,68 @@ class LeasesTable
             /** @noinspection PhpDeprecationInspection */
             ->bulkActions([
                 BulkActionGroup::make([
+                    // Bulk countersign — for processing many tenant-signed leases at once
+                    // (e.g. after a new property opening where 20+ tenants all signed)
+                    BulkAction::make('bulkCountersignActivate')
+                        ->label('Countersign & Activate Selected')
+                        ->icon('heroicon-o-check-badge')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->visible(fn (): bool => Gate::allows('manage_leases') || auth()->user()?->canManageLeases())
+                        ->modalHeading('Bulk Countersign & Activate Leases')
+                        ->modalDescription('Only leases in "Tenant Signed" status will be activated. Leases in any other status are automatically skipped. Each tenant will receive their copy by email.')
+                        ->modalSubmitActionLabel('Countersign & Activate All')
+                        /** @phpstan-ignore-next-line */
+                        ->schema([
+                            TextInput::make('countersigned_by')
+                                ->label('Your Full Name')
+                                ->default(fn () => Auth::user()?->name ?? '')
+                                ->required()
+                                ->maxLength(255)
+                                ->helperText('Recorded as the countersignature on all selected leases.'),
+                        ])
+                        ->action(function (Collection $records, array $data) {
+                            $countersignedBy = $data['countersigned_by'];
+                            $activated       = 0;
+                            $skipped         = 0;
+
+                            foreach ($records as $lease) {
+                                // Only process leases that are actually in tenant_signed state
+                                if ($lease->workflow_state !== 'tenant_signed') {
+                                    $skipped++;
+                                    continue;
+                                }
+
+                                try {
+                                    $lease->update([
+                                        'countersigned_by'  => $countersignedBy,
+                                        'countersigned_at'  => now(),
+                                        'countersign_notes' => 'Bulk countersigned via lease list.',
+                                    ]);
+                                    $lease->transitionTo(LeaseWorkflowState::ACTIVE);
+                                    $activated++;
+                                } catch (\Exception $e) {
+                                    \Illuminate\Support\Facades\Log::warning('Bulk countersign failed for lease', [
+                                        'lease_id' => $lease->id,
+                                        'error'    => $e->getMessage(),
+                                    ]);
+                                    $skipped++;
+                                }
+                            }
+
+                            $body = "Activated: {$activated} lease(s).";
+                            if ($skipped > 0) {
+                                $body .= " Skipped: {$skipped} (not in Tenant Signed state or error).";
+                            }
+
+                            Notification::make()
+                                ->success()
+                                ->title("Bulk Activation Complete")
+                                ->body($body)
+                                ->persistent()
+                                ->send();
+                        }),
+
                     DeleteAction::make()
                         ->visible(fn (): bool => Gate::allows('delete_lease')),
                 ]),
