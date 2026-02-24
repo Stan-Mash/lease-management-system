@@ -4,8 +4,12 @@ namespace App\Providers;
 
 use App\Models\Lease;
 use App\Models\Role;
+use App\Models\Tenant;
+use App\Models\Unit;
 use App\Observers\LeaseObserver;
 use App\Observers\RoleObserver;
+use App\Observers\TenantObserver;
+use App\Observers\UnitObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Pulse\Facades\Pulse;
@@ -28,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
         // Register observers
         Lease::observe(LeaseObserver::class);
         Role::observe(RoleObserver::class);
+        Tenant::observe(TenantObserver::class);
+        Unit::observe(UnitObserver::class);
 
         // Pulse authorization - allow admin users to view the dashboard
         Gate::define('viewPulse', function ($user) {
