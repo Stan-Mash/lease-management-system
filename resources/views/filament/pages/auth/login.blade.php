@@ -95,7 +95,7 @@
 </div>
 
 <style nonce="{{ $cspNonce }}">
-
+@verbatim
 /* ── Override Filament simple-layout wrappers ──────────────────────────────
  * Filament compiles .fi-simple-layout { display:flex; flex-direction:column;
  * align-items:center; min-height:100dvh } inside a CSS @layer.
@@ -246,6 +246,7 @@ body.fi-body {
 }
 .chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
 
+@endverbatim
 </style>
 
 <script nonce="{{ $cspNonce }}">
