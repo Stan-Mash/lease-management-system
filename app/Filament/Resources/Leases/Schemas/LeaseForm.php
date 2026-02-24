@@ -87,33 +87,29 @@ class LeaseForm
                     ->helperText('Digital: Tenant signs online via email link. Physical: Field officer delivers printed document.'),
 
                 // --- Property & Tenant ---
+                // Load only 3 slim columns — O(n) memory instead of O(n * all_columns).
+                // This keeps the dropdown instant (all options pre-loaded in the browser)
+                // while staying well within PHP memory limits even with thousands of records.
                 Forms\Components\Select::make('tenant_id')
                     ->label('Tenant')
-                    ->getSearchResultsUsing(fn (string $search) => Tenant::where('names', 'ilike', "%{$search}%")
-                        ->orWhere('mobile_number', 'ilike', "%{$search}%")
-                        ->orWhere('national_id', 'ilike', "%{$search}%")
-                        ->orderBy('names')
-                        ->limit(50)
-                        ->get()
-                        ->mapWithKeys(fn ($t) => [$t->id => "{$t->names} — {$t->mobile_number}"])
-                    )
-                    ->getOptionLabelUsing(fn ($value) => ($t = Tenant::find($value))
-                        ? "{$t->names} — {$t->mobile_number}"
-                        : $value
+                    ->options(
+                        Tenant::select('id', 'names', 'mobile_number')
+                            ->orderBy('names')
+                            ->get()
+                            ->mapWithKeys(fn ($t) => [$t->id => "{$t->names} — {$t->mobile_number}"])
                     )
                     ->searchable()
                     ->required(),
 
-                // Smart Unit Search
+                // Smart Unit Search — slim select: only id + unit_number + unit_code
                 Forms\Components\Select::make('unit_id')
                     ->label('Unit')
-                    ->getSearchResultsUsing(fn (string $search) => Unit::where('unit_number', 'ilike', "%{$search}%")
-                        ->orWhere('unit_code', 'ilike', "%{$search}%")
-                        ->orderBy('unit_number')
-                        ->limit(50)
-                        ->pluck('unit_number', 'id')
+                    ->options(
+                        Unit::select('id', 'unit_number', 'unit_code')
+                            ->orderBy('unit_number')
+                            ->get()
+                            ->mapWithKeys(fn ($u) => [$u->id => $u->unit_number . ($u->unit_code ? " ({$u->unit_code})" : '')])
                     )
-                    ->getOptionLabelUsing(fn ($value) => Unit::find($value)?->unit_number ?? $value)
                     ->searchable()
                     ->required()
                     ->live()

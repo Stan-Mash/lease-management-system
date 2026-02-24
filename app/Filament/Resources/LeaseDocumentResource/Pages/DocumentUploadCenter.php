@@ -338,7 +338,8 @@ class DocumentUploadCenter extends Page implements HasForms
                             Select::make('lease_tenant_id')
                                 ->label('Tenant')
                                 ->options(
-                                    Tenant::orderBy('names')
+                                    Tenant::select('id', 'names', 'national_id')
+                                        ->orderBy('names')
                                         ->get()
                                         ->mapWithKeys(fn ($t) => [
                                             $t->id => $t->names . ' (' . $t->national_id . ')',
