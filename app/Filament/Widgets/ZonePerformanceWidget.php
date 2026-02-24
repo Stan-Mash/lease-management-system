@@ -59,7 +59,6 @@ class ZonePerformanceWidget extends BaseWidget
 
                 TextColumn::make('active_leases_count')
                     ->label('Active Leases')
-                    ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('success'),
@@ -67,27 +66,23 @@ class ZonePerformanceWidget extends BaseWidget
                 TextColumn::make('total_revenue')
                     ->label('Monthly Revenue')
                     ->money('KES')
-                    ->sortable()
                     ->alignEnd()
                     ->weight('medium'),
 
                 TextColumn::make('field_officers_count')
                     ->label('Field Officers')
-                    ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('info'),
 
                 TextColumn::make('pending_leases_count')
                     ->label('Pending Actions')
-                    ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color(fn (int $state): string => $state > 5 ? 'warning' : 'gray'),
 
                 TextColumn::make('occupancy_rate')
                     ->label('Occupancy')
-                    ->sortable()
                     ->alignCenter()
                     ->suffix('%')
                     ->color(
@@ -100,7 +95,7 @@ class ZonePerformanceWidget extends BaseWidget
                     ->searchable()
                     ->toggleable(),
             ])
-            ->defaultSort('active_leases_count', 'desc')
+            ->defaultSort('name', 'asc')
             ->paginated([10, 25, 50])
             ->poll(null);
     }
