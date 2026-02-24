@@ -40,7 +40,7 @@ return new class extends Migration
      * CONCURRENTLY index operations cannot run inside a transaction block.
      * Setting this to false tells Laravel not to wrap the migration in BEGIN/COMMIT.
      */
-    public bool $withinTransaction = false;
+    public $withinTransaction = false;
 
     public function up(): void
     {
