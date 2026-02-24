@@ -11,10 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Applies OWASP-recommended HTTP security headers to every response.
  *
- * Content-Security-Policy uses a per-request cryptographic nonce instead of
- * unsafe-inline for scripts. Styles use nonce + unsafe-inline because the
- * login page relies heavily on inline style="" attributes which cannot carry
- * nonces per the CSP specification.
+ * Content-Security-Policy uses unsafe-inline for both script-src and style-src
+ * because Filament 4 injects bare inline <script> blocks (localStorage theme,
+ * window.filamentData) from vendor layout views that cannot receive nonces.
+ * Without unsafe-inline those scripts are CSP-blocked, breaking Livewire/Alpine.
  */
 class SecurityHeaders
 {
@@ -30,11 +30,11 @@ class SecurityHeaders
 
         $isProduction = app()->isProduction();
 
-        // script-src: nonce-based only (no unsafe-inline — strongest JS protection)
-        $scriptSrc  = "'self' 'nonce-{$nonce}'";
-        // style-src: nonce for <style> tags + unsafe-inline for style="" attributes
-        // (inline style attributes cannot carry nonces per CSP spec)
-        $styleSrc   = "'self' 'nonce-{$nonce}' 'unsafe-inline'";
+        // script-src: unsafe-inline required — Filament injects bare <script> blocks
+        // from vendor views (theme toggle, filamentData) that cannot carry nonces.
+        $scriptSrc  = "'self' 'unsafe-inline' 'nonce-{$nonce}'";
+        // style-src: unsafe-inline for style="" attributes (cannot carry nonces per CSP spec)
+        $styleSrc   = "'self' 'unsafe-inline' 'nonce-{$nonce}'";
         $connectSrc = "'self'";
 
         if (! $isProduction) {
