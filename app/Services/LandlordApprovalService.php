@@ -9,6 +9,7 @@ use App\Notifications\LeaseApprovalRequestedNotification;
 use App\Notifications\LeaseApprovedNotification;
 use App\Notifications\LeaseRejectedNotification;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class LandlordApprovalService
@@ -81,6 +82,8 @@ class LandlordApprovalService
                 'approval_id' => $approval->id,
             ]);
 
+            self::invalidateFieldOfficerDashboardCache();
+
             return [
                 'success' => true,
                 'approval' => $approval,
@@ -126,6 +129,8 @@ class LandlordApprovalService
                 'reason' => $reason,
             ]);
 
+            self::invalidateFieldOfficerDashboardCache();
+
             return [
                 'success' => true,
                 'approval' => $approval,
@@ -143,6 +148,17 @@ class LandlordApprovalService
                 'message' => 'Failed to reject lease: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Invalidate field officer dashboard cache so next request reflects new approval/rejection.
+     * Uses a version key so all dashboard cache entries become stale regardless of cache driver.
+     */
+    public static function invalidateFieldOfficerDashboardCache(): void
+    {
+        $prefix = config('cache.field_officer_dashboard_prefix', 'field_officer_dashboard');
+        $versionKey = $prefix . '_version';
+        Cache::put($versionKey, (int) Cache::get($versionKey, 0) + 1, now()->addYear());
     }
 
     /**
