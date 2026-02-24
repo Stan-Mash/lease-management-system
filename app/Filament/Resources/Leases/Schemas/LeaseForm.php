@@ -89,10 +89,17 @@ class LeaseForm
                 // --- Property & Tenant ---
                 Forms\Components\Select::make('tenant_id')
                     ->label('Tenant')
-                    ->options(
-                        Tenant::orderBy('names')
-                            ->get()
-                            ->mapWithKeys(fn ($t) => [$t->id => "{$t->names} — {$t->mobile_number}"]),
+                    ->getSearchResultsUsing(fn (string $search) => Tenant::where('names', 'ilike', "%{$search}%")
+                        ->orWhere('mobile_number', 'ilike', "%{$search}%")
+                        ->orWhere('national_id', 'ilike', "%{$search}%")
+                        ->orderBy('names')
+                        ->limit(50)
+                        ->get()
+                        ->mapWithKeys(fn ($t) => [$t->id => "{$t->names} — {$t->mobile_number}"])
+                    )
+                    ->getOptionLabelUsing(fn ($value) => ($t = Tenant::find($value))
+                        ? "{$t->names} — {$t->mobile_number}"
+                        : $value
                     )
                     ->searchable()
                     ->required(),
@@ -100,7 +107,13 @@ class LeaseForm
                 // Smart Unit Search
                 Forms\Components\Select::make('unit_id')
                     ->label('Unit')
-                    ->options(Unit::pluck('unit_number', 'id'))
+                    ->getSearchResultsUsing(fn (string $search) => Unit::where('unit_number', 'ilike', "%{$search}%")
+                        ->orWhere('unit_code', 'ilike', "%{$search}%")
+                        ->orderBy('unit_number')
+                        ->limit(50)
+                        ->pluck('unit_number', 'id')
+                    )
+                    ->getOptionLabelUsing(fn ($value) => Unit::find($value)?->unit_number ?? $value)
                     ->searchable()
                     ->required()
                     ->live()
