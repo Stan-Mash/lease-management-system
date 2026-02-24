@@ -11,48 +11,32 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Applies OWASP-recommended HTTP security headers to every response.
  *
- * Content-Security-Policy uses unsafe-inline for both script-src and style-src
- * because Filament 4 injects bare inline <script> blocks (localStorage theme,
- * window.filamentData) from vendor layout views that cannot receive nonces.
- * Without unsafe-inline those scripts are CSP-blocked, breaking Livewire/Alpine.
+ * CSP uses unsafe-inline and unsafe-eval throughout because:
+ * - Filament 4 injects bare <script> and <style> blocks from vendor views
+ * - Alpine.js evaluates x-bind/x-on expressions via new Function()
+ * - The nonce is still generated and shared so views can use it optionally.
+ *
+ * This matches the original working CSP before the nonce-hardening experiment.
  */
 class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Generate a unique cryptographic nonce for every request.
+        // Generate a nonce and share with views (used by login page style/script tags).
         $nonce = base64_encode(random_bytes(16));
-
-        // Share with all Blade views so templates can attach it to inline scripts.
         view()->share('cspNonce', $nonce);
 
         $response = $next($request);
 
         $isProduction = app()->isProduction();
 
-        // script-src: unsafe-inline + unsafe-eval required for Filament/Alpine to work.
-        // Filament injects bare <script> blocks from vendor views (needs unsafe-inline).
-        // Alpine.js evaluates x-bind/x-on expressions via Function() — needs unsafe-eval.
-        $scriptSrc  = "'self' 'unsafe-inline' 'unsafe-eval' 'nonce-{$nonce}'";
-        // style-src: unsafe-inline for style="" attributes (cannot carry nonces per CSP spec)
-        $styleSrc   = "'self' 'unsafe-inline' 'nonce-{$nonce}'";
-        $connectSrc = "'self'";
-
-        if (! $isProduction) {
-            $scriptSrc  .= " http://localhost:* ws://localhost:*";
-            $styleSrc   .= ' https://cdn.tailwindcss.com https://cdn.jsdelivr.net';
-            $connectSrc .= ' ws://localhost:* http://localhost:*';
-        }
-
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src {$scriptSrc}",
-            // Google Fonts CSS is loaded via @import in theme.css — needs googleapis.com
-            "style-src {$styleSrc} https://fonts.googleapis.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://fonts.googleapis.com",
             "img-src 'self' data: blob: https:",
-            // Google Fonts actual font files served from gstatic.com
             "font-src 'self' data: https://fonts.gstatic.com",
-            "connect-src {$connectSrc}",
+            "connect-src 'self'" . ($isProduction ? '' : ' ws://localhost:* http://localhost:*'),
             "frame-ancestors 'none'",
             "form-action 'self'",
             "base-uri 'self'",
