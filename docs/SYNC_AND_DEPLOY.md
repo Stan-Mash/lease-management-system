@@ -10,7 +10,7 @@
 | **DigitalOcean server** | Production | Pulls from GitHub only (no direct push from server). You deploy by SSH + `git pull` + artisan. |
 
 **Production:** https://leases-docs.chabrinagencies.com  
-**Server:** DigitalOcean droplet — `deploy@chips-leases-app-01`, app at `/var/www/chips`  
+**Server:** DigitalOcean droplet — `ssh deploy@161.35.74.238`, app at `/var/www/chips`  
 **Repo:** git@github.com:Stan-Mash/lease-management-system.git
 
 ---
@@ -51,7 +51,7 @@ The server does **not** auto-pull. You deploy by running commands **on the serve
 From your laptop (or work desktop):
 
 ```bash
-ssh deploy@chips-leases-app-01
+ssh deploy@161.35.74.238
 cd /var/www/chips
 git pull origin main
 php artisan migrate --force
@@ -61,10 +61,24 @@ exit
 
 **Option B — One-line from your machine**
 
-From your laptop or work desktop:
+From your laptop or work desktop (deploy only; push to GitHub first):
 
 ```bash
-ssh deploy@chips-leases-app-01 "cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear"
+ssh deploy@161.35.74.238 "cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear"
+```
+
+**Option B2 — Push to GitHub then deploy (one-liner)**
+
+From your laptop or work desktop, push then deploy in one go:
+
+**PowerShell (Windows):**
+```powershell
+git push origin main; ssh deploy@161.35.74.238 "cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear"
+```
+
+**Bash (Git Bash / macOS / Linux):**
+```bash
+git push origin main && ssh deploy@161.35.74.238 "cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear"
 ```
 
 **Option C — Deploy script (run from laptop/desktop)**
@@ -124,7 +138,7 @@ Create `scripts/deploy-to-production.sh`:
 ```bash
 #!/usr/bin/env bash
 set -e
-REMOTE="deploy@chips-leases-app-01"
+REMOTE="deploy@161.35.74.238"
 APP_DIR="/var/www/chips"
 
 echo "Deploying to production (leases-docs.chabrinagencies.com)..."
@@ -133,6 +147,13 @@ echo "Deploy complete."
 ```
 
 Then run from the project root: `./scripts/deploy-to-production.sh` (after pushing to GitHub).
+
+**Push then deploy (one command):**
+
+- **PowerShell:** `.\scripts\push-and-deploy.ps1`
+- **Bash:** `./scripts/push-and-deploy.sh` (or `bash scripts/push-and-deploy.sh`)
+
+These push `main` to GitHub, then SSH to the server and run `git pull` + migrate + optimize:clear.
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run this script ON the DigitalOcean server (e.g. after: ssh deploy@chips-leases-app-01)
+# Run this script ON the DigitalOcean server (e.g. after: ssh deploy@161.35.74.238)
 # Usage: cd /var/www/chips && ./scripts/deploy-on-server.sh
 set -e
 APP_DIR="${APP_DIR:-/var/www/chips}"

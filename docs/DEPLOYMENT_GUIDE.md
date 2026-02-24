@@ -34,6 +34,7 @@
 sudo apt update && sudo apt upgrade -y
 
 # Install PHP 8.2 and required extensions
+# bcmath is required for high-precision financial calculations (MoneyHelper, renewal rent, etc.)
 sudo apt install -y php8.2 php8.2-fpm php8.2-mysql php8.2-pgsql php8.2-redis \
     php8.2-mbstring php8.2-xml php8.2-bcmath php8.2-curl php8.2-zip \
     php8.2-gd php8.2-intl php8.2-soap
@@ -64,6 +65,10 @@ sudo apt install -y supervisor
 # Install fail2ban (for security)
 sudo apt install -y fail2ban
 ```
+
+### PHP extensions for production
+
+- **bcmath** — Used by `App\Support\MoneyHelper` and `LeaseRenewalService` for precise rent and renewal calculations. Without it, the app falls back to float rounding; enable `php8.2-bcmath` (or equivalent) in production. See [FINANCIAL_POLICY.md](FINANCIAL_POLICY.md).
 
 ---
 
@@ -537,6 +542,8 @@ exit
 
 ### 3. Security Scan
 
+- **Admin login:** Filament admin login is rate-limited to 5 attempts per minute per IP (`ThrottleFilamentLogin` middleware). After 5 failed attempts the user is redirected to the login page with an error message until the minute window expires.
+
 ```bash
 # Check for vulnerabilities
 composer audit
@@ -590,6 +597,22 @@ find $BACKUP_DIR -name "chabrin_*.sql.gz" -mtime +30 -delete
 echo "Backup completed: chabrin_$DATE.sql.gz"
 ```
 
+**PostgreSQL** (if using PostgreSQL instead of MySQL):
+
+```bash
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/home/chabrin/backups"
+mkdir -p $BACKUP_DIR
+
+pg_dump -U postgres -d chabrin_leases -Fc -f $BACKUP_DIR/chabrin_$DATE.dump
+
+# Keep only last 30 days
+find $BACKUP_DIR -name "chabrin_*.dump" -mtime +30 -delete
+
+echo "Backup completed: chabrin_$DATE.dump"
+```
+
 Make executable and add to cron:
 
 ```bash
@@ -599,6 +622,22 @@ crontab -e
 # Add daily backup at 2 AM
 0 2 * * * /home/chabrin/scripts/backup-db.sh >> /home/chabrin/logs/backup.log 2>&1
 ```
+
+### Backup and recovery runbook
+
+- **Retention:** Keep at least 30 days of daily backups; consider 7 daily + 4 weekly for critical data.
+- **Storage:** Store backups off the app server (e.g. S3, another machine) so a server loss doesn’t lose backups.
+- **Test restores:** Periodically restore a backup to a staging DB to confirm the script and restore steps work.
+
+**Recovery (restore from backup):**
+
+1. Stop the application (or put it in maintenance mode: `php artisan down`).
+2. **MySQL:** `gunzip -c chabrin_YYYYMMDD_HHMMSS.sql.gz | mysql -u chabrin_user -p chabrin_production`
+3. **PostgreSQL:** `pg_restore -U postgres -d chabrin_leases --clean --if-exists chabrin_YYYYMMDD_HHMMSS.dump` (or create a new DB and restore into it, then point the app).
+4. Clear app cache: `php artisan optimize:clear`.
+5. Bring the app back up: `php artisan up`.
+
+**If the app is broken after a bad deploy:** Use [Rollback Procedure](#rollback-procedure) and, if data was affected, restore the last known good backup and then re-run any migrations needed for the current code.
 
 ### Update Application
 

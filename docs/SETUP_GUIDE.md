@@ -2,30 +2,34 @@
 
 After implementing all code improvements, follow these steps:
 
-## 1. Update Dependencies
+## 1. PHP and extensions
+- **PHP 8.2+** is required.
+- **bcmath** is recommended for production: it is used by `MoneyHelper` for high-precision rent and renewal calculations. Enable with `php-bcmath` (Linux) or ensure the extension is enabled in `php.ini` (e.g. `extension=bcmath`).
+
+## 2. Update Dependencies
 ```bash
 composer update
 ```
 
-## 2. Run Migrations
+## 3. Run Migrations
 ```bash
 php artisan migrate
 php artisan migrate --path=database/migrations/2026_01_13_200000_add_indexes_and_soft_deletes.php
 ```
 
-## 3. Seed Database
+## 4. Seed Database
 ```bash
 # Create demo users and sample data
 php artisan db:seed
 ```
 
-## 4. Create Required Directories
+## 5. Create Required Directories
 ```bash
 mkdir -p storage/app/imports
 mkdir -p storage/app/qrcodes
 ```
 
-## 5. Configure Cache (Optional but Recommended)
+## 6. Configure Cache (Optional but Recommended)
 ```bash
 # Install Redis if you want caching
 # On Windows (via Docker): docker run -d -p 6379:6379 redis
@@ -35,7 +39,7 @@ CACHE_DRIVER=redis
 REDIS_HOST=127.0.0.1
 ```
 
-## 6. Test the Installation
+## 7. Test the Installation
 ```bash
 # Run all tests
 php artisan test
@@ -45,14 +49,14 @@ php artisan test tests/Unit/SerialNumberServiceTest.php
 php artisan test tests/Feature/LeaseWorkflowTest.php
 ```
 
-## 7. Clear Cache
+## 8. Clear Cache
 ```bash
 php artisan cache:clear
 php artisan config:clear
 php artisan route:clear
 ```
 
-## 8. Start Development Server
+## 9. Start Development Server
 ```bash
 php artisan serve
 # Access: http://localhost:8000
@@ -63,14 +67,16 @@ composer run dev
 
 ## Testing API Endpoints
 ```bash
-# Verify a lease
-curl -X GET "http://localhost:8000/api/v1/leases/{id}/verify" \
+# Verify a lease (use serial + hash from QR/verification data; do not use lease ID)
+curl -X GET "http://localhost:8000/api/v1/verify/lease?serial=SERIAL_OR_REF&hash=VERIFICATION_HASH" \
   -H "Content-Type: application/json"
 
 # Get all leases (requires auth)
 curl -X GET "http://localhost:8000/api/v1/leases" \
   -H "Authorization: Bearer {token}"
 ```
+
+**Note:** The old endpoint `GET /api/v1/leases/{id}/verify` is deprecated and returns `410 Gone`. Use `GET /api/v1/verify/lease?serial=...&hash=...` instead.
 
 ## Demo Users
 - **Admin**: admin@chabrin.test (role: super_admin)

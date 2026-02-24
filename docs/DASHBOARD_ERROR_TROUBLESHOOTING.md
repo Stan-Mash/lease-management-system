@@ -10,7 +10,7 @@
 After deploying, if you still see "Error while loading page" or a widget shows "Unable to load", check the Laravel log:
 
 ```bash
-# On the server (SSH into chips-leases-app-01)
+# On the server (ssh deploy@161.35.74.238)
 cd /var/www/chips
 tail -100 storage/logs/laravel.log
 ```
