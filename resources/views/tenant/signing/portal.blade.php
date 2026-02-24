@@ -292,13 +292,13 @@
                 </div>
                 <h2 class="text-2xl font-bold text-green-700 mb-2">Lease Signed Successfully!</h2>
                 <p class="text-gray-600 mb-1">Reference: <strong>{{ $lease->reference_number }}</strong></p>
-                <p class="text-gray-600 mb-6">A confirmation has been sent to your phone and email with a copy of the signed lease.</p>
+                <p class="text-gray-600 mb-6">Your signature has been recorded. Chabrin Agencies will contact you once all parties have signed.</p>
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 text-left max-w-sm mx-auto">
-                    <p class="font-semibold text-gray-800 mb-2">Next steps:</p>
+                    <p class="font-semibold text-gray-800 mb-2">What happens next:</p>
                     <ul class="space-y-1 list-disc list-inside">
-                        <li>Keep a copy of the signed lease for your records</li>
-                        <li>Pay your first month's rent and deposit as agreed</li>
-                        <li>Contact Chabrin Agencies for key collection</li>
+                        <li>Your property manager will countersign the lease</li>
+                        <li>You will receive a copy of the fully signed lease by email</li>
+                        <li>Chabrin Agencies will contact you regarding deposit and key collection</li>
                     </ul>
                 </div>
             </div>

@@ -111,13 +111,15 @@ class DigitalSigningService
         $lease->transitionTo(LeaseWorkflowState::TENANT_SIGNED);
 
         Log::info('Digital signature captured', [
-            'lease_id' => $lease->id,
+            'lease_id'     => $lease->id,
             'signature_id' => $signature->id,
-            'tenant_id' => $lease->tenant_id,
+            'tenant_id'    => $lease->tenant_id,
         ]);
 
-        // Send confirmation notifications to tenant
-        self::sendSignedConfirmations($lease);
+        // NOTE: Tenant confirmation email + PDF is intentionally NOT sent here.
+        // The property manager must countersign / approve before the tenant receives
+        // their copy. sendSignedConfirmations() is called separately by the admin
+        // workflow when the lease reaches ACTIVE state.
 
         return $signature;
     }
@@ -250,10 +252,12 @@ class DigitalSigningService
     }
 
     /**
-     * Send post-signing confirmation to tenant via SMS and email.
-     * Failures are logged but do not throw — the signature is already saved.
+     * Send the finalised lease confirmation to the tenant (email + SMS).
+     * Called by the admin workflow when the property manager has countersigned
+     * and the lease transitions to ACTIVE — NOT immediately after tenant signs.
+     * Failures are logged but do not throw.
      */
-    private static function sendSignedConfirmations(Lease $lease): void
+    public static function sendSignedConfirmations(Lease $lease): void
     {
         $tenant = $lease->tenant;
 

@@ -32,76 +32,79 @@ class LeasePdfService
         // Write signature to temp file so DomPDF can render it (data: URIs are not supported)
         $signatureImagePath = $digitalSignature ? $this->writeSignatureTempFile($digitalSignature) : null;
 
-        // Strategy 1: Assigned custom template
-        if ($lease->lease_template_id && $lease->leaseTemplate) {
-            try {
-                $html = $this->renderTemplate($lease->leaseTemplate, $lease);
-                if ($needsDraft) {
-                    $html = $this->injectDraftWatermark($html);
+        try {
+            // Strategy 1: Assigned custom template
+            if ($lease->lease_template_id && $lease->leaseTemplate) {
+                try {
+                    $html = $this->renderTemplate($lease->leaseTemplate, $lease, $digitalSignature, $signatureImagePath);
+                    if ($needsDraft) {
+                        $html = $this->injectDraftWatermark($html);
+                    }
+                    $pdf = Pdf::loadHTML($html);
+                    $this->setPdfMetadata($pdf, $lease);
+
+                    return $pdf->output();
+                } catch (Exception $e) {
+                    Log::warning('LeasePdfService: custom template failed, trying default', [
+                        'lease_id' => $lease->id,
+                        'error'    => $e->getMessage(),
+                    ]);
                 }
-                $pdf = Pdf::loadHTML($html);
-                $this->setPdfMetadata($pdf, $lease);
-                return $pdf->output();
-            } catch (Exception $e) {
-                Log::warning('LeasePdfService: custom template failed, trying default', [
-                    'lease_id' => $lease->id,
-                    'error' => $e->getMessage(),
-                ]);
+            }
+
+            // Strategy 2: Default template for lease type
+            $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
+                ->where('is_active', true)
+                ->where('is_default', true)
+                ->first();
+
+            if ($defaultTemplate) {
+                try {
+                    $html = $this->renderTemplate($defaultTemplate, $lease, $digitalSignature, $signatureImagePath);
+                    if ($needsDraft) {
+                        $html = $this->injectDraftWatermark($html);
+                    }
+                    $pdf = Pdf::loadHTML($html);
+                    $this->setPdfMetadata($pdf, $lease);
+
+                    return $pdf->output();
+                } catch (Exception $e) {
+                    Log::warning('LeasePdfService: default template failed, trying hardcoded view', [
+                        'lease_id' => $lease->id,
+                        'error'    => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Strategy 3: Hardcoded Blade views
+            $viewName = match ($lease->lease_type) {
+                'residential_major' => 'pdf.residential-major',
+                'residential_micro' => 'pdf.residential-micro',
+                'commercial'        => 'pdf.commercial',
+                default             => 'pdf.residential-major',
+            };
+
+            $data = [
+                'lease'              => $lease,
+                'tenant'             => $lease->tenant,
+                'unit'               => $lease->unit,
+                'landlord'           => $lease->landlord,
+                'property'           => $lease->property,
+                'today'              => now()->format('d/m/Y'),
+                'digitalSignature'   => $digitalSignature ?? null,
+                'signatureImagePath' => $signatureImagePath,
+            ];
+
+            $pdf = Pdf::loadView($viewName, $data);
+            $this->setPdfMetadata($pdf, $lease);
+
+            return $pdf->output();
+        } finally {
+            // Always clean up the temp signature file, regardless of which strategy succeeded or failed
+            if ($signatureImagePath && file_exists($signatureImagePath)) {
+                @unlink($signatureImagePath);
             }
         }
-
-        // Strategy 2: Default template for lease type
-        $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
-            ->where('is_active', true)
-            ->where('is_default', true)
-            ->first();
-
-        if ($defaultTemplate) {
-            try {
-                $html = $this->renderTemplate($defaultTemplate, $lease);
-                if ($needsDraft) {
-                    $html = $this->injectDraftWatermark($html);
-                }
-                $pdf = Pdf::loadHTML($html);
-                $this->setPdfMetadata($pdf, $lease);
-                return $pdf->output();
-            } catch (Exception $e) {
-                Log::warning('LeasePdfService: default template failed, trying hardcoded view', [
-                    'lease_id' => $lease->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Strategy 3: Hardcoded Blade views
-        $viewName = match ($lease->lease_type) {
-            'residential_major' => 'pdf.residential-major',
-            'residential_micro' => 'pdf.residential-micro',
-            'commercial'        => 'pdf.commercial',
-            default             => 'pdf.residential-major',
-        };
-
-        $data = [
-            'lease'                => $lease,
-            'tenant'               => $lease->tenant,
-            'unit'                 => $lease->unit,
-            'landlord'             => $lease->landlord,
-            'property'             => $lease->property,
-            'today'                => now()->format('d/m/Y'),
-            'digitalSignature'     => $digitalSignature ?? null,
-            'signatureImagePath'   => $signatureImagePath,
-        ];
-
-        $pdf = Pdf::loadView($viewName, $data);
-        $this->setPdfMetadata($pdf, $lease);
-        $output = $pdf->output();
-
-        // Clean up temp signature file
-        if ($signatureImagePath && file_exists($signatureImagePath)) {
-            @unlink($signatureImagePath);
-        }
-
-        return $output;
     }
 
     /**
@@ -146,12 +149,40 @@ class LeasePdfService
         }
     }
 
-    private function renderTemplate(LeaseTemplate $template, Lease $lease): string
-    {
+    private function renderTemplate(
+        LeaseTemplate $template,
+        Lease $lease,
+        ?\App\Models\DigitalSignature $digitalSignature = null,
+        ?string $signatureImagePath = null,
+    ): string {
         $html = $this->templateRenderer->render($template, $lease);
 
         if (empty(trim($html))) {
             throw new Exception('Template rendered empty HTML');
+        }
+
+        // Inject signature image into the rendered template HTML.
+        // Blade template variables are not available inside LeaseTemplate blade_content,
+        // so we inject the signature block immediately before the first </body> tag.
+        if ($signatureImagePath && file_exists($signatureImagePath) && $digitalSignature) {
+            $signedAt = $digitalSignature->created_at?->format('d M Y, h:i A') ?? '';
+            $ip       = htmlspecialchars($digitalSignature->ip_address ?? 'N/A');
+
+            $signatureBlock = '
+<div style="margin-top:24px;padding:12px;border-top:2px solid #c8a020;">
+  <p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>TENANT SIGNATURE</strong></p>
+  <img src="' . $signatureImagePath . '" alt="Tenant Signature"
+       style="max-width:220px;max-height:80px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">
+  <p style="font-size:8pt;color:#555;margin:0;">
+    Digitally signed: ' . $signedAt . ' &nbsp;|&nbsp; IP: ' . $ip . '
+  </p>
+</div>';
+
+            if (stripos($html, '</body>') !== false) {
+                $html = str_ireplace('</body>', $signatureBlock . '</body>', $html);
+            } else {
+                $html .= $signatureBlock;
+            }
         }
 
         return $html;

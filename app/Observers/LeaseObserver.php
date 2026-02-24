@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Lease;
 use App\Services\DashboardStatsService;
+use App\Services\DigitalSigningService;
 use App\Services\QRCodeService;
 use App\Services\SerialNumberService;
 use Exception;
@@ -92,6 +93,23 @@ class LeaseObserver
         // If serial number was manually changed, regenerate QR code
         if ($lease->wasChanged('serial_number') && config('lease.qr_codes.auto_generate', true)) {
             $this->generateQRCode($lease);
+        }
+
+        // When a digitally-signed lease becomes ACTIVE (property manager has countersigned /
+        // all approvals complete), send the tenant their final confirmation email + PDF.
+        // We do NOT send this immediately after the tenant signs — the manager must sign first.
+        if ($lease->wasChanged('workflow_state') && $lease->workflow_state === 'active') {
+            $hasDigitalSignature = $lease->digitalSignatures()->exists();
+            if ($hasDigitalSignature) {
+                try {
+                    DigitalSigningService::sendSignedConfirmations($lease);
+                } catch (Exception $e) {
+                    Log::warning('Failed to send tenant lease confirmation on ACTIVE transition', [
+                        'lease_id' => $lease->id,
+                        'error'    => $e->getMessage(),
+                    ]);
+                }
+            }
         }
     }
 
