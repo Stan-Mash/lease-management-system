@@ -269,21 +269,25 @@ class Lease extends Model
     }
 
     /**
-     * Scope: Filter leases accessible by the authenticated user based on their zone.
+     * Scope: Filter leases accessible by the authenticated user.
+     * Mirrors LeasePolicy: admins see all; field officers see assigned only; others by zone.
      */
     public function scopeAccessibleByUser($query, User $user)
     {
-        // Super admins and regular admins can see all leases
         if ($user->isSuperAdmin() || $user->isAdmin()) {
             return $query;
         }
 
-        // Zone managers and field officers can only see leases in their zone
+        // Field officers: only leases assigned to them
+        if ($user->isFieldOfficer()) {
+            return $query->where('assigned_field_officer_id', $user->id);
+        }
+
+        // Zone managers, auditors, etc.: leases in their zone
         if ($user->hasZoneRestriction() && $user->zone_id) {
             return $query->where('zone_id', $user->zone_id);
         }
 
-        // Default: no leases visible (safety net)
         return $query->whereRaw('1 = 0');
     }
 

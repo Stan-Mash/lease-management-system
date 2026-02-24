@@ -71,8 +71,8 @@ class LeaseDocumentPolicy
     /**
      * Check if a user has access to a specific document.
      *
-     * Access is determined by the user's zone assignment relative
-     * to the lease's zone that the document belongs to.
+     * Access is determined by the user's zone assignment. Prefer document's zone_id
+     * to avoid N+1 when authorizing many documents; fall back to lease zone when needed.
      */
     private function hasAccess(User $user, LeaseDocument $document): bool
     {
@@ -80,13 +80,17 @@ class LeaseDocumentPolicy
             return true;
         }
 
-        // Zone-restricted users can only access documents for leases in their zone
-        if ($user->hasZoneRestriction() && $user->zone_id) {
-            $lease = $document->lease;
-
-            return $lease && $lease->zone_id === $user->zone_id;
+        if (! $user->hasZoneRestriction() || ! $user->zone_id) {
+            return false;
         }
 
-        return false;
+        // Use document's zone_id when set to avoid loading lease (N+1 and null-lease safe)
+        if ($document->zone_id !== null) {
+            return $document->zone_id === $user->zone_id;
+        }
+
+        $lease = $document->lease;
+
+        return $lease && $lease->zone_id === $user->zone_id;
     }
 }

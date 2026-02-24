@@ -11,42 +11,53 @@ use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class FieldOfficerController extends Controller
 {
     /**
+     * Cache TTL for field officer dashboard stats (seconds).
+     */
+    private const DASHBOARD_CACHE_TTL = 300; // 5 minutes
+
+    /**
      * API: Get approval overview dashboard data.
+     * Cached per user/zone for 5 minutes to reduce database load.
+     * Cache is invalidated when a lease is approved/rejected (see LandlordApprovalService).
      */
     public function dashboard(Request $request): JsonResponse
     {
         try {
-            $baseLeaseQuery = $this->scopedLeaseQuery()
-                ->where('workflow_state', 'pending_landlord_approval')
-                ->whereNotNull('landlord_id');
+            $user = auth()->user();
+            $prefix = config('cache.field_officer_dashboard_prefix', 'field_officer_dashboard');
+            $version = Cache::get($prefix . '_version', 0);
+            $cacheKey = $prefix . ':' . $version . ':' . $user->id . ':' . ($user->zone_id ?? 'all');
 
-            $totalPending = (clone $baseLeaseQuery)->count();
+            $stats = Cache::remember($cacheKey, self::DASHBOARD_CACHE_TTL, function () {
+                $baseLeaseQuery = $this->scopedLeaseQuery()
+                    ->where('workflow_state', 'pending_landlord_approval')
+                    ->whereNotNull('landlord_id');
 
-            $overdueCount = (clone $baseLeaseQuery)
-                ->where('created_at', '<', now()->subHours(24))
-                ->count();
+                $totalPending = (clone $baseLeaseQuery)->count();
 
-            // PostgreSQL-compatible approval stats query
-            // Uses EXTRACT(EPOCH FROM ...) instead of MySQL's TIMESTAMPDIFF
-            $approvalStats = DB::table('lease_approvals')
-                ->selectRaw("
-                    COUNT(CASE WHEN decision = 'approved' AND reviewed_at::date = ? THEN 1 END) as approved_today,
-                    COUNT(CASE WHEN decision = 'rejected' AND reviewed_at::date = ? THEN 1 END) as rejected_today,
-                    COUNT(CASE WHEN decision = 'approved' AND reviewed_at >= ? THEN 1 END) as approved_last_7_days,
-                    COUNT(CASE WHEN decision = 'rejected' AND reviewed_at >= ? THEN 1 END) as rejected_last_7_days,
-                    AVG(CASE WHEN decision = 'approved' AND reviewed_at IS NOT NULL AND created_at >= ?
-                        THEN EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 3600 END) as avg_hours
-                ", [today(), today(), now()->subDays(7), now()->subDays(7), now()->subDays(30)])
-                ->first();
+                $overdueCount = (clone $baseLeaseQuery)
+                    ->where('created_at', '<', now()->subHours(24))
+                    ->count();
 
-            return response()->json([
-                'success' => true,
-                'stats' => [
+                // PostgreSQL-compatible approval stats query
+                $approvalStats = DB::table('lease_approvals')
+                    ->selectRaw("
+                        COUNT(CASE WHEN decision = 'approved' AND reviewed_at::date = ? THEN 1 END) as approved_today,
+                        COUNT(CASE WHEN decision = 'rejected' AND reviewed_at::date = ? THEN 1 END) as rejected_today,
+                        COUNT(CASE WHEN decision = 'approved' AND reviewed_at >= ? THEN 1 END) as approved_last_7_days,
+                        COUNT(CASE WHEN decision = 'rejected' AND reviewed_at >= ? THEN 1 END) as rejected_last_7_days,
+                        AVG(CASE WHEN decision = 'approved' AND reviewed_at IS NOT NULL AND created_at >= ?
+                            THEN EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 3600 END) as avg_hours
+                    ", [today(), today(), now()->subDays(7), now()->subDays(7), now()->subDays(30)])
+                    ->first();
+
+                return [
                     'total_pending' => $totalPending,
                     'overdue_count' => $overdueCount,
                     'approved_today' => (int) ($approvalStats->approved_today ?? 0),
@@ -54,7 +65,12 @@ class FieldOfficerController extends Controller
                     'approved_last_7_days' => (int) ($approvalStats->approved_last_7_days ?? 0),
                     'rejected_last_7_days' => (int) ($approvalStats->rejected_last_7_days ?? 0),
                     'avg_approval_time_hours' => $approvalStats->avg_hours ? round((float) $approvalStats->avg_hours, 1) : null,
-                ],
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'stats' => $stats,
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -75,7 +91,7 @@ class FieldOfficerController extends Controller
             $pendingLeases = $this->scopedLeaseQuery()
                 ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
-                ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email', 'approvals' => function ($query): void {
+                ->with(['landlord:id,names,mobile_number,email_address', 'tenant:id,names,mobile_number,email_address', 'approvals' => function ($query): void {
                     $query->latest()->limit(1);
                 }])
                 ->orderBy('created_at', 'asc')
@@ -103,7 +119,7 @@ class FieldOfficerController extends Controller
             $leasesByLandlord = $this->scopedLeaseQuery()
                 ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
-                ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email'])
+                ->with(['landlord:id,names,mobile_number,email_address', 'tenant:id,names,mobile_number,email_address'])
                 ->limit($limit)
                 ->get()
                 ->groupBy('landlord_id')
@@ -124,7 +140,7 @@ class FieldOfficerController extends Controller
                             return [
                                 'id' => $lease->id,
                                 'reference_number' => $lease->reference_number,
-                                'tenant_name' => $lease->tenant->name,
+                                'tenant_name' => $lease->tenant->names ?? $lease->tenant->full_name,
                                 'monthly_rent' => $lease->monthly_rent,
                                 'submitted_at' => $lease->created_at->toISOString(),
                                 'pending_hours' => $lease->created_at->diffInHours(now()),
@@ -161,7 +177,7 @@ class FieldOfficerController extends Controller
                 ->where('workflow_state', 'pending_landlord_approval')
                 ->whereNotNull('landlord_id')
                 ->where('created_at', '<', now()->subHours(24))
-                ->with(['landlord:id,name,phone,email', 'tenant:id,name,phone,email'])
+                ->with(['landlord:id,names,mobile_number,email_address', 'tenant:id,names,mobile_number,email_address'])
                 ->orderBy('created_at', 'asc')
                 ->paginate($perPage);
 
@@ -171,12 +187,12 @@ class FieldOfficerController extends Controller
                     'reference_number' => $lease->reference_number,
                     'landlord' => [
                         'id' => $lease->landlord->id,
-                        'name' => $lease->landlord->name,
-                        'phone' => $lease->landlord->phone,
+                        'name' => $lease->landlord->names ?? $lease->landlord->name,
+                        'phone' => $lease->landlord->mobile_number ?? $lease->landlord->phone,
                     ],
                     'tenant' => [
-                        'name' => $lease->tenant->name,
-                        'phone' => $lease->tenant->phone,
+                        'name' => $lease->tenant->names ?? $lease->tenant->full_name,
+                        'phone' => $lease->tenant->mobile_number ?? $lease->tenant->phone_number,
                     ],
                     'monthly_rent' => $lease->monthly_rent,
                     'submitted_at' => $lease->created_at->toISOString(),
@@ -214,8 +230,8 @@ class FieldOfficerController extends Controller
             $query = LeaseApproval::whereNotNull('decision')
                 ->where('reviewed_at', '>=', now()->subDays($days))
                 ->with(['lease:id,reference_number,monthly_rent,landlord_id,tenant_id',
-                    'lease.landlord:id,name',
-                    'lease.tenant:id,name'])
+                    'lease.landlord:id,names',
+                    'lease.tenant:id,names'])
                 ->orderBy('reviewed_at', 'desc');
 
             // Get summary counts from the full query (before pagination)
@@ -228,8 +244,8 @@ class FieldOfficerController extends Controller
                 return [
                     'id' => $approval->id,
                     'lease_reference' => $approval->lease->reference_number,
-                    'landlord_name' => $approval->lease->landlord->name,
-                    'tenant_name' => $approval->lease->tenant->name,
+                    'landlord_name' => $approval->lease->landlord->names ?? $approval->lease->landlord->name,
+                    'tenant_name' => $approval->lease->tenant->names ?? $approval->lease->tenant->full_name,
                     'monthly_rent' => $approval->lease->monthly_rent,
                     'decision' => $approval->decision,
                     'comments' => $approval->comments,
@@ -262,8 +278,8 @@ class FieldOfficerController extends Controller
     {
         try {
             $lease = $this->scopedLeaseQuery()
-                ->with(['landlord:id,name,phone,email',
-                    'tenant:id,name,phone,email',
+                ->with(['landlord:id,names,mobile_number,email_address',
+                    'tenant:id,names,mobile_number,email_address',
                     'approvals' => function ($query) {
                         $query->latest();
                     }])
@@ -279,12 +295,12 @@ class FieldOfficerController extends Controller
                     'workflow_state' => $lease->workflow_state,
                     'landlord' => [
                         'id' => $lease->landlord->id,
-                        'name' => $lease->landlord->name,
-                        'phone' => $lease->landlord->phone,
+                        'name' => $lease->landlord->names ?? $lease->landlord->name,
+                        'phone' => $lease->landlord->mobile_number ?? $lease->landlord->phone,
                     ],
                     'tenant' => [
-                        'name' => $lease->tenant->name,
-                        'phone' => $lease->tenant->phone,
+                        'name' => $lease->tenant->names ?? $lease->tenant->full_name,
+                        'phone' => $lease->tenant->mobile_number ?? $lease->tenant->phone_number,
                     ],
                     'monthly_rent' => $lease->monthly_rent,
                     'submitted_at' => $lease->created_at->toISOString(),

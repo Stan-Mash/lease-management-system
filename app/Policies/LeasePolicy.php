@@ -33,22 +33,26 @@ class LeasePolicy
      * Check if a user has access to a specific lease.
      *
      * - Super admins and admins can access all leases.
-     * - Zone managers and field officers can only access leases in their zone.
+     * - Field officers can access leases assigned to them (assigned_field_officer_id).
+     * - Other zone-restricted users (zone managers, auditors) can access leases in their zone.
      * - All other users are denied access (safety net).
      */
     private function hasAccess(User $user, Lease $lease): bool
     {
-        // Super admins and regular admins can see all leases
         if ($user->isAdmin()) {
             return true;
         }
 
-        // Zone-restricted users can only see leases in their zone
+        // Field officers: only leases assigned to them (matches FieldOfficerController scopedLeaseQuery)
+        if ($user->isFieldOfficer()) {
+            return $lease->assigned_field_officer_id === $user->id;
+        }
+
+        // Zone managers, auditors, etc.: leases in their zone
         if ($user->hasZoneRestriction() && $user->zone_id) {
             return $lease->zone_id === $user->zone_id;
         }
 
-        // Default: no access (safety net)
         return false;
     }
 }

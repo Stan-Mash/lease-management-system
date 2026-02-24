@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LandlordApproveRequest;
+use App\Http\Requests\LandlordRejectRequest;
+use App\Http\Resources\LandlordLeaseDetailResource;
+use App\Http\Resources\LandlordPendingLeaseResource;
 use App\Models\Landlord;
 use App\Models\Lease;
 use App\Services\LandlordApprovalService;
@@ -87,12 +91,8 @@ class LandlordApprovalController extends Controller
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function approve(Request $request, int $landlordId, int $leaseId)
+    public function approve(LandlordApproveRequest $request, int $landlordId, int $leaseId)
     {
-        $request->validate([
-            'comments' => 'nullable|string|max:1000',
-        ]);
-
         $landlord = $this->verifyLandlordOwnership($landlordId);
         $lease = Lease::where('id', $leaseId)
             ->where('landlord_id', $landlordId)
@@ -119,13 +119,8 @@ class LandlordApprovalController extends Controller
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function reject(Request $request, int $landlordId, int $leaseId)
+    public function reject(LandlordRejectRequest $request, int $landlordId, int $leaseId)
     {
-        $request->validate([
-            'rejection_reason' => 'required|string|max:255',
-            'comments' => 'nullable|string|max:1000',
-        ]);
-
         $landlord = $this->verifyLandlordOwnership($landlordId);
         $lease = Lease::where('id', $leaseId)
             ->where('landlord_id', $landlordId)
@@ -162,29 +157,9 @@ class LandlordApprovalController extends Controller
 
             $pendingLeases = Lease::where('landlord_id', $landlordId)
                 ->where('workflow_state', 'pending_landlord_approval')
-                ->with(['tenant:id,name,phone,email', 'approvals' => function ($query) {
-                    $query->latest()->limit(1);
-                }])
+                ->with(['tenant:id,names,mobile_number,email_address'])
                 ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($lease) {
-                    return [
-                        'id' => $lease->id,
-                        'reference_number' => $lease->reference_number,
-                        'tenant' => [
-                            'name' => $lease->tenant->name,
-                            'phone' => $lease->tenant->phone,
-                            'email' => $lease->tenant->email,
-                        ],
-                        'lease_type' => ucfirst($lease->lease_type),
-                        'monthly_rent' => $lease->monthly_rent,
-                        'currency' => $lease->currency ?? 'KES',
-                        'security_deposit' => $lease->security_deposit ?? $lease->deposit_amount,
-                        'start_date' => $lease->start_date?->format('Y-m-d'),
-                        'end_date' => $lease->end_date?->format('Y-m-d'),
-                        'created_at' => $lease->created_at->toISOString(),
-                    ];
-                });
+                ->get();
 
             return response()->json([
                 'success' => true,
@@ -193,7 +168,7 @@ class LandlordApprovalController extends Controller
                     'name' => $landlord->name,
                 ],
                 'pending_count' => $pendingLeases->count(),
-                'leases' => $pendingLeases,
+                'leases' => LandlordPendingLeaseResource::collection($pendingLeases),
             ]);
         } catch (Exception $e) {
             Log::error('API: Failed to fetch pending leases', [
@@ -223,44 +198,9 @@ class LandlordApprovalController extends Controller
                 ->with(['tenant', 'guarantors', 'approvals'])
                 ->firstOrFail();
 
-            $approval = $lease->getLatestApproval();
-
             return response()->json([
                 'success' => true,
-                'lease' => [
-                    'id' => $lease->id,
-                    'reference_number' => $lease->reference_number,
-                    'workflow_state' => $lease->workflow_state,
-                    'lease_type' => ucfirst($lease->lease_type),
-                    'lease_source' => $lease->lease_source,
-                    'monthly_rent' => $lease->monthly_rent,
-                    'currency' => $lease->currency ?? 'KES',
-                    'security_deposit' => $lease->security_deposit ?? $lease->deposit_amount,
-                    'start_date' => $lease->start_date?->format('Y-m-d'),
-                    'end_date' => $lease->end_date?->format('Y-m-d'),
-                    'property_address' => $lease->property_address,
-                    'special_terms' => $lease->special_terms,
-                    'tenant' => [
-                        'name' => $lease->tenant->name,
-                        'phone' => $lease->tenant->phone,
-                        'email' => $lease->tenant->email,
-                        // id_number intentionally excluded — PII must not be exposed in API responses
-                    ],
-                    'guarantors' => $lease->guarantors->map(function ($g) {
-                        return [
-                            'name' => $g->name,
-                            'phone' => $g->phone,
-                            'relationship' => $g->relationship,
-                            'guarantee_amount' => $g->guarantee_amount,
-                        ];
-                    }),
-                    'approval' => $approval ? [
-                        'status' => $approval->decision ?? 'pending',
-                        'comments' => $approval->comments,
-                        'rejection_reason' => $approval->rejection_reason,
-                        'reviewed_at' => $approval->reviewed_at?->toISOString(),
-                    ] : null,
-                ],
+                'lease' => new LandlordLeaseDetailResource($lease),
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -275,12 +215,8 @@ class LandlordApprovalController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function apiApprove(Request $request, int $landlordId, int $leaseId)
+    public function apiApprove(LandlordApproveRequest $request, int $landlordId, int $leaseId)
     {
-        $request->validate([
-            'comments' => 'nullable|string|max:1000',
-        ]);
-
         $this->verifyLandlordOwnership($landlordId);
 
         try {
@@ -305,7 +241,7 @@ class LandlordApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to approve lease: ' . $e->getMessage(),
+                'message' => 'Failed to approve lease.',
             ], 400);
         }
     }
@@ -315,13 +251,8 @@ class LandlordApprovalController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function apiReject(Request $request, int $landlordId, int $leaseId)
+    public function apiReject(LandlordRejectRequest $request, int $landlordId, int $leaseId)
     {
-        $request->validate([
-            'rejection_reason' => 'required|string|max:255',
-            'comments' => 'nullable|string|max:1000',
-        ]);
-
         $this->verifyLandlordOwnership($landlordId);
 
         try {
@@ -347,7 +278,7 @@ class LandlordApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to reject lease: ' . $e->getMessage(),
+                'message' => 'Failed to reject lease.',
             ], 400);
         }
     }
