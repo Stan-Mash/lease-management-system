@@ -203,7 +203,7 @@
 
 </div>
 
-<style>
+<style nonce="{{ $cspNonce ?? '' }}">
     /* Force light mode */
     html.dark, html[class~="dark"] { color-scheme: light !important; }
     html { color-scheme: light !important; }
@@ -235,7 +235,7 @@
     }
 </style>
 
-<script>
+<script nonce="{{ $cspNonce ?? '' }}">
     localStorage.setItem('theme', 'light');
     document.documentElement.classList.remove('dark');
 </script>
