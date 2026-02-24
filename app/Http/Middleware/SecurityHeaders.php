@@ -47,9 +47,11 @@ class SecurityHeaders
         $csp = implode('; ', [
             "default-src 'self'",
             "script-src {$scriptSrc}",
-            "style-src {$styleSrc}",
+            // Google Fonts CSS is loaded via @import in theme.css — needs googleapis.com
+            "style-src {$styleSrc} https://fonts.googleapis.com",
             "img-src 'self' data: blob: https:",
-            "font-src 'self' data:",
+            // Google Fonts actual font files served from gstatic.com
+            "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src {$connectSrc}",
             "frame-ancestors 'none'",
             "form-action 'self'",
