@@ -205,8 +205,9 @@
 
 <style nonce="{{ $cspNonce ?? '' }}">
     /* Force light mode */
-    html.dark, html[class~="dark"] { color-scheme: light !important; }
-    html { color-scheme: light !important; }
+    html, html.dark, html[class~="dark"] {
+        color-scheme: light !important;
+    }
 
     /* Pulse animation */
     @keyframes chabrin-pulse {
@@ -221,17 +222,51 @@
         .chabrin-mobile-logo { display: none !important; }
     }
 
+    /* Reset body */
     body.fi-body {
         background: #fff !important;
-        margin: 0 !important; padding: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
         color-scheme: light !important;
     }
 
-    /* Strip Filament wrapper constraints */
-    .fi-simple-layout, .fi-simple-main-ctn,
-    .fi-simple-main, .fi-simple-page {
-        all: unset !important;
-        display: contents !important;
+    /*
+     * Override Filament's simple layout wrappers so our custom split-panel
+     * controls the full viewport. Filament's compiled CSS sets:
+     *   .fi-simple-layout { display:flex; flex-direction:column; align-items:center; min-height:100dvh }
+     *   .fi-simple-main-ctn / .fi-simple-main { width:100%; max-width:…; padding:… }
+     * The old "all:unset; display:contents" trick stopped working in this
+     * Filament build — use explicit overrides per property instead.
+     */
+    .fi-simple-layout {
+        display: block !important;
+        flex-direction: unset !important;
+        align-items: unset !important;
+        min-height: unset !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .fi-simple-main-ctn {
+        display: block !important;
+        width: auto !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .fi-simple-main {
+        display: block !important;
+        width: auto !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .fi-simple-page {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 </style>
 
