@@ -1,276 +1,254 @@
-<div style="display:flex; min-height:100vh; background:#fff;">
+<div class="cb-login-wrap">
 
-    {{-- ═══════════════════════════════════════════════════════
-         LEFT PANEL — Warm champagne / gold brand panel
-    ═══════════════════════════════════════════════════════ --}}
-    <div style="
-        display:none;
-        width:52%;
-        flex-direction:column;
-        position:relative;
-        overflow:hidden;
-        background: linear-gradient(150deg, #fffdf5 0%, #fef9e7 45%, #fdf3c8 100%);
-    " class="chabrin-left-panel">
+    {{-- LEFT PANEL --}}
+    <div class="cb-left-panel">
 
-        {{-- Decorative gold arc top-right --}}
-        <div style="
-            position:absolute; top:-120px; right:-120px;
-            width:420px; height:420px; border-radius:50%; pointer-events:none;
-            background: radial-gradient(circle, rgba(218,165,32,0.18) 0%, transparent 70%);
-        "></div>
+        <div class="cb-arc cb-arc-top"></div>
+        <div class="cb-arc cb-arc-bottom"></div>
+        <div class="cb-dot-grid"></div>
 
-        {{-- Decorative small arc bottom-left --}}
-        <div style="
-            position:absolute; bottom:-80px; left:-80px;
-            width:280px; height:280px; border-radius:50%; pointer-events:none;
-            background: radial-gradient(circle, rgba(218,165,32,0.12) 0%, transparent 70%);
-        "></div>
-
-        {{-- Fine dot-grid pattern --}}
-        <div style="
-            position:absolute; inset:0; pointer-events:none; opacity:0.4;
-            background-image: radial-gradient(circle, rgba(218,165,32,0.4) 1px, transparent 1px);
-            background-size: 28px 28px;
-        "></div>
-
-        {{-- TOP: Logo --}}
-        <div style="position:relative; z-index:10; padding:2.5rem 3rem; flex-shrink:0;">
-            <img src="{{ asset('images/Chabrin-Logo-background.png') }}"
-                 alt="Chabrin Agencies"
-                 style="height:52px; width:auto;">
-            <div style="
-                margin-top:0.9rem;
-                display:inline-flex; align-items:center; gap:6px;
-                background:rgba(218,165,32,0.14); border:1px solid rgba(218,165,32,0.3);
-                border-radius:99px; padding:3px 10px;
-            ">
-                <span style="width:6px;height:6px;border-radius:50%;background:#DAA520;display:inline-block;"></span>
-                <span style="font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:#8a6a00;">
-                    Lease Management System
-                </span>
+        <div class="cb-logo-area">
+            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
+            <div class="cb-logo-badge">
+                <span class="cb-badge-dot"></span>
+                <span class="cb-badge-text">Lease Management System</span>
             </div>
         </div>
 
-        {{-- CENTRE: Brand content --}}
-        <div style="position:relative; z-index:10; flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 3rem 2rem;">
-
-            {{-- Gold accent line --}}
-            <div style="
-                display:flex; align-items:center; gap:10px; margin-bottom:1.6rem;
-            ">
-                <div style="height:3px; width:40px; border-radius:99px; background:linear-gradient(90deg,#DAA520,#f0c040);"></div>
-                <div style="height:1px; flex:1; background:linear-gradient(90deg,rgba(218,165,32,0.3),transparent);"></div>
+        <div class="cb-brand-content">
+            <div class="cb-accent-line">
+                <div class="cb-accent-bar"></div>
+                <div class="cb-accent-fade"></div>
             </div>
-
-            <h1 style="
-                font-size:2.4rem; font-weight:800; line-height:1.18;
-                color:#1a1a1a; margin:0 0 0.9rem; letter-spacing:-.025em;
-                font-family:'Century Gothic','Gill Sans',Arial,sans-serif;
-            ">
+            <h1 class="cb-heading">
                 Lease Management<br>
-                <span style="
-                    background:linear-gradient(135deg,#b8860b,#DAA520,#f0c040);
-                    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-                    background-clip:text;
-                ">Made Simple.</span>
+                <span class="cb-heading-gold">Made Simple.</span>
             </h1>
-
-            <p style="color:#5a5a5a; font-size:.94rem; line-height:1.75; max-width:310px; margin:0 0 2.2rem;">
+            <p class="cb-subheading">
                 Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
             </p>
-
-            {{-- Feature list --}}
-            <div style="display:flex; flex-direction:column; gap:.65rem;">
+            <div class="cb-features">
                 @foreach ([
                     ['icon' => '🏢', 'text' => 'Multi-zone property management'],
                     ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
                     ['icon' => '📄', 'text' => 'Automated lease document generation'],
                     ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
                 ] as $f)
-                <div style="display:flex; align-items:center; gap:.75rem;">
-                    <div style="
-                        flex-shrink:0; width:34px; height:34px; border-radius:9px;
-                        display:flex; align-items:center; justify-content:center; font-size:.9rem;
-                        background:#fff; border:1px solid rgba(218,165,32,0.35);
-                        box-shadow:0 2px 6px rgba(218,165,32,0.12);
-                    ">{{ $f['icon'] }}</div>
-                    <span style="color:#444; font-size:.87rem; font-weight:500;">{{ $f['text'] }}</span>
+                <div class="cb-feature-row">
+                    <div class="cb-feature-icon">{{ $f['icon'] }}</div>
+                    <span class="cb-feature-text">{{ $f['text'] }}</span>
                 </div>
                 @endforeach
             </div>
         </div>
 
-        {{-- BOTTOM: Footer --}}
-        <div style="
-            position:relative; z-index:10; flex-shrink:0;
-            padding:1.1rem 3rem;
-            border-top:1px solid rgba(218,165,32,0.2);
-            display:flex; align-items:center; justify-content:space-between;
-            background:rgba(255,255,255,0.5);
-        ">
-            <p style="color:#999; font-size:.72rem; margin:0;">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
-            <div style="display:flex; align-items:center; gap:.4rem;">
-                <span class="chabrin-pulse" style="
-                    display:inline-block; width:7px; height:7px; border-radius:50%;
-                    background:#22c55e;
-                "></span>
-                <span style="color:#888; font-size:.72rem;">System Online</span>
+        <div class="cb-left-footer">
+            <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
+            <div class="cb-online">
+                <span class="chabrin-pulse cb-online-dot"></span>
+                <span class="cb-online-text">System Online</span>
             </div>
         </div>
     </div>
 
-    {{-- ═══════════════════════════════════════════════════════
-         RIGHT PANEL — Login form
-    ═══════════════════════════════════════════════════════ --}}
-    <div style="
-        flex:1;
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        background:#fff; overflow-y:auto; padding:3rem 1.5rem;
-    ">
+    {{-- RIGHT PANEL --}}
+    <div class="cb-right-panel">
 
-        {{-- Mobile logo --}}
-        <div class="chabrin-mobile-logo" style="margin-bottom:2rem; text-align:center;">
-            <img src="{{ asset('images/Chabrin-Logo-background.png') }}"
-                 alt="Chabrin Agencies"
-                 style="height:44px; width:auto; margin:0 auto;">
+        <div class="cb-mobile-logo">
+            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
         </div>
 
-        <div style="width:100%; max-width:360px;">
-
-            {{-- Badge + heading --}}
-            <div style="margin-bottom:1.75rem;">
-                <span style="
-                    display:inline-flex; align-items:center; gap:.4rem;
-                    border-radius:99px; padding:.3rem .85rem;
-                    font-size:.72rem; font-weight:700; letter-spacing:.05em;
-                    background:rgba(218,165,32,0.09); color:#8a6a00;
-                    border:1px solid rgba(218,165,32,0.25);
-                    margin-bottom:.9rem;
-                ">
-                    <span style="width:6px;height:6px;border-radius:50%;background:#DAA520;flex-shrink:0;"></span>
+        <div class="cb-form-wrap">
+            <div class="cb-form-header">
+                <span class="cb-portal-badge">
+                    <span class="cb-badge-dot"></span>
                     Secure Access Portal
                 </span>
-
-                <h2 style="
-                    font-size:1.7rem; font-weight:800; color:#1a1a1a;
-                    margin:0 0 .35rem; letter-spacing:-.025em;
-                    font-family:'Century Gothic','Gill Sans',Arial,sans-serif;
-                ">
-                    Welcome back
-                </h2>
-                <p style="font-size:.875rem; color:#888; margin:0; line-height:1.5;">
-                    Sign in to your Chabrin account to continue
-                </p>
+                <h2 class="cb-welcome">Welcome back</h2>
+                <p class="cb-welcome-sub">Sign in to your Chabrin account to continue</p>
             </div>
 
-            {{-- Login card --}}
-            <div style="
-                border-radius:16px; background:#fff;
-                box-shadow:0 2px 4px rgba(0,0,0,0.04), 0 12px 40px rgba(218,165,32,0.1);
-                border:1px solid rgba(218,165,32,0.2);
-                border-top:3px solid #DAA520;
-                overflow:hidden;
-            ">
-                <div style="padding:1.75rem;">
+            <div class="cb-card">
+                <div class="cb-card-inner">
                     {{ $this->content }}
                 </div>
             </div>
 
-            {{-- Footer meta --}}
-            <div style="
-                margin-top:1.75rem;
-                display:flex; align-items:center; justify-content:center; gap:.75rem;
-                font-size:.72rem; color:#aaa;
-            ">
-                <span style="display:flex; align-items:center; gap:.3rem;">
+            <div class="cb-meta">
+                <span class="cb-meta-item">
                     <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                     </svg>
                     SSL Secured
                 </span>
-                <span style="width:1px;height:12px;background:#e5e7eb;"></span>
+                <span class="cb-meta-sep"></span>
                 <span>Chabrin Agencies Ltd</span>
-                <span style="width:1px;height:12px;background:#e5e7eb;"></span>
+                <span class="cb-meta-sep"></span>
                 <span>{{ date('Y') }}</span>
             </div>
 
-            <p class="chabrin-mobile-logo" style="margin-top:1.25rem; text-align:center; font-size:.72rem; color:#aaa;">
-                &copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.
-            </p>
+            <p class="cb-mobile-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.</p>
         </div>
     </div>
 
 </div>
 
-<style nonce="{{ $cspNonce ?? '' }}">
-    /* Force light mode */
-    html, html.dark, html[class~="dark"] {
-        color-scheme: light !important;
-    }
+<style nonce="{{ $cspNonce }}">
 
-    /* Pulse animation */
-    @keyframes chabrin-pulse {
-        0%, 100% { opacity: 1; }
-        50%       { opacity: 0.25; }
-    }
-    .chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
+/* ── Override Filament simple-layout wrappers ──────────────────────────────
+ * Filament compiles .fi-simple-layout { display:flex; flex-direction:column;
+ * align-items:center; min-height:100dvh } inside a CSS @layer.
+ * Prefixing with "html body" beats @layer specificity without !important hacks.
+ * ───────────────────────────────────────────────────────────────────────── */
+html body .fi-simple-layout {
+    display: block !important;
+    flex-direction: unset !important;
+    align-items: unset !important;
+    min-height: unset !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+html body .fi-simple-main-ctn,
+html body .fi-simple-main,
+html body .fi-simple-page {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
 
-    /* Show left panel on desktop only */
-    @media (min-width: 1024px) {
-        .chabrin-left-panel  { display: flex !important; }
-        .chabrin-mobile-logo { display: none !important; }
-    }
+/* ── Base reset ─────────────────────────────────────────────────────────── */
+html, html.dark, html[class~="dark"] { color-scheme: light !important; }
 
-    /* Reset body */
-    body.fi-body {
-        background: #fff !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        color-scheme: light !important;
-    }
+body.fi-body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color-scheme: light !important;
+}
 
-    /*
-     * Override Filament's simple layout wrappers so our custom split-panel
-     * controls the full viewport. Filament's compiled CSS sets:
-     *   .fi-simple-layout { display:flex; flex-direction:column; align-items:center; min-height:100dvh }
-     *   .fi-simple-main-ctn / .fi-simple-main { width:100%; max-width:…; padding:… }
-     * The old "all:unset; display:contents" trick stopped working in this
-     * Filament build — use explicit overrides per property instead.
-     */
-    .fi-simple-layout {
-        display: block !important;
-        flex-direction: unset !important;
-        align-items: unset !important;
-        min-height: unset !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
+/* ── Outer split wrapper ────────────────────────────────────────────────── */
+.cb-login-wrap {
+    display: flex;
+    min-height: 100vh;
+    background: #fff;
+}
 
-    .fi-simple-main-ctn {
-        display: block !important;
-        width: auto !important;
-        max-width: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
+/* ── Left panel ─────────────────────────────────────────────────────────── */
+.cb-left-panel {
+    display: none;
+    width: 52%;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(150deg, #fffdf5 0%, #fef9e7 45%, #fdf3c8 100%);
+}
+@media (min-width: 1024px) {
+    .cb-left-panel  { display: flex !important; }
+    .cb-mobile-logo { display: none !important; }
+}
 
-    .fi-simple-main {
-        display: block !important;
-        width: auto !important;
-        max-width: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
+.cb-arc            { position: absolute; border-radius: 50%; pointer-events: none; }
+.cb-arc-top        { top: -120px; right: -120px; width: 420px; height: 420px;
+                     background: radial-gradient(circle, rgba(218,165,32,.18) 0%, transparent 70%); }
+.cb-arc-bottom     { bottom: -80px; left: -80px; width: 280px; height: 280px;
+                     background: radial-gradient(circle, rgba(218,165,32,.12) 0%, transparent 70%); }
+.cb-dot-grid       { position: absolute; inset: 0; pointer-events: none; opacity: .4;
+                     background-image: radial-gradient(circle, rgba(218,165,32,.4) 1px, transparent 1px);
+                     background-size: 28px 28px; }
 
-    .fi-simple-page {
-        display: block !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
+.cb-logo-area      { position: relative; z-index: 10; padding: 2.5rem 3rem; flex-shrink: 0; }
+.cb-logo-img       { height: 52px; width: auto; }
+.cb-logo-badge     { margin-top: .9rem; display: inline-flex; align-items: center; gap: 6px;
+                     background: rgba(218,165,32,.14); border: 1px solid rgba(218,165,32,.3);
+                     border-radius: 99px; padding: 3px 10px; }
+.cb-badge-dot      { width: 6px; height: 6px; border-radius: 50%; background: #DAA520;
+                     display: inline-block; flex-shrink: 0; }
+.cb-badge-text     { font-size: .6rem; font-weight: 700; letter-spacing: .14em;
+                     text-transform: uppercase; color: #8a6a00; }
+
+.cb-brand-content  { position: relative; z-index: 10; flex: 1; display: flex;
+                     flex-direction: column; justify-content: center; padding: 0 3rem 2rem; }
+.cb-accent-line    { display: flex; align-items: center; gap: 10px; margin-bottom: 1.6rem; }
+.cb-accent-bar     { height: 3px; width: 40px; border-radius: 99px;
+                     background: linear-gradient(90deg,#DAA520,#f0c040); }
+.cb-accent-fade    { height: 1px; flex: 1;
+                     background: linear-gradient(90deg,rgba(218,165,32,.3),transparent); }
+
+.cb-heading        { font-size: 2.4rem; font-weight: 800; line-height: 1.18; color: #1a1a1a;
+                     margin: 0 0 .9rem; letter-spacing: -.025em;
+                     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif; }
+.cb-heading-gold   { background: linear-gradient(135deg,#b8860b,#DAA520,#f0c040);
+                     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                     background-clip: text; }
+.cb-subheading     { color: #5a5a5a; font-size: .94rem; line-height: 1.75;
+                     max-width: 310px; margin: 0 0 2.2rem; }
+
+.cb-features       { display: flex; flex-direction: column; gap: .65rem; }
+.cb-feature-row    { display: flex; align-items: center; gap: .75rem; }
+.cb-feature-icon   { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+                     display: flex; align-items: center; justify-content: center; font-size: .9rem;
+                     background: #fff; border: 1px solid rgba(218,165,32,.35);
+                     box-shadow: 0 2px 6px rgba(218,165,32,.12); }
+.cb-feature-text   { color: #444; font-size: .87rem; font-weight: 500; }
+
+.cb-left-footer    { position: relative; z-index: 10; flex-shrink: 0; padding: 1.1rem 3rem;
+                     border-top: 1px solid rgba(218,165,32,.2);
+                     display: flex; align-items: center; justify-content: space-between;
+                     background: rgba(255,255,255,.5); }
+.cb-footer-copy    { color: #999; font-size: .72rem; margin: 0; }
+.cb-online         { display: flex; align-items: center; gap: .4rem; }
+.cb-online-dot     { display: inline-block; width: 7px; height: 7px;
+                     border-radius: 50%; background: #22c55e; }
+.cb-online-text    { color: #888; font-size: .72rem; }
+
+/* ── Right panel ─────────────────────────────────────────────────────────── */
+.cb-right-panel    { flex: 1; display: flex; flex-direction: column;
+                     align-items: center; justify-content: center;
+                     background: #fff; overflow-y: auto; padding: 3rem 1.5rem; }
+
+.cb-mobile-logo    { margin-bottom: 2rem; text-align: center; }
+.cb-mobile-logo-img { height: 44px; width: auto; margin: 0 auto; }
+
+.cb-form-wrap      { width: 100%; max-width: 360px; }
+
+.cb-form-header    { margin-bottom: 1.75rem; }
+.cb-portal-badge   { display: inline-flex; align-items: center; gap: .4rem;
+                     border-radius: 99px; padding: .3rem .85rem;
+                     font-size: .72rem; font-weight: 700; letter-spacing: .05em;
+                     background: rgba(218,165,32,.09); color: #8a6a00;
+                     border: 1px solid rgba(218,165,32,.25); margin-bottom: .9rem; }
+.cb-welcome        { font-size: 1.7rem; font-weight: 800; color: #1a1a1a;
+                     margin: 0 0 .35rem; letter-spacing: -.025em;
+                     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif; }
+.cb-welcome-sub    { font-size: .875rem; color: #888; margin: 0; line-height: 1.5; }
+
+.cb-card           { border-radius: 16px; background: #fff;
+                     box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(218,165,32,.1);
+                     border: 1px solid rgba(218,165,32,.2);
+                     border-top: 3px solid #DAA520; overflow: hidden; }
+.cb-card-inner     { padding: 1.75rem; }
+
+.cb-meta           { margin-top: 1.75rem; display: flex; align-items: center;
+                     justify-content: center; gap: .75rem; font-size: .72rem; color: #aaa; }
+.cb-meta-item      { display: flex; align-items: center; gap: .3rem; }
+.cb-meta-sep       { width: 1px; height: 12px; background: #e5e7eb; display: inline-block; }
+.cb-mobile-copy    { margin-top: 1.25rem; text-align: center;
+                     font-size: .72rem; color: #aaa; display: none; }
+@media (max-width: 1023px) { .cb-mobile-copy { display: block; } }
+
+/* ── Pulse animation ─────────────────────────────────────────────────────── */
+@keyframes chabrin-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .25; }
+}
+.chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
+
 </style>
 
-<script nonce="{{ $cspNonce ?? '' }}">
+<script nonce="{{ $cspNonce }}">
     localStorage.setItem('theme', 'light');
     document.documentElement.classList.remove('dark');
 </script>
