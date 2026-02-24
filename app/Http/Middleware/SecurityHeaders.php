@@ -30,15 +30,16 @@ class SecurityHeaders
 
         $isProduction = app()->isProduction();
 
-        // script-src: unsafe-inline required — Filament injects bare <script> blocks
-        // from vendor views (theme toggle, filamentData) that cannot carry nonces.
-        $scriptSrc  = "'self' 'unsafe-inline' 'nonce-{$nonce}'";
+        // script-src: unsafe-inline + unsafe-eval required for Filament/Alpine to work.
+        // Filament injects bare <script> blocks from vendor views (needs unsafe-inline).
+        // Alpine.js evaluates x-bind/x-on expressions via Function() — needs unsafe-eval.
+        $scriptSrc  = "'self' 'unsafe-inline' 'unsafe-eval' 'nonce-{$nonce}'";
         // style-src: unsafe-inline for style="" attributes (cannot carry nonces per CSP spec)
         $styleSrc   = "'self' 'unsafe-inline' 'nonce-{$nonce}'";
         $connectSrc = "'self'";
 
         if (! $isProduction) {
-            $scriptSrc  .= " 'unsafe-eval' http://localhost:* ws://localhost:*";
+            $scriptSrc  .= " http://localhost:* ws://localhost:*";
             $styleSrc   .= ' https://cdn.tailwindcss.com https://cdn.jsdelivr.net';
             $connectSrc .= ' ws://localhost:* http://localhost:*';
         }
