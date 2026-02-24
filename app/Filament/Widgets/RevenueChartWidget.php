@@ -6,6 +6,7 @@ use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
 use Exception;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
@@ -61,23 +62,29 @@ class RevenueChartWidget extends ChartWidget
 
     protected function getChartData(): array
     {
-        // Get base query with filters
-        $query = $this->getFilteredQuery();
-
-        // Determine grouping based on date filter
-        $groupBy = $this->getGroupingPeriod();
+        $groupBy    = $this->getGroupingPeriod();
         $periodExpr = $this->getDateSelectExpression($groupBy);
 
-        // Get revenue data grouped by period (use raw expression for PostgreSQL GROUP BY)
-        $revenueData = (clone $query)
-            ->where('workflow_state', 'active')
-            ->select(
-                DB::raw($periodExpr . ' as period'),
-                DB::raw('SUM(monthly_rent) as total_revenue'),
-            )
-            ->groupBy(DB::raw($periodExpr))
-            ->orderBy('period')
-            ->get();
+        $cacheKey = 'widget:revenue_chart:'
+            . ($this->zoneId ?? 'all') . ':'
+            . ($this->fieldOfficerId ?? 'all') . ':'
+            . ($this->dateFilter ?? 'none') . ':'
+            . ($this->startDate ?? '') . ':'
+            . ($this->endDate ?? '');
+
+        $revenueData = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($periodExpr, $groupBy) {
+            $query = $this->getFilteredQuery();
+
+            return (clone $query)
+                ->where('workflow_state', 'active')
+                ->select(
+                    DB::raw($periodExpr . ' as period'),
+                    DB::raw('SUM(monthly_rent) as total_revenue'),
+                )
+                ->groupBy(DB::raw($periodExpr))
+                ->orderBy('period')
+                ->get();
+        });
 
         $labels = [];
         $data = [];

@@ -9,6 +9,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
@@ -118,6 +119,16 @@ class ZonePerformanceWidget extends BaseWidget
     protected function buildTableQuery(): Builder
     {
         $dateColumn = 'created_at';
+        $cacheKey   = 'widget:zone_performance:'
+            . ($this->dateFilter ?? 'none') . ':'
+            . ($this->startDate ?? '') . ':'
+            . ($this->endDate ?? '');
+
+        // Cache the computed zone IDs so the expensive aggregation query only
+        // runs once per 5-minute window, not on every Livewire re-render.
+        $zoneIds = Cache::remember($cacheKey . ':ids', now()->addMinutes(5), function () {
+            return Zone::where('is_active', true)->pluck('id');
+        });
 
         // Use a subquery for occupancy rate via JOINs instead of correlated subqueries
         $occupancySub = DB::table('zones as z')
@@ -155,6 +166,6 @@ class ZonePerformanceWidget extends BaseWidget
             ], 'monthly_rent')
             ->leftJoinSub($occupancySub, 'occ', 'occ.zone_id', '=', 'zones.id')
             ->addSelect(DB::raw('COALESCE(occ.occupancy_rate, 0) as occupancy_rate'))
-            ->where('is_active', true);
+            ->whereIn('zones.id', $zoneIds);
     }
 }

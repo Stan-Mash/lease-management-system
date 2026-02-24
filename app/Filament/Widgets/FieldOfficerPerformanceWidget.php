@@ -8,6 +8,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\On;
 
 class FieldOfficerPerformanceWidget extends BaseWidget
@@ -108,16 +109,29 @@ class FieldOfficerPerformanceWidget extends BaseWidget
     {
         $dateColumn = 'created_at';
 
-        $query = User::query()
-            ->where('role', 'field_officer')
-            ->with(['zone']);
+        // Cache the list of matching field officer IDs so the withCount
+        // aggregation subqueries only execute once per 5-minute window.
+        $cacheKey = 'widget:fo_performance:'
+            . ($this->zoneId ?? auth()->id()) . ':'
+            . ($this->dateFilter ?? 'none') . ':'
+            . ($this->startDate ?? '') . ':'
+            . ($this->endDate ?? '');
 
-        // Zone filtering
-        if ($this->zoneId) {
-            $query->where('zone_id', $this->zoneId);
-        } elseif (auth()->user()->hasZoneRestriction()) {
-            $query->where('zone_id', auth()->user()->zone_id);
-        }
+        $officerIds = Cache::remember($cacheKey . ':ids', now()->addMinutes(5), function () {
+            $q = User::query()->where('role', 'field_officer');
+
+            if ($this->zoneId) {
+                $q->where('zone_id', $this->zoneId);
+            } elseif (auth()->user()->hasZoneRestriction()) {
+                $q->where('zone_id', auth()->user()->zone_id);
+            }
+
+            return $q->pluck('id');
+        });
+
+        $query = User::query()
+            ->whereIn('id', $officerIds)
+            ->with(['zone']);
 
         return $query->withCount([
             'assignedLeases as assigned_leases_count' => function ($query) use ($dateColumn) {

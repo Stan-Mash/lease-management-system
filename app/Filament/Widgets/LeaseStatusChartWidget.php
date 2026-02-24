@@ -6,6 +6,7 @@ use App\Filament\Widgets\Concerns\HasDateFiltering;
 use App\Filament\Widgets\Concerns\HasLeaseQueryFiltering;
 use Exception;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
@@ -52,15 +53,22 @@ class LeaseStatusChartWidget extends ChartWidget
 
     protected function getChartData(): array
     {
-        // Get base query with filters
-        $query = $this->getFilteredQuery();
+        $cacheKey = 'widget:lease_status_chart:'
+            . ($this->zoneId ?? 'all') . ':'
+            . ($this->fieldOfficerId ?? 'all') . ':'
+            . ($this->dateFilter ?? 'none') . ':'
+            . ($this->startDate ?? '') . ':'
+            . ($this->endDate ?? '');
 
-        // Get count by workflow state
-        $statusCounts = (clone $query)
-            ->select('workflow_state', DB::raw('count(*) as count'))
-            ->groupBy('workflow_state')
-            ->get()
-            ->pluck('count', 'workflow_state');
+        $statusCounts = Cache::remember($cacheKey, now()->addMinutes(5), function () {
+            $query = $this->getFilteredQuery();
+
+            return (clone $query)
+                ->select('workflow_state', DB::raw('count(*) as count'))
+                ->groupBy('workflow_state')
+                ->get()
+                ->pluck('count', 'workflow_state');
+        });
 
         // Define colors for each status
         $colors = [
