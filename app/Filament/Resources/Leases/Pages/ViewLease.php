@@ -30,6 +30,12 @@ class ViewLease extends ViewRecord
 {
     protected static string $resource = LeaseResource::class;
 
+    /**
+     * Holds the base64 PNG drawn on the countersign canvas pad.
+     * Set via $wire.set('canvasPngB64', ...) from Alpine.js before the action fires.
+     */
+    public string $canvasPngB64 = '';
+
     public function getHeading(): string
     {
         return $this->record->reference_number ?? 'Lease';
@@ -391,52 +397,44 @@ class ViewLease extends ViewRecord
                         ->maxLength(255)
                         ->helperText('This name will be printed on the lease document.'),
 
-                    // ── Signature pad (always shown) ─────────────────────────
-                    // pad_signature_b64 is the Filament Hidden field that holds
-                    // the base64 PNG (draw tab) or "__use_saved__" (saved tab).
-                    // We push data into it via a synthetic 'input' event so that
-                    // Filament's wire:model binding picks it up before submission.
+                    // ── Signature mode selector ───────────────────────────────
+                    // 'draw'  → manager draws on canvas pad (always available)
+                    // 'saved' → manager uses their stored signature (only if uploaded)
+                    // This is a real Filament Select so its value reliably reaches $data.
+                    \Filament\Forms\Components\Select::make('signature_mode')
+                        ->label('Signature Method')
+                        ->options(function () {
+                            $opts = ['draw' => '✏️ Draw on pad now'];
+                            if (auth()->user()?->signature_image_encrypted) {
+                                $opts['saved'] = '✅ Use my saved signature';
+                            }
+
+                            return $opts;
+                        })
+                        ->default(function () {
+                            return auth()->user()?->signature_image_encrypted ? 'saved' : 'draw';
+                        })
+                        ->required()
+                        ->live()
+                        ->selectablePlaceholder(false)
+                        ->helperText('Choose how you want to sign this lease.'),
+
+                    // ── Canvas pad (shown when mode = draw) ───────────────────
+                    // The drawn PNG is pushed into the Livewire property
+                    // $canvasPngB64 via $wire.set() on every stroke-end AND
+                    // again on the submit button click, so the value is always
+                    // fresh when the server-side action reads $this->canvasPngB64.
                     \Filament\Forms\Components\Placeholder::make('signature_pad_ui')
-                        ->label('Signature')
+                        ->label('Draw Your Signature')
+                        ->visible(fn ($get) => $get('signature_mode') === 'draw')
                         ->content(function () {
-                            $hasSaved     = (bool) auth()->user()?->signature_image_encrypted;
-                            $savedDataUri = auth()->user()?->signature_image_data_uri ?? '';
-                            $defaultTab   = $hasSaved ? 'saved' : 'draw';
-
-                            $savedTabBtn = $hasSaved
-                                ? '<button type="button"
-                                        @click="switchTab(\'saved\')"
-                                        :style="tab===\'saved\'
-                                            ? \'background:#DAA520;color:#fff;border-color:#DAA520;\'
-                                            : \'background:#fff;color:#1a365d;border-color:#e2d9c8;\'"
-                                        style="padding:6px 18px;border-radius:6px;font-size:13px;font-weight:600;border:1.5px solid #e2d9c8;cursor:pointer;transition:all .2s;\">
-                                        ✅ Use Saved Signature
-                                   </button>'
-                                : '';
-
-                            $savedPanel = $hasSaved
-                                ? '<div x-show="tab===\'saved\'" x-cloak style="margin-top:12px;">
-                                       <div style="background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%);border:1.5px solid rgba(218,165,32,0.35);border-left:5px solid #DAA520;border-radius:10px;padding:16px 20px;">
-                                           <p style="font-size:12px;color:#92700a;margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Your Saved Signature</p>
-                                           <img src="' . e($savedDataUri) . '" alt="Saved signature"
-                                                style="max-height:72px;border:1px solid #e2d9c8;border-radius:6px;background:#fff;padding:4px;" />
-                                           <p style="font-size:11px;color:#6b7280;margin:10px 0 0;">This signature will be stamped on the lease.</p>
-                                       </div>
-                                   </div>'
-                                : '';
-
                             return new \Illuminate\Support\HtmlString(
-                                <<<HTML
+                                <<<'HTML'
 <div
     x-data="{
-        tab: '{$defaultTab}',
         drawing: false,
         lastX: 0, lastY: 0,
         hasStrokes: false,
-        switchTab(t) {
-            this.tab = t;
-            this.pushValue(t === 'draw' ? '' : '__use_saved__');
-        },
         startDraw(e) {
             this.drawing = true; this.hasStrokes = true;
             const p = this.getPos(e); this.lastX = p.x; this.lastY = p.y;
@@ -444,7 +442,7 @@ class ViewLease extends ViewRecord
         draw(e) {
             if (!this.drawing) return;
             e.preventDefault();
-            const ctx = \$refs.sigCanvas.getContext('2d');
+            const ctx = $refs.sigCanvas.getContext('2d');
             const p = this.getPos(e);
             ctx.beginPath(); ctx.moveTo(this.lastX, this.lastY);
             ctx.lineTo(p.x, p.y);
@@ -452,95 +450,82 @@ class ViewLease extends ViewRecord
             ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
             this.lastX = p.x; this.lastY = p.y;
         },
-        stopDraw() { this.drawing = false; },
+        stopDraw() {
+            this.drawing = false;
+            this.syncToLivewire();
+        },
         getPos(e) {
-            const rect = \$refs.sigCanvas.getBoundingClientRect();
+            const rect = $refs.sigCanvas.getBoundingClientRect();
             const src = e.touches ? e.touches[0] : e;
             return { x: src.clientX - rect.left, y: src.clientY - rect.top };
         },
         clearPad() {
-            const c = \$refs.sigCanvas;
+            const c = $refs.sigCanvas;
             c.getContext('2d').clearRect(0, 0, c.width, c.height);
             this.hasStrokes = false;
-            this.pushValue('');
+            $wire.set('canvasPngB64', '');
         },
-        captureAndPush() {
-            if (this.tab === 'saved') { this.pushValue('__use_saved__'); return; }
-            if (!this.hasStrokes)    { this.pushValue(''); return; }
-            const b64 = \$refs.sigCanvas.toDataURL('image/png').split(',')[1];
-            this.pushValue(b64);
-        },
-        pushValue(val) {
-            const el = document.getElementById('pad_signature_b64_input');
-            if (el) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }
+        syncToLivewire() {
+            if (!this.hasStrokes) return;
+            const b64 = $refs.sigCanvas.toDataURL('image/png').split(',')[1];
+            $wire.set('canvasPngB64', b64);
         }
     }"
     @mouseup.window="stopDraw()"
     @touchend.window="stopDraw()"
-    x-init="
-        \$nextTick(() => {
-            /* Intercept modal submit button click to capture signature first */
-            const modal = \$el.closest('[x-data]');
-            const submitBtn = document.querySelector('[data-action-id=countersignActivate] button[type=submit], button.fi-modal-submit-action');
-            if (submitBtn) {
-                submitBtn.addEventListener('click', () => captureAndPush(), true);
-            }
-            /* Fallback: listen for Livewire's submit on the form */
-            const form = \$el.closest('form');
-            if (form) { form.addEventListener('submit', () => captureAndPush(), true); }
-        });
-    "
 >
-    <!-- Tab bar -->
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <button type="button"
-            @click="switchTab('draw')"
-            :style="tab==='draw'
-                ? 'background:#DAA520;color:#fff;border-color:#DAA520;'
-                : 'background:#fff;color:#1a365d;border-color:#e2d9c8;'"
-            style="padding:6px 18px;border-radius:6px;font-size:13px;font-weight:600;border:1.5px solid #e2d9c8;cursor:pointer;transition:all .2s;">
-            ✏️ Draw Signature
+    <div style="background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%);border:1.5px solid rgba(218,165,32,0.35);border-left:5px solid #DAA520;border-radius:10px;padding:4px;">
+        <canvas x-ref="sigCanvas" width="600" height="160"
+            style="display:block;width:100%;height:160px;cursor:crosshair;border-radius:7px;background:#fff;touch-action:none;"
+            @mousedown="startDraw($event)"
+            @mousemove="draw($event)"
+            @mouseup="stopDraw()"
+            @touchstart.prevent="startDraw($event)"
+            @touchmove.prevent="draw($event)"
+            @touchend="stopDraw()">
+        </canvas>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+        <span style="font-size:11px;color:#9ca3af;">✍️ Sign inside the box above using your mouse or finger</span>
+        <button type="button" @click="clearPad()"
+            style="font-size:11px;color:#b8960a;font-weight:600;background:none;border:none;cursor:pointer;text-decoration:underline;">
+            Clear
         </button>
-        {$savedTabBtn}
     </div>
-
-    <!-- Draw pad -->
-    <div x-show="tab==='draw'" style="position:relative;">
-        <div style="background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%);border:1.5px solid rgba(218,165,32,0.35);border-left:5px solid #DAA520;border-radius:10px;padding:4px;">
-            <canvas x-ref="sigCanvas" width="600" height="150"
-                style="display:block;width:100%;height:150px;cursor:crosshair;border-radius:7px;background:#fff;touch-action:none;"
-                @mousedown="startDraw(\$event)"
-                @mousemove="draw(\$event)"
-                @mouseup="stopDraw()"
-                @touchstart.prevent="startDraw(\$event)"
-                @touchmove.prevent="draw(\$event)"
-                @touchend="stopDraw()">
-            </canvas>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-            <span style="font-size:11px;color:#9ca3af;">✍️ Draw your signature above using mouse or finger</span>
-            <button type="button" @click="clearPad()"
-                style="font-size:11px;color:#b8960a;font-weight:600;background:none;border:none;cursor:pointer;text-decoration:underline;">
-                Clear
-            </button>
-        </div>
-    </div>
-
-    {$savedPanel}
 </div>
 HTML
                             );
                         }),
 
-                    // Wire-bound hidden field — Filament reads this in $data on action()
-                    \Filament\Forms\Components\Hidden::make('pad_signature_b64')
-                        ->extraInputAttributes(['id' => 'pad_signature_b64_input']),
+                    // ── Saved signature preview (shown when mode = saved) ─────
+                    \Filament\Forms\Components\Placeholder::make('saved_sig_preview')
+                        ->label('Your Saved Signature')
+                        ->visible(fn ($get) => $get('signature_mode') === 'saved')
+                        ->content(function () {
+                            $dataUri = auth()->user()?->signature_image_data_uri ?? '';
 
-                    // Save-to-profile toggle
+                            return new \Illuminate\Support\HtmlString(
+                                '<div style="background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%);'
+                                . 'border:1.5px solid rgba(218,165,32,0.35);border-left:5px solid #DAA520;'
+                                . 'border-radius:10px;padding:16px 20px;">'
+                                . '<p style="font-size:12px;color:#92700a;margin:0 0 10px;font-weight:600;'
+                                . 'text-transform:uppercase;letter-spacing:.5px;">Signature on file</p>'
+                                . ($dataUri
+                                    ? '<img src="' . e($dataUri) . '" alt="Saved signature" '
+                                    . 'style="max-height:80px;border:1px solid #e2d9c8;border-radius:6px;background:#fff;padding:4px;" />'
+                                    : '<p style="font-size:12px;color:#6b7280;">No signature image on file.</p>')
+                                . '<p style="font-size:11px;color:#6b7280;margin:10px 0 0;">'
+                                . 'This signature will be stamped on the executed lease document.</p>'
+                                . '</div>'
+                            );
+                        }),
+
+                    // Save-to-profile toggle (only relevant when drawing)
                     \Filament\Forms\Components\Toggle::make('save_signature_to_profile')
-                        ->label('Save drawn signature to my profile for future use')
+                        ->label('Save this drawn signature to my profile for future use')
+                        ->visible(fn ($get) => $get('signature_mode') === 'draw')
                         ->default(false)
-                        ->helperText('If ticked, your drawn signature will be encrypted and stored on your account for next time.'),
+                        ->helperText('Your drawn signature will be stored encrypted on your account.'),
 
                     Textarea::make('countersign_notes')
                         ->label('Notes (Optional)')
@@ -551,39 +536,46 @@ HTML
                 ->action(function (array $data) {
                     try {
                         $user = auth()->user();
+                        $mode = $data['signature_mode'] ?? 'draw';
 
-                        // Determine which signature method to use
-                        $padData = trim($data['pad_signature_b64'] ?? '');
-
-                        if ($padData === '__use_saved__') {
-                            // Manager chose to use their saved uploaded signature
+                        if ($mode === 'saved') {
+                            // ── Use the manager's saved uploaded signature ────
                             if (! $user?->signature_image_encrypted) {
                                 Notification::make()->danger()
                                     ->title('No Saved Signature')
-                                    ->body('No saved signature found. Please draw your signature instead.')
+                                    ->body('No saved signature found on your profile. Please switch to "Draw on pad" instead.')
                                     ->send();
 
                                 return;
                             }
                             DigitalSigningService::stampManagerSignature($this->record, $user);
-                        } elseif ($padData !== '') {
-                            // Manager drew on the signature pad — base64 PNG
+                        } else {
+                            // ── Canvas pad draw ───────────────────────────────
+                            // Alpine's stopDraw() calls $wire.set('canvasPngB64', b64)
+                            // after every stroke, so by the time the action fires
+                            // $this->canvasPngB64 already holds the latest PNG.
+                            $padPng = trim($this->canvasPngB64);
+
+                            if ($padPng === '') {
+                                Notification::make()->danger()
+                                    ->title('Signature Required')
+                                    ->body('Please draw your signature in the box before submitting.')
+                                    ->send();
+
+                                return;
+                            }
+
                             $saveToProfile = (bool) ($data['save_signature_to_profile'] ?? false);
                             DigitalSigningService::stampManagerSignatureFromPng(
                                 $this->record,
                                 $user,
-                                $padData,
+                                $padPng,
                                 $saveToProfile,
                             );
-                        } else {
-                            // No signature supplied at all
-                            Notification::make()->danger()
-                                ->title('Signature Required')
-                                ->body('Please draw your signature or select your saved signature before countersigning.')
-                                ->send();
-
-                            return;
                         }
+
+                        // Reset the canvas state after a successful countersign
+                        $this->canvasPngB64 = '';
 
                         $this->record->update([
                             'countersigned_by'  => $data['countersigned_by'] ?? $user->name,
