@@ -58,11 +58,21 @@ class ViewLease extends ViewRecord
         ];
     }
 
+    public function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
+    }
+
     protected function getFooterWidgets(): array
     {
         return [
             LeaseAuditTimelineWidget::class,
         ];
+    }
+
+    public function getFooterWidgetsColumns(): int|array
+    {
+        return 1;
     }
 
     protected function getHeaderActions(): array
