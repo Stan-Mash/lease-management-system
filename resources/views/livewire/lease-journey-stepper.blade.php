@@ -1,10 +1,12 @@
 @php
-    $macroSteps   = $this->macroSteps;
-    $detailSteps  = $this->detailSteps;
-    $progress     = $this->progress;
-    $currentLabel = $this->currentStateLabel;
-    $currentColor = $this->currentStateColor;
-    $health       = $this->health;
+    // Variables may be passed directly via @include (from the widget) or via $this
+    // (when rendered as a standalone Livewire component). Support both paths.
+    $macroSteps   = $macroSteps   ?? $this->macroSteps;
+    $detailSteps  = $detailSteps  ?? $this->detailSteps;
+    $progress     = $progress     ?? $this->progress;
+    $currentLabel = $currentLabel ?? $this->currentStateLabel;
+    $currentColor = $currentColor ?? $this->currentStateColor;
+    $health       = $health       ?? $this->health;
     $score        = $health['score'];
     $grade        = $health['grade'];
     $flags        = $health['flags'] ?? [];

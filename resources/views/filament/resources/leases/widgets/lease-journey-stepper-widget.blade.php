@@ -1,6 +1,20 @@
 @php
-    $leaseId = $this->getViewData()['leaseId'] ?? 0;
+    $data           = $this->getViewData();
+    $macroSteps     = $data['macroSteps'];
+    $detailSteps    = $data['detailSteps'];
+    $progress       = $data['progress'];
+    $currentLabel   = $data['currentStateLabel'];
+    $currentColor   = $data['currentStateColor'];
+    $health         = $data['health'];
 @endphp
-@if ($leaseId > 0)
-    <livewire:lease-journey-stepper :lease-id="$leaseId" :wire:key="'stepper-' . $leaseId" />
+
+@if ($this->record !== null)
+    @include('livewire.lease-journey-stepper', [
+        'macroSteps'     => $macroSteps,
+        'detailSteps'    => $detailSteps,
+        'progress'       => $progress,
+        'currentLabel'   => $currentLabel,
+        'currentColor'   => $currentColor,
+        'health'         => $health,
+    ])
 @endif
