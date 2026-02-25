@@ -384,6 +384,8 @@ class ViewLease extends ViewRecord
                         . '. Draw your signature below or use your saved one. The tenant will receive the executed lease by email.',
                 )
                 ->modalWidth('2xl')
+                ->stickyModalHeader()
+                ->stickyModalFooter()
                 ->modalSubmitActionLabel('Countersign & Activate')
                 ->modalSubmitAction(
                     fn ($action) => $action->color('success')->icon('heroicon-o-check-badge'),
