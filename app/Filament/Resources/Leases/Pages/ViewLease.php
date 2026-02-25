@@ -169,7 +169,7 @@ class ViewLease extends ViewRecord
                         Notification::make()->success()
                             ->title('Lease Approved ✅')
                             ->body('Next: Click "Send Signing Link to Tenant" to notify the tenant via SMS.')
-                            ->persistent()
+                            ->duration(10000)
                             ->send();
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } else {
@@ -288,7 +288,7 @@ class ViewLease extends ViewRecord
                         Notification::make()->success()
                             ->title('Signing Link Sent ✅')
                             ->body("Link sent via {$sentTo}. Status is now \"Signing Link Sent\". The tenant will receive an OTP when they open the link.")
-                            ->persistent()
+                            ->duration(7000)
                             ->send();
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                     } catch (Exception $e) {
@@ -593,7 +593,7 @@ HTML
                                 . ($this->record->tenant?->names ?? 'The tenant')
                                 . ' will receive their copy by email shortly.'
                             )
-                            ->persistent()
+                            ->duration(10000)
                             ->send();
 
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
