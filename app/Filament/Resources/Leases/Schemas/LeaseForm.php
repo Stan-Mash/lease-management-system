@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Leases\Schemas;
 
 use Filament\Forms;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -142,7 +144,7 @@ class LeaseForm
                 // ═══════════════════════════════════════════════════════════
                 // SECTION 1 — Lease Configuration
                 // ═══════════════════════════════════════════════════════════
-                Forms\Components\Section::make('Lease Configuration')
+                Section::make('Lease Configuration')
                     ->description('Set the lease type, template, and signing method.')
                     ->icon('heroicon-o-document-text')
                     ->collapsible()
@@ -150,7 +152,7 @@ class LeaseForm
                         Forms\Components\Hidden::make('reference_number'),
                         Forms\Components\Hidden::make('workflow_state')->default('draft'),
 
-                        Forms\Components\Grid::make(2)->schema([
+                        Grid::make(2)->schema([
                             Forms\Components\DatePicker::make('date_created')
                                 ->label('Date Created')
                                 ->default(now())
@@ -168,7 +170,7 @@ class LeaseForm
                                 ->afterStateUpdated(fn (callable $set) => $set('lease_type', null)),
                         ]),
 
-                        Forms\Components\Grid::make(2)->schema([
+                        Grid::make(2)->schema([
                             Forms\Components\Select::make('lease_type')
                                 ->label('Lease Type')
                                 ->options(function ($get) {
@@ -232,7 +234,7 @@ class LeaseForm
                 // SECTION 2 — Property, Unit & Tenant
                 // The cascade: select Property → Units filtered → Tenant filtered
                 // ═══════════════════════════════════════════════════════════
-                Forms\Components\Section::make('Property, Unit & Tenant')
+                Section::make('Property, Unit & Tenant')
                     ->description('Select the property first — units and tenants will filter automatically.')
                     ->icon('heroicon-o-home-modern')
                     ->schema([
@@ -365,11 +367,11 @@ class LeaseForm
                 // ═══════════════════════════════════════════════════════════
                 // SECTION 3 — Financial Terms
                 // ═══════════════════════════════════════════════════════════
-                Forms\Components\Section::make('Financial Terms')
+                Section::make('Financial Terms')
                     ->description('Monthly rent is auto-filled from the unit rate. Adjust if needed.')
                     ->icon('heroicon-o-banknotes')
                     ->schema([
-                        Forms\Components\Grid::make(2)->schema([
+                        Grid::make(2)->schema([
                             Forms\Components\TextInput::make('monthly_rent')
                                 ->label('Monthly Rent')
                                 ->numeric()
@@ -384,7 +386,7 @@ class LeaseForm
                                 ->required(),
                         ]),
 
-                        Forms\Components\Grid::make(2)->schema([
+                        Grid::make(2)->schema([
                             Forms\Components\DatePicker::make('start_date')
                                 ->label('Lease Start Date')
                                 ->required()
@@ -400,7 +402,7 @@ class LeaseForm
                 // ═══════════════════════════════════════════════════════════
                 // SECTION 4 — Guarantor (collapsible, off by default)
                 // ═══════════════════════════════════════════════════════════
-                Forms\Components\Section::make('Guarantor')
+                Section::make('Guarantor')
                     ->description('Add a guarantor if this tenancy requires one.')
                     ->icon('heroicon-o-user-group')
                     ->collapsible()
@@ -414,7 +416,7 @@ class LeaseForm
                         Forms\Components\Repeater::make('guarantors')
                             ->relationship('guarantors')
                             ->schema([
-                                Forms\Components\Grid::make(2)->schema([
+                                Grid::make(2)->schema([
                                     Forms\Components\TextInput::make('name')
                                         ->required()
                                         ->label('Full Name')
@@ -426,7 +428,7 @@ class LeaseForm
                                         ->maxLength(20),
                                 ]),
 
-                                Forms\Components\Grid::make(2)->schema([
+                                Grid::make(2)->schema([
                                     Forms\Components\TextInput::make('phone')
                                         ->required()
                                         ->tel()
@@ -439,7 +441,7 @@ class LeaseForm
                                         ->maxLength(100),
                                 ]),
 
-                                Forms\Components\Grid::make(2)->schema([
+                                Grid::make(2)->schema([
                                     Forms\Components\Select::make('relationship')
                                         ->required()
                                         ->label('Relationship to Tenant')
@@ -459,7 +461,7 @@ class LeaseForm
                                         ->helperText('Defaults to security deposit if left blank.'),
                                 ]),
 
-                                Forms\Components\Grid::make(2)->schema([
+                                Grid::make(2)->schema([
                                     Forms\Components\Toggle::make('signed')
                                         ->label('Has Signed Guarantee')
                                         ->default(false),
