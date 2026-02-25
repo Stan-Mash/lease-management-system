@@ -499,7 +499,10 @@
                     })
                 });
                 if (!response.ok && response.status !== 400) {
-                    showMessage('signature-message', 'error', 'Server error (' + response.status + '). Please try again.', true);
+                    const msg = response.status === 429
+                        ? 'Too many attempts. Please wait a moment and try again.'
+                        : 'Something went wrong (' + response.status + '). Please try again.';
+                    showMessage('signature-message', 'error', msg, true);
                     btn.disabled = false;
                     btn.textContent = 'Submit Signature';
                     return;

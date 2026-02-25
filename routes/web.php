@@ -31,7 +31,7 @@ Route::prefix('tenant')->name('tenant.')->middleware('throttle:30,1')->group(fun
         ->middleware('throttle:10,1') // 10 verification attempts per minute
         ->name('verify-otp');
     Route::post('/sign/{lease}/submit-signature', [TenantSigningController::class, 'submitSignature'])
-        ->middleware('throttle:3,1') // Very strict: 3 signature submissions per minute
+        ->middleware('throttle:10,1') // 10 submissions per minute — enough for retries without enabling abuse
         ->name('submit-signature');
     Route::get('/sign/{lease}/view', [TenantSigningController::class, 'viewLease'])
         ->name('view-lease');
