@@ -55,6 +55,12 @@ class ViewLease extends ViewRecord
     {
         return [
             LeaseJourneyStepperWidget::class,
+        ];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
             LeaseAuditTimelineWidget::class,
         ];
     }
