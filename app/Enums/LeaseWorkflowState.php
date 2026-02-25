@@ -52,7 +52,7 @@ enum LeaseWorkflowState: string
             self::PENDING_OTP => [self::TENANT_SIGNED, self::DISPUTED, self::SENT_DIGITAL],
             self::PENDING_TENANT_SIGNATURE => [self::TENANT_SIGNED, self::DISPUTED, self::RETURNED_UNSIGNED],
             self::RETURNED_UNSIGNED => [self::CHECKED_OUT, self::CANCELLED],
-            self::TENANT_SIGNED => [self::WITH_LAWYER, self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
+            self::TENANT_SIGNED => [self::WITH_LAWYER, self::PENDING_UPLOAD, self::PENDING_DEPOSIT, self::ACTIVE],
             self::WITH_LAWYER => [self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
             self::PENDING_UPLOAD => [self::PENDING_DEPOSIT],
             self::PENDING_DEPOSIT => [self::ACTIVE],
