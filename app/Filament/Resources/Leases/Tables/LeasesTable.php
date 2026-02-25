@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Leases\Tables;
 
 use App\Enums\LeaseWorkflowState;
+use App\Filament\Forms\Components\SignaturePad;
+use App\Models\DigitalSignature;
 use App\Models\Lease;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -288,7 +290,7 @@ class LeasesTable
                         ->requiresConfirmation()
                         ->visible(fn (): bool => Gate::allows('manage_leases') || auth()->user()?->canManageLeases())
                         ->modalHeading('Bulk Countersign & Activate Leases')
-                        ->modalDescription('Only leases in "Tenant Signed" status will be activated. Leases in any other status are automatically skipped. Each tenant will receive their copy by email.')
+                        ->modalDescription('Only leases in "Tenant Signed" status will be activated. Leases in any other status are automatically skipped. Your drawn signature will be applied to all selected leases. Each tenant will receive their copy by email.')
                         ->modalSubmitActionLabel('Countersign & Activate All')
                         /** @phpstan-ignore-next-line */
                         ->schema([
@@ -298,11 +300,29 @@ class LeasesTable
                                 ->required()
                                 ->maxLength(255)
                                 ->helperText('Recorded as the countersignature on all selected leases.'),
+                            SignaturePad::make('manager_signature_data')
+                                ->label('Draw Your Signature')
+                                ->required()
+                                ->helperText('Draw once — applied to all selected leases.'),
                         ])
                         ->action(function (Collection $records, array $data) {
                             $countersignedBy = $data['countersigned_by'];
+                            $signatureData   = $data['manager_signature_data'] ?? null;
                             $activated       = 0;
                             $skipped         = 0;
+
+                            if (empty($signatureData)) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Signature Required')
+                                    ->body('Please draw your signature before countersigning.')
+                                    ->send();
+
+                                return;
+                            }
+
+                            // Pre-compute verification hash — same signature data reused across leases
+                            $verificationHash = DigitalSignature::generateHash($signatureData);
 
                             foreach ($records as $lease) {
                                 // Only process leases that are actually in tenant_signed state
@@ -317,6 +337,23 @@ class LeasesTable
                                         'countersigned_at'  => now(),
                                         'countersign_notes' => 'Bulk countersigned via lease list.',
                                     ]);
+
+                                    // Store manager drawn signature for this lease
+                                    DigitalSignature::create([
+                                        'lease_id'           => $lease->id,
+                                        'tenant_id'          => null,
+                                        'signer_type'        => 'manager',
+                                        'signed_by_user_id'  => Auth::id(),
+                                        'signed_by_name'     => $countersignedBy,
+                                        'signature_data'     => $signatureData,
+                                        'signature_type'     => 'drawn',
+                                        'ip_address'         => request()->ip(),
+                                        'user_agent'         => request()->userAgent(),
+                                        'signed_at'          => now(),
+                                        'is_verified'        => true,
+                                        'verification_hash'  => $verificationHash,
+                                    ]);
+
                                     $lease->transitionTo(LeaseWorkflowState::ACTIVE);
                                     $activated++;
                                 } catch (\Exception $e) {
@@ -335,7 +372,7 @@ class LeasesTable
 
                             Notification::make()
                                 ->success()
-                                ->title("Bulk Activation Complete")
+                                ->title('Bulk Activation Complete')
                                 ->body($body)
                                 ->persistent()
                                 ->send();

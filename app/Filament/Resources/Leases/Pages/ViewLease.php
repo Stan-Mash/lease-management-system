@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\Leases\Pages;
 
 use App\Enums\LeaseWorkflowState;
+use App\Filament\Forms\Components\SignaturePad;
 use App\Filament\Resources\Leases\Actions\CancelDisputedLeaseAction;
 use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
+use App\Models\DigitalSignature;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
 use Exception;
@@ -360,7 +362,11 @@ class ViewLease extends ViewRecord
                         ->default(fn () => Auth::user()?->name ?? '')
                         ->required()
                         ->maxLength(255)
-                        ->helperText('This will be recorded as the countersignature on the lease.'),
+                        ->helperText('This name will be printed on the lease document.'),
+                    SignaturePad::make('manager_signature_data')
+                        ->label('Draw Your Signature')
+                        ->required()
+                        ->helperText('Draw your signature in the box above. This will appear on the lease PDF.'),
                     Textarea::make('countersign_notes')
                         ->label('Notes (Optional)')
                         ->placeholder('e.g. Deposit received, keys handed over...')
@@ -369,6 +375,18 @@ class ViewLease extends ViewRecord
                 ])
                 ->action(function (array $data) {
                     try {
+                        // Validate signature was drawn
+                        $signatureData = $data['manager_signature_data'] ?? null;
+                        if (empty($signatureData)) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Signature Required')
+                                ->body('Please draw your signature before countersigning.')
+                                ->send();
+
+                            return;
+                        }
+
                         // Record the countersignature details on the lease
                         $this->record->update([
                             'countersigned_by'   => $data['countersigned_by'],
@@ -376,9 +394,24 @@ class ViewLease extends ViewRecord
                             'countersign_notes'  => $data['countersign_notes'] ?? null,
                         ]);
 
+                        // Save the drawn manager signature as a DigitalSignature record
+                        DigitalSignature::createFromData([
+                            'lease_id'          => $this->record->id,
+                            'tenant_id'         => null,
+                            'signer_type'       => 'manager',
+                            'signed_by_user_id' => Auth::id(),
+                            'signed_by_name'    => $data['countersigned_by'],
+                            'signature_data'    => $signatureData,
+                            'signature_type'    => 'drawn',
+                            'ip_address'        => request()->ip(),
+                            'user_agent'        => request()->userAgent(),
+                            'signed_at'         => now(),
+                            'is_verified'       => true,
+                        ]);
+
                         // Transition to ACTIVE — LeaseObserver will fire
                         // sendSignedConfirmations() automatically, sending
-                        // the tenant their copy.
+                        // the tenant their copy with both signatures in the PDF.
                         $this->record->transitionTo(LeaseWorkflowState::ACTIVE);
 
                         Notification::make()

@@ -27,16 +27,25 @@ class LeasePdfService
     {
         $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
         $needsDraft = $this->needsDraftWatermark($lease);
-        // Get the latest digital signature (if any) to embed in the PDF
-        $digitalSignature = $lease->digitalSignatures->sortByDesc('created_at')->first();
-        // Write signature to temp file so DomPDF can render it (data: URIs are not supported)
-        $signatureImagePath = $digitalSignature ? $this->writeSignatureTempFile($digitalSignature) : null;
+
+        // Tenant signature — the drawn canvas signature from the signing portal
+        $tenantSignature     = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first()
+            ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: any signature (legacy rows have no signer_type)
+        $tenantSigPath       = $tenantSignature ? $this->writeSignatureTempFile($tenantSignature) : null;
+
+        // Manager countersignature — drawn by the property manager on countersign
+        $managerSignature    = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
+        $managerSigPath      = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
+
+        // Legacy alias — keeps Strategy 3 Blade views working without change
+        $digitalSignature    = $tenantSignature;
+        $signatureImagePath  = $tenantSigPath;
 
         try {
             // Strategy 1: Assigned custom template
             if ($lease->lease_template_id && $lease->leaseTemplate) {
                 try {
-                    $html = $this->renderTemplate($lease->leaseTemplate, $lease, $digitalSignature, $signatureImagePath);
+                    $html = $this->renderTemplate($lease->leaseTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
                     if ($needsDraft) {
                         $html = $this->injectDraftWatermark($html);
                     }
@@ -60,7 +69,7 @@ class LeasePdfService
 
             if ($defaultTemplate) {
                 try {
-                    $html = $this->renderTemplate($defaultTemplate, $lease, $digitalSignature, $signatureImagePath);
+                    $html = $this->renderTemplate($defaultTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
                     if ($needsDraft) {
                         $html = $this->injectDraftWatermark($html);
                     }
@@ -91,8 +100,12 @@ class LeasePdfService
                 'landlord'           => $lease->landlord,
                 'property'           => $lease->property,
                 'today'              => now()->format('d/m/Y'),
-                'digitalSignature'   => $digitalSignature ?? null,
-                'signatureImagePath' => $signatureImagePath,
+                // Tenant signature (legacy variable name kept for backward compat with Blade views)
+                'digitalSignature'   => $tenantSignature,
+                'signatureImagePath' => $tenantSigPath,
+                // Manager countersignature
+                'managerSignature'   => $managerSignature,
+                'managerSigPath'     => $managerSigPath,
             ];
 
             $pdf = Pdf::loadView($viewName, $data);
@@ -100,9 +113,12 @@ class LeasePdfService
 
             return $pdf->output();
         } finally {
-            // Always clean up the temp signature file, regardless of which strategy succeeded or failed
-            if ($signatureImagePath && file_exists($signatureImagePath)) {
-                @unlink($signatureImagePath);
+            // Always clean up both temp signature files
+            if ($tenantSigPath && file_exists($tenantSigPath)) {
+                @unlink($tenantSigPath);
+            }
+            if ($managerSigPath && file_exists($managerSigPath)) {
+                @unlink($managerSigPath);
             }
         }
     }
@@ -152,8 +168,10 @@ class LeasePdfService
     private function renderTemplate(
         LeaseTemplate $template,
         Lease $lease,
-        ?\App\Models\DigitalSignature $digitalSignature = null,
-        ?string $signatureImagePath = null,
+        ?\App\Models\DigitalSignature $tenantSignature = null,
+        ?string $tenantSigPath = null,
+        ?\App\Models\DigitalSignature $managerSignature = null,
+        ?string $managerSigPath = null,
     ): string {
         $html = $this->templateRenderer->render($template, $lease);
 
@@ -161,27 +179,58 @@ class LeasePdfService
             throw new Exception('Template rendered empty HTML');
         }
 
-        // Inject signature image into the rendered template HTML.
-        // Blade template variables are not available inside LeaseTemplate blade_content,
-        // so we inject the signature block immediately before the first </body> tag.
-        if ($signatureImagePath && file_exists($signatureImagePath) && $digitalSignature) {
-            $signedAt = $digitalSignature->created_at?->format('d M Y, h:i A') ?? '';
-            $ip       = htmlspecialchars($digitalSignature->ip_address ?? 'N/A');
+        // Build the signature block to inject before </body>.
+        // We render both parties side-by-side if both have signed,
+        // or just the tenant if the manager hasn't countersigned yet.
+        $sigBlock = '';
 
-            $signatureBlock = '
-<div style="margin-top:24px;padding:12px;border-top:2px solid #c8a020;">
-  <p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>TENANT SIGNATURE</strong></p>
-  <img src="' . $signatureImagePath . '" alt="Tenant Signature"
-       style="max-width:220px;max-height:80px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">
-  <p style="font-size:8pt;color:#555;margin:0;">
-    Digitally signed: ' . $signedAt . ' &nbsp;|&nbsp; IP: ' . $ip . '
-  </p>
-</div>';
+        $hasTenant  = $tenantSigPath && file_exists($tenantSigPath) && $tenantSignature;
+        $hasManager = $managerSigPath && file_exists($managerSigPath) && $managerSignature;
 
-            if (stripos($html, '</body>') !== false) {
-                $html = str_ireplace('</body>', $signatureBlock . '</body>', $html);
+        if ($hasTenant || $hasManager) {
+            $sigBlock .= '<div style="margin-top:24px;padding:12px 0;border-top:2px solid #c8a020;">';
+            $sigBlock .= '<table style="width:100%;border-collapse:collapse;">';
+            $sigBlock .= '<tr>';
+
+            // ── Tenant signature cell ──
+            $sigBlock .= '<td style="width:50%;vertical-align:top;padding-right:12px;">';
+            $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>TENANT SIGNATURE</strong></p>';
+            if ($hasTenant) {
+                $tenantSignedAt = $tenantSignature->created_at?->format('d M Y, h:i A') ?? '';
+                $tenantIp       = htmlspecialchars($tenantSignature->ip_address ?? 'N/A');
+                $sigBlock .= '<img src="' . $tenantSigPath . '" alt="Tenant Signature"
+                    style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
+                $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">Signed: ' . $tenantSignedAt . '<br>IP: ' . $tenantIp . '</p>';
             } else {
-                $html .= $signatureBlock;
+                $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
+                $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Not yet signed</p>';
+            }
+            $sigBlock .= '</td>';
+
+            // ── Manager countersignature cell ──
+            $sigBlock .= '<td style="width:50%;vertical-align:top;padding-left:12px;border-left:1px solid #e0e0e0;">';
+            $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>PROPERTY MANAGER SIGNATURE</strong></p>';
+            if ($hasManager) {
+                $mgrSignedAt = $managerSignature->created_at?->format('d M Y, h:i A') ?? '';
+                $mgrName     = htmlspecialchars($managerSignature->signed_by_name ?? 'Property Manager');
+                $mgrIp       = htmlspecialchars($managerSignature->ip_address ?? 'N/A');
+                $sigBlock .= '<img src="' . $managerSigPath . '" alt="Manager Signature"
+                    style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
+                $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">' . $mgrName . '<br>Signed: ' . $mgrSignedAt . '<br>IP: ' . $mgrIp . '</p>';
+            } else {
+                $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
+                $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Pending countersignature</p>';
+            }
+            $sigBlock .= '</td>';
+
+            $sigBlock .= '</tr></table></div>';
+        }
+
+        if ($sigBlock !== '') {
+            if (stripos($html, '</body>') !== false) {
+                $html = str_ireplace('</body>', $sigBlock . '</body>', $html);
+            } else {
+                $html .= $sigBlock;
             }
         }
 

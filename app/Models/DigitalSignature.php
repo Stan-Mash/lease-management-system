@@ -17,6 +17,9 @@ class DigitalSignature extends Model
     protected $fillable = [
         'lease_id',
         'tenant_id',
+        'signer_type',
+        'signed_by_user_id',
+        'signed_by_name',
         'signature_data',
         'signature_type',
         'ip_address',
@@ -67,6 +70,38 @@ class DigitalSignature extends Model
     public function otpVerification(): BelongsTo
     {
         return $this->belongsTo(OTPVerification::class, 'otp_verification_id');
+    }
+
+    /**
+     * The admin/manager user who countersigned (null for tenant signatures).
+     */
+    public function signedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_by_user_id');
+    }
+
+    /**
+     * Scope: only tenant signatures.
+     */
+    public function scopeTenantSignatures($query)
+    {
+        return $query->where('signer_type', 'tenant');
+    }
+
+    /**
+     * Scope: only manager countersignatures.
+     */
+    public function scopeManagerSignatures($query)
+    {
+        return $query->where('signer_type', 'manager');
+    }
+
+    /**
+     * Is this a manager (countersignature)?
+     */
+    public function isManagerSignature(): bool
+    {
+        return $this->signer_type === 'manager';
     }
 
     /**

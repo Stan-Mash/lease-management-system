@@ -285,15 +285,34 @@
                 Digitally signed: {{ $digitalSignature?->created_at?->format('d M Y, h:i A') }}<br>
                 IP: {{ $digitalSignature?->ip_address ?? 'N/A' }}
             </p>
+
+            {{-- DIGITAL: Property Manager countersignature --}}
+            <p style="margin-top:14px;margin-bottom:4px;"><strong>SIGNED: PROPERTY MANAGER</strong> (on behalf of Chabrin Agencies)</p>
+            @if(!empty($managerSigPath) && file_exists($managerSigPath))
+                <img class="sig-img" src="{{ $managerSigPath }}" alt="Manager Signature">
+                <p class="sig-meta">
+                    {{ $managerSignature?->signed_by_name ?? 'Property Manager' }}<br>
+                    Countersigned: {{ $managerSignature?->created_at?->format('d M Y, h:i A') }}<br>
+                    IP: {{ $managerSignature?->ip_address ?? 'N/A' }}
+                </p>
+            @else
+                <span class="sig-witness-line">&nbsp;</span>
+                <p class="sig-meta" style="color:#aaa;">Pending countersignature</p>
+            @endif
+
             <div class="exec-record" style="margin-top:10px;">
                 <b>ELECTRONIC EXECUTION RECORD</b>
                 This agreement was executed digitally. The tenant&rsquo;s identity was verified via One-Time
                 Password (OTP) sent to their registered mobile number prior to signing. This audit trail
                 constitutes the record of execution in accordance with the Business Laws (Amendment)
                 Act No. 1 of 2020:<br><br>
-                <strong>Signing timestamp:</strong> {{ $digitalSignature?->created_at?->format('d M Y, h:i:s A') }}<br>
-                <strong>IP Address:</strong> {{ $digitalSignature?->ip_address ?? 'N/A' }}<br>
+                <strong>Tenant signed:</strong> {{ $digitalSignature?->created_at?->format('d M Y, h:i:s A') }}<br>
+                <strong>Tenant IP:</strong> {{ $digitalSignature?->ip_address ?? 'N/A' }}<br>
                 <strong>Verification:</strong> OTP &ndash; registered mobile number<br>
+                @if(!empty($managerSigPath) && file_exists($managerSigPath))
+                <strong>Manager countersigned:</strong> {{ $managerSignature?->created_at?->format('d M Y, h:i:s A') }}
+                    &nbsp;by {{ $managerSignature?->signed_by_name ?? 'Property Manager' }}<br>
+                @endif
                 <strong>Lease reference:</strong> {{ $lease->reference_number }}
             </div>
         @else
