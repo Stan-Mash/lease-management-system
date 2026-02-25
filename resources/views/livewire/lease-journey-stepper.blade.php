@@ -66,7 +66,8 @@
             border: 1.5px solid rgba(218,165,32,0.35);
             border-left: 5px solid #DAA520;
             border-radius: 14px;
-            overflow: hidden;">
+            position: relative;
+            z-index: 1;">
 
     {{-- ── Progress strip ─────────────────────────────────────────────────── --}}
     <div style="height:3px; background:#f3f0e8;">
@@ -165,7 +166,7 @@
                             </div>
                         @elseif($step['current'])
                             <div style="position:relative;">
-                                <span style="position:absolute; inset:-4px; border-radius:50%; background:rgba(218,165,32,0.25); animation:ping 1.4s cubic-bezier(0,0,0.2,1) infinite;"></span>
+                                <span style="position:absolute; inset:-4px; border-radius:50%; background:rgba(218,165,32,0.25); animation:ljs-ping 1.4s cubic-bezier(0,0,0.2,1) infinite;"></span>
                                 <div style="position:relative; width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#DAA520,#b8960a); border:2.5px solid #DAA520; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 4px rgba(218,165,32,0.2);">
                                     <div style="width:10px; height:10px; border-radius:50%; background:white;"></div>
                                 </div>
@@ -248,7 +249,7 @@
                                 {{ $step['number'] }}
                             </span>
                             <span style="font-size:7pt; font-weight:700; padding:2px 7px; border-radius:20px; white-space:nowrap; {{ $badgeStyle }}
-                                         {{ $isCrit ? 'animation:pulse 1.5s infinite;' : '' }}">
+                                         {{ $isCrit ? 'animation:ljs-pulse 1.5s infinite;' : '' }}">
                                 {{ $label }}
                             </span>
                         </div>
@@ -297,7 +298,7 @@
                 Completed
             </span>
             <span style="display:flex; align-items:center; gap:6px; font-size:8pt; color:#6b7280;">
-                <span style="width:10px; height:10px; border-radius:50%; border:2.5px dashed #DAA520; display:inline-block; animation:ping 1.4s infinite; opacity:0.7;"></span>
+                <span style="width:10px; height:10px; border-radius:50%; border:2.5px dashed #DAA520; display:inline-block; animation:ljs-ping 1.4s infinite; opacity:0.7;"></span>
                 In Progress
             </span>
             <span style="display:flex; align-items:center; gap:6px; font-size:8pt; color:#6b7280;">
@@ -322,14 +323,12 @@
     </div>
 </div>
 
-@push('styles')
 <style>
-@keyframes ping {
+@keyframes ljs-ping {
     75%, 100% { transform:scale(1.5); opacity:0; }
 }
-@keyframes pulse {
+@keyframes ljs-pulse {
     0%,100% { opacity:1; }
     50%      { opacity:.6; }
 }
 </style>
-@endpush
