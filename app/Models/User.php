@@ -56,6 +56,7 @@ class User extends Authenticatable implements FilamentUser
         'reset_token_expires_at',
         'otep',
         'requireReset',
+        'signature_image_encrypted',
     ];
 
     /**
@@ -66,7 +67,48 @@ class User extends Authenticatable implements FilamentUser
     protected $hidden = [
         'password',
         'remember_token',
+        'signature_image_encrypted',
     ];
+
+    /**
+     * Get decrypted signature image bytes (PNG). Used when stamping manager signature on lease PDFs.
+     */
+    public function getSignatureImageAttribute(): ?string
+    {
+        if (empty($this->signature_image_encrypted)) {
+            return null;
+        }
+
+        try {
+            return decrypt($this->signature_image_encrypted);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Set and encrypt signature image bytes (PNG). Pass raw file contents from upload.
+     */
+    public function setSignatureImageAttribute(?string $pngBytes): void
+    {
+        if ($pngBytes === null || $pngBytes === '') {
+            $this->attributes['signature_image_encrypted'] = null;
+
+            return;
+        }
+
+        $this->attributes['signature_image_encrypted'] = encrypt($pngBytes);
+    }
+
+    /**
+     * Get signature image as base64 data URI for thumbnail display (e.g. in countersign modal).
+     */
+    public function getSignatureImageDataUriAttribute(): ?string
+    {
+        $bytes = $this->signature_image;
+
+        return $bytes !== null ? 'data:image/png;base64,' . base64_encode($bytes) : null;
+    }
 
     public function canAccessPanel(Panel $panel): bool
     {

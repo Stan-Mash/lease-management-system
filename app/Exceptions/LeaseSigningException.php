@@ -89,4 +89,13 @@ class LeaseSigningException extends \RuntimeException
             409,
         );
     }
+
+    public static function managerSignatureRequired(): self
+    {
+        return new self(
+            'You have not uploaded your signature. Please go to your Profile and upload your signature PNG before countersigning.',
+            'manager_signature_required',
+            422,
+        );
+    }
 }

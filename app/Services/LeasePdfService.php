@@ -15,6 +15,7 @@ class LeasePdfService
 {
     public function __construct(
         private readonly TemplateRenderService $templateRenderer,
+        private readonly PdfOverlayService $pdfOverlay,
     ) {}
 
     /**
@@ -42,6 +43,89 @@ class LeasePdfService
         $signatureImagePath  = $tenantSigPath;
 
         try {
+            // Strategy 0: Landlord-provided PDF with coordinate map — stamp fields + signatures
+            $template = $lease->leaseTemplate;
+            if ($template && $template->source_pdf_path && $template->pdf_coordinate_map) {
+                $sourcePath = storage_path('app/' . $template->source_pdf_path);
+                if (file_exists($sourcePath)) {
+                    try {
+                        $outDir = storage_path('app/lease-pdf-overlay');
+                        if (! is_dir($outDir)) {
+                            mkdir($outDir, 0755, true);
+                        }
+                        $baseName = 'lease-' . $lease->id . '-' . uniqid();
+                        $step1 = $outDir . '/' . $baseName . '-fields.pdf';
+                        $step2 = $outDir . '/' . $baseName . '-sig.pdf';
+                        $step3 = $outDir . '/' . $baseName . '-final.pdf';
+
+                        $fields = $this->overlayFieldsFromLease($lease);
+                        $coordinates = $template->pdf_coordinate_map;
+                        $textCoordinates = array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH);
+
+                        $this->pdfOverlay->stampFields($sourcePath, $fields, $textCoordinates, $step1);
+
+                        $current = $step1;
+                        if ($tenantSigPath && file_exists($tenantSigPath)) {
+                            $coord = $coordinates['tenant_signature'] ?? ['page' => 1, 'x' => 140, 'y' => 240, 'width' => 50, 'height' => 20];
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $tenantSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 240),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $step2
+                            );
+                            @unlink($current);
+                            $current = $step2;
+                        }
+                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature) {
+                            $coord = $coordinates['manager_signature'] ?? ['page' => 1, 'x' => 140, 'y' => 260, 'width' => 50, 'height' => 20];
+                            $next = $current === $step2 ? $step3 : $step2;
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $managerSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 260),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next
+                            );
+                            if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+                        $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
+                        if ($tenantSignature && $managerSignature) {
+                            $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
+                            if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $auditPath;
+                        }
+
+                        $binary = file_get_contents($current);
+                        foreach ([$step1, $step2, $step3, $auditPath] as $f) {
+                            if (file_exists($f)) {
+                                @unlink($f);
+                            }
+                        }
+
+                        if ($binary !== false) {
+                            return $binary;
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('LeasePdfService: PDF overlay strategy failed, falling back to template', [
+                            'lease_id' => $lease->id,
+                            'error'    => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
             // Strategy 1: Assigned custom template
             if ($lease->lease_template_id && $lease->leaseTemplate) {
                 try {
@@ -280,6 +364,25 @@ class LeasePdfService
             $lease->property?->property_name ?? 'Unknown Property',
         ));
         $dompdf->addInfo('CreationDate', now()->format('D:YmdHis'));
+    }
+
+    /**
+     * Build merge fields for PDF overlay (Strategy 0).
+     *
+     * @return array<string, string>
+     */
+    private function overlayFieldsFromLease(Lease $lease): array
+    {
+        return [
+            'tenant_name' => $lease->tenant?->names ?? '',
+            'unit_code' => $lease->unit_code ?? $lease->unit?->unit_code ?? '',
+            'property_name' => $lease->property?->property_name ?? '',
+            'monthly_rent' => $lease->monthly_rent ? number_format((float) $lease->monthly_rent, 2) : '',
+            'start_date' => $lease->start_date?->format('d/m/Y') ?? '',
+            'end_date' => $lease->end_date?->format('d/m/Y') ?? '',
+            'landlord_name' => $lease->landlord?->names ?? '',
+            'reference_number' => $lease->reference_number ?? '',
+        ];
     }
 
     private function injectDraftWatermark(string $html): string

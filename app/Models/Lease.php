@@ -94,6 +94,8 @@ class Lease extends Model
         'unit_code',
         'zone_manager_id',
         'date_created',
+        'signing_link_expires_at',
+        'signing_link_expired_alerted_at',
     ];
 
     protected $casts = [
@@ -108,6 +110,8 @@ class Lease extends Model
         'requires_guarantor' => 'boolean',
         'qr_generated_at' => 'datetime',
         'date_created' => 'datetime',
+        'signing_link_expires_at' => 'datetime',
+        'signing_link_expired_alerted_at' => 'datetime',
     ];
 
     /*

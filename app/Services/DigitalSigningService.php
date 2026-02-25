@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\LeaseWorkflowState;
+use App\Exceptions\LeaseSigningException;
+use App\Helpers\LocaleHelper;
 use App\Models\DigitalSignature;
 use App\Models\Lease;
+use App\Models\LeaseAuditLog;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Notifications\LeaseSignedConfirmationNotification;
 use Exception;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class DigitalSigningService
 {
@@ -185,9 +190,12 @@ class DigitalSigningService
             $lease->transitionTo(LeaseWorkflowState::SENT_DIGITAL);
         }
 
+        $expiresAt = now()->addHours($expiryHours);
+        $lease->update(['signing_link_expires_at' => $expiresAt]);
+
         return [
             'success' => $sent,
-            'expires_at' => now()->addHours($expiryHours),
+            'expires_at' => $expiresAt,
             'sent_via' => $method,
             'lease_reference' => $lease->reference_number,
         ];
@@ -205,9 +213,12 @@ class DigitalSigningService
         // Just send the link — do NOT attempt a state transition
         $sent = self::sendSigningLink($lease, $method);
 
+        $expiresAt = now()->addHours($expiryHours);
+        $lease->update(['signing_link_expires_at' => $expiresAt]);
+
         return [
             'success' => $sent,
-            'expires_at' => now()->addHours($expiryHours),
+            'expires_at' => $expiresAt,
             'sent_via' => $method,
             'lease_reference' => $lease->reference_number,
         ];
@@ -227,18 +238,16 @@ class DigitalSigningService
     }
 
     /**
-     * Send signing link via SMS.
+     * Send signing link via SMS (tenant locale from LocaleHelper).
      */
     private static function sendSMS(Lease $lease, Tenant $tenant, string $link): void
     {
         $shortLink = self::shortenUrl($link);
-
-        // Use centralized SMS service
-        SMSService::sendSigningLink(
-            $tenant->mobile_number,
-            $lease->reference_number,
-            $shortLink,
-        );
+        $message = LocaleHelper::forTenant($tenant, 'sms_signing_link', [
+            'name' => $tenant->names ?? '',
+            'url' => $shortLink,
+        ]);
+        SMSService::send($tenant->mobile_number, $message, ['type' => 'signing_link', 'reference' => $lease->reference_number]);
     }
 
     /**
@@ -249,6 +258,69 @@ class DigitalSigningService
         // For now, just return original URL
         // In production, integrate with bit.ly or similar
         return $url;
+    }
+
+    /**
+     * Stamp manager's saved signature on the lease and create DigitalSignature record.
+     * Uses the manager's uploaded signature_image_encrypted (decrypted to temp file, then deleted).
+     * Call this from the countersign action instead of canvas-drawn signature.
+     *
+     * @throws LeaseSigningException When manager has no signature on file
+     */
+    public static function stampManagerSignature(Lease $lease, User $manager): DigitalSignature
+    {
+        if (empty($manager->signature_image_encrypted)) {
+            throw LeaseSigningException::managerSignatureRequired();
+        }
+
+        $tmpPath = null;
+
+        try {
+            $pngBytes = $manager->signature_image;
+            if ($pngBytes === null) {
+                throw LeaseSigningException::managerSignatureRequired();
+            }
+
+            $tmpPath = sys_get_temp_dir() . '/sig_' . Str::uuid() . '.png';
+            file_put_contents($tmpPath, $pngBytes);
+            @chmod($tmpPath, 0600);
+
+            $verificationHash = hash('sha256', $lease->id . $manager->id . now()->timestamp . $pngBytes);
+
+            $dataUri = 'data:image/png;base64,' . base64_encode($pngBytes);
+
+            $signature = DigitalSignature::create([
+                'lease_id' => $lease->id,
+                'tenant_id' => null,
+                'signer_type' => 'manager',
+                'signed_by_user_id' => $manager->id,
+                'signed_by_name' => $manager->name ?? 'Property Manager',
+                'signature_data' => $dataUri,
+                'signature_type' => 'uploaded',
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'signed_at' => now(),
+                'is_verified' => true,
+                'verification_hash' => $verificationHash,
+            ]);
+
+            $lease->auditLogs()->create([
+                'action' => 'manager_countersigned',
+                'old_state' => $lease->workflow_state,
+                'new_state' => 'active',
+                'user_id' => $manager->id,
+                'user_role_at_time' => $manager->role ?? 'manager',
+                'ip_address' => request()->ip(),
+                'additional_data' => ['verification_hash_prefix' => substr($verificationHash, 0, 16)],
+                'description' => 'Manager countersigned with saved signature',
+            ]);
+
+            return $signature;
+        } finally {
+            if ($tmpPath !== null && file_exists($tmpPath)) {
+                @unlink($tmpPath);
+            }
+        }
     }
 
     /**

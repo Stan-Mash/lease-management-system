@@ -24,6 +24,7 @@ class LeaseTemplate extends Model
         'logo_path',
         'branding_config',
         'source_pdf_path',
+        'pdf_coordinate_map',
         'extraction_metadata',
         'available_variables',
         'required_variables',
@@ -38,6 +39,7 @@ class LeaseTemplate extends Model
     protected $casts = [
         'css_styles' => 'array',
         'layout_config' => 'array',
+        'pdf_coordinate_map' => 'array',
         'branding_config' => 'array',
         'extraction_metadata' => 'array',
         'available_variables' => 'array',

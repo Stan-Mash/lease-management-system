@@ -21,6 +21,13 @@ class LeaseObserver
      */
     public function creating(Lease $lease): void
     {
+        if (empty($lease->unit_code) && $lease->unit_id) {
+            $unit = \App\Models\Unit::find($lease->unit_id);
+            if ($unit?->unit_code) {
+                $lease->unit_code = $unit->unit_code;
+            }
+        }
+
         // Auto-generate serial number if enabled and not already set
         if (config('lease.serial_number.auto_generate', true) && empty($lease->serial_number)) {
             try {

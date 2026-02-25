@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Exceptions\OTPRateLimitException;
 use App\Exceptions\OTPSendingException;
+use App\Helpers\LocaleHelper;
 use App\Models\Lease;
 use App\Models\OTPVerification;
 use App\Support\PhoneFormatter;
@@ -101,14 +102,20 @@ class OTPService
             DeviceFingerprintService::store('otp', $otp->id, $fingerprint);
         }
 
-        // Send OTP via SMS (plaintext code sent to tenant, NOT stored)
+        // Send OTP via SMS (plaintext code sent to tenant, NOT stored). Use tenant locale when available.
         try {
-            $sent = SMSService::sendOTP(
-                $phone,
-                $plaintextCode,
-                $lease->reference_number,
-                $expiryMinutes,
-            );
+            $tenant = $lease->tenant;
+            if ($tenant) {
+                $message = LocaleHelper::forTenant($tenant, 'sms_otp', ['code' => $plaintextCode]);
+                $sent = SMSService::send($phone, $message, ['type' => 'otp', 'reference' => $lease->reference_number]);
+            } else {
+                $sent = SMSService::sendOTP(
+                    $phone,
+                    $plaintextCode,
+                    $lease->reference_number,
+                    $expiryMinutes,
+                );
+            }
 
             if (! $sent && SMSService::isConfigured()) {
                 throw new Exception('SMS service returned failure');

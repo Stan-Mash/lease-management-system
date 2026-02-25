@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -51,6 +52,17 @@ class UserForm
 
             Toggle::make('requireReset')
                 ->label('Require Password Reset'),
+
+            FileUpload::make('signature_upload')
+                ->label('Official Signature (PNG)')
+                ->helperText('Used on all lease documents when you countersign. Upload a clear PNG of your signature.')
+                ->acceptedFileTypes(['image/png'])
+                ->maxSize(1024)
+                ->image()
+                ->disk('local')
+                ->directory('temp-signatures')
+                ->visibility('private')
+                ->dehydrated(false),
         ]);
     }
 }

@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\Leases\Pages;
 
 use App\Enums\LeaseWorkflowState;
-use App\Filament\Forms\Components\SignaturePad;
 use App\Filament\Resources\Leases\Actions\CancelDisputedLeaseAction;
+use App\Services\DigitalSigningService;
 use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
+use App\Filament\Resources\Leases\Widgets\LeaseAuditTimelineWidget;
+use App\Filament\Resources\Leases\Widgets\LeaseJourneyStepperWidget;
 use App\Models\DigitalSignature;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
@@ -46,6 +48,14 @@ class ViewLease extends ViewRecord
         return [
             LeaseResource::getUrl() => 'Leases',
             '' => $this->record->reference_number ?? 'View',
+        ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            LeaseJourneyStepperWidget::class,
+            LeaseAuditTimelineWidget::class,
         ];
     }
 
@@ -356,62 +366,59 @@ class ViewLease extends ViewRecord
                     fn ($action) => $action->color('success')->icon('heroicon-o-check-badge'),
                 )
                 /** @phpstan-ignore-next-line */
-                ->schema([
-                    TextInput::make('countersigned_by')
-                        ->label('Your Full Name')
-                        ->default(fn () => Auth::user()?->name ?? '')
-                        ->required()
-                        ->maxLength(255)
-                        ->helperText('This name will be printed on the lease document.'),
-                    SignaturePad::make('manager_signature_data')
-                        ->label('Draw Your Signature')
-                        ->required()
-                        ->helperText('Draw your signature in the box above. This will appear on the lease PDF.'),
-                    Textarea::make('countersign_notes')
-                        ->label('Notes (Optional)')
-                        ->placeholder('e.g. Deposit received, keys handed over...')
-                        ->rows(2)
-                        ->maxLength(500),
-                ])
+                ->schema(
+                    auth()->user()?->signature_image_encrypted
+                        ? [
+                            TextInput::make('countersigned_by')
+                                ->label('Your Full Name')
+                                ->default(fn () => Auth::user()?->name ?? '')
+                                ->required()
+                                ->maxLength(255)
+                                ->helperText('This name will be printed on the lease document.'),
+                            \Filament\Forms\Components\Placeholder::make('saved_signature')
+                                ->label('Signature')
+                                ->content(new \Illuminate\Support\HtmlString(
+                                    '<p class="text-sm text-gray-600">Your saved signature will be stamped on this lease.</p>'
+                                    . (auth()->user()?->signature_image_data_uri
+                                        ? '<img src="' . e(auth()->user()->signature_image_data_uri) . '" alt="Your signature" class="mt-2 max-h-16 border border-gray-200 rounded" />'
+                                        : '')
+                                )),
+                            Textarea::make('countersign_notes')
+                                ->label('Notes (Optional)')
+                                ->placeholder('e.g. Deposit received, keys handed over...')
+                                ->rows(2)
+                                ->maxLength(500),
+                        ]
+                        : [
+                            \Filament\Forms\Components\Placeholder::make('no_signature_warning')
+                                ->label('Signature required')
+                                ->content(new \Illuminate\Support\HtmlString(
+                                    '<p class="text-sm text-amber-700 font-medium">You have not uploaded your signature yet.</p>'
+                                    . '<p class="text-sm text-gray-600 mt-1">Please go to your <a href="' . e(url('/admin/users/' . auth()->id() . '/edit')) . '" class="text-primary-600 underline">Profile settings</a> and upload your signature PNG before countersigning.</p>'
+                                )),
+                        ]
+                )
                 ->action(function (array $data) {
                     try {
-                        // Validate signature was drawn
-                        $signatureData = $data['manager_signature_data'] ?? null;
-                        if (empty($signatureData)) {
+                        $user = auth()->user();
+                        if (! $user?->signature_image_encrypted) {
                             Notification::make()
                                 ->danger()
                                 ->title('Signature Required')
-                                ->body('Please draw your signature before countersigning.')
+                                ->body('Please upload your signature in your Profile before countersigning.')
                                 ->send();
 
                             return;
                         }
 
-                        // Record the countersignature details on the lease
+                        DigitalSigningService::stampManagerSignature($this->record, $user);
+
                         $this->record->update([
-                            'countersigned_by'   => $data['countersigned_by'],
-                            'countersigned_at'   => now(),
-                            'countersign_notes'  => $data['countersign_notes'] ?? null,
+                            'countersigned_by' => $data['countersigned_by'] ?? $user->name,
+                            'countersigned_at' => now(),
+                            'countersign_notes' => $data['countersign_notes'] ?? null,
                         ]);
 
-                        // Save the drawn manager signature as a DigitalSignature record
-                        DigitalSignature::createFromData([
-                            'lease_id'          => $this->record->id,
-                            'tenant_id'         => null,
-                            'signer_type'       => 'manager',
-                            'signed_by_user_id' => Auth::id(),
-                            'signed_by_name'    => $data['countersigned_by'],
-                            'signature_data'    => $signatureData,
-                            'signature_type'    => 'drawn',
-                            'ip_address'        => request()->ip(),
-                            'user_agent'        => request()->userAgent(),
-                            'signed_at'         => now(),
-                            'is_verified'       => true,
-                        ]);
-
-                        // Transition to ACTIVE — LeaseObserver will fire
-                        // sendSignedConfirmations() automatically, sending
-                        // the tenant their copy with both signatures in the PDF.
                         $this->record->transitionTo(LeaseWorkflowState::ACTIVE);
 
                         Notification::make()
@@ -426,6 +433,12 @@ class ViewLease extends ViewRecord
                             ->send();
 
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                    } catch (\App\Exceptions\LeaseSigningException $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Cannot Countersign')
+                            ->body($e->getMessage())
+                            ->send();
                     } catch (Exception $e) {
                         Notification::make()
                             ->danger()

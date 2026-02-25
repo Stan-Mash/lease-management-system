@@ -20,12 +20,12 @@ class CreateLease extends CreateRecord
             $data['source'] ?? 'chabrin_issued',
             $data['lease_type'],
             $unitCode,
+            null,
+            $data['zone_id'] ?? null,
         );
 
-        // Set initial workflow state
+        $data['date_created'] = $data['date_created'] ?? now();
         $data['workflow_state'] = 'draft';
-
-        // Set document version
         $data['document_version'] = 1;
 
         // Set created by

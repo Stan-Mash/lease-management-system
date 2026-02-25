@@ -14,6 +14,12 @@ Artisan::command('inspire', function () {
 |--------------------------------------------------------------------------
 */
 
+// Alert when signing links expired in the last hour (run hourly)
+Schedule::command(\App\Console\Commands\AlertExpiredSigningLinksCommand::class)
+    ->hourly()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/expired-signing-links.log'));
+
 // Send lease expiry alerts daily at 8 AM
 Schedule::command('leases:send-expiry-alerts')
     ->dailyAt('08:00')

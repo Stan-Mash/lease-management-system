@@ -61,11 +61,12 @@ class LeaseForm
         return $schema
             ->components([
                 // --- Lease Details ---
-                // reference_number is auto-generated on save — hidden from the form
                 Forms\Components\Hidden::make('reference_number'),
-
-                // workflow_state is set to 'draft' on create — hidden from the form
                 Forms\Components\Hidden::make('workflow_state')->default('draft'),
+                Forms\Components\DatePicker::make('date_created')
+                    ->label('Date Created')
+                    ->default(now())
+                    ->native(false),
 
                 Forms\Components\Select::make('source')
                     ->options([
@@ -159,6 +160,15 @@ class LeaseForm
                             $set('property_id', $unit->property_id);
                             $set('landlord_id', $unit->property?->landlord_id);
                             $set('client_id', $unit->property?->client_id);
+                            if ($unit->property?->zone_id) {
+                                $set('zone_id', $unit->property->zone_id);
+                                $fieldOfficer = \App\Models\User::where('zone_id', $unit->property->zone_id)
+                                    ->where('role', 'field_officer')
+                                    ->first();
+                                if ($fieldOfficer) {
+                                    $set('assigned_field_officer_id', $fieldOfficer->id);
+                                }
+                            }
                         }
                     }),
 
