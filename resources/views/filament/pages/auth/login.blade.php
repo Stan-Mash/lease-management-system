@@ -26,8 +26,8 @@
                     <div class="cb-accent-fade"></div>
                 </div>
                 <h1 class="cb-heading">
-                    Nairobi's Properties.<br>
-                    <span class="cb-heading-gold">Managed Brilliantly.</span>
+                    Chabrin Agencies<br>
+                    <span class="cb-heading-gold">Lease Management.</span>
                 </h1>
                 <p class="cb-subheading">
                     End-to-end lease management for Chabrin Agencies — from Westlands to Upperhill, every unit, every tenant, every workflow in one platform.
@@ -116,8 +116,8 @@ html body .fi-simple-page {
 html, html.dark, html[class~="dark"] { color-scheme: light !important; }
 body.fi-body {
     margin: 0 !important; padding: 0 !important; color-scheme: light !important;
-    /* ── Real Nairobi/Westlands daytime photo — full page background ── */
-    background-image: url('https://images.unsplash.com/photo-1611348586840-ea9872d33411?auto=format&fit=crop&w=1920&q=80');
+    /* ── Real Nairobi daytime photo — full page background ── */
+    background-image: url('/images/nairobi-bg.jpg');
     background-size: cover;
     background-position: center top;
     background-repeat: no-repeat;
