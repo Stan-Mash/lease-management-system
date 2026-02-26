@@ -107,5 +107,9 @@ import_wrapper.sql
 # Claude Code worktrees
 .claude/worktrees/
 
+# Claude Code personal overrides (machine-specific)
+.claude/settings.local.json
+CLAUDE.local.md
+
 # Windows null device artifact
 nul
