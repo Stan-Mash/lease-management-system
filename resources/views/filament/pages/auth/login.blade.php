@@ -26,8 +26,8 @@
                     <div class="cb-accent-fade"></div>
                 </div>
                 <h1 class="cb-heading">
-                    Chabrin Agencies<br>
-                    <span class="cb-heading-gold">Lease Management.</span>
+                    Smarter Lease<br>
+                    <span class="cb-heading-gold">Management.</span>
                 </h1>
                 <p class="cb-subheading">
                     End-to-end lease management for Chabrin Agencies — from Westlands to Upperhill, every unit, every tenant, every workflow in one platform.
@@ -114,32 +114,10 @@ html body .fi-simple-page {
     max-width: none !important; padding: 0 !important; margin: 0 !important;
 }
 html, html.dark, html[class~="dark"] { color-scheme: light !important; }
-body.fi-body {
-    margin: 0 !important; padding: 0 !important; color-scheme: light !important;
-    /* ── Real Nairobi daytime photo — full page background ── */
-    background-image: url('/images/nairobi-bg.jpg');
-    background-size: cover;
-    background-position: center top;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-}
-/* Subtle dark overlay on body so the split panels stand out */
-body.fi-body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.32);
-    z-index: 0;
-    pointer-events: none;
-}
+body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !important; color-scheme: light !important; }
 
 /* ── Outer wrapper ── */
-.cb-login-wrap {
-    display: flex;
-    min-height: 100vh;
-    position: relative;
-    z-index: 1;
-}
+.cb-login-wrap { display: flex; min-height: 100vh; background: #fff; }
 
 /* ── Left panel — cream / gold ── */
 .cb-left-panel {
@@ -148,7 +126,6 @@ body.fi-body::before {
     position: relative;
     overflow: hidden;
     flex-direction: column;
-    /* Cream gradient — same as original */
     background: linear-gradient(150deg, #fffdf5 0%, #fef9e7 45%, #fdf3c8 100%);
 }
 @media (min-width: 1024px) {
@@ -237,20 +214,10 @@ body.fi-body::before {
                      border-radius: 50%; background: #22c55e; }
 .cb-online-text    { color: #7a6020; font-size: .72rem; }
 
-/* ── Right panel — frosted glass over the photo ── */
-.cb-right-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow-y: auto;
-    padding: 3rem 1.5rem;
-    /* Frosted-glass effect so the Nairobi photo shows through subtly */
-    background: rgba(255,255,255,0.72);
-    backdrop-filter: blur(18px) saturate(1.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
-}
+/* ── Right panel — plain white ── */
+.cb-right-panel    { flex: 1; display: flex; flex-direction: column;
+                     align-items: center; justify-content: center;
+                     background: #fff; overflow-y: auto; padding: 3rem 1.5rem; }
 
 .cb-mobile-logo    { margin-bottom: 2rem; text-align: center; }
 .cb-mobile-logo-img { height: 44px; width: auto; margin: 0 auto; }
@@ -281,13 +248,6 @@ body.fi-body::before {
 .cb-mobile-copy    { margin-top: 1.25rem; text-align: center;
                      font-size: .72rem; color: #aaa; display: none; }
 @media (max-width: 1023px) { .cb-mobile-copy { display: block; } }
-
-/* On mobile (no left panel), right panel also shows full photo */
-@media (max-width: 1023px) {
-    .cb-right-panel {
-        background: rgba(255,255,255,0.85);
-    }
-}
 
 /* ── Animations ── */
 @keyframes chabrin-pulse {
