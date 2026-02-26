@@ -139,15 +139,15 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
     background-size: cover;
     background-position: center center;
 }
-/* Gradient overlay — left to right, heavier at edges so text is readable */
+/* Gradient overlay — very light so the photo shows through vividly */
 .cb-left-photo-overlay {
     position: absolute; inset: 0;
     background: linear-gradient(
         to bottom,
-        rgba(255,252,240,0.68) 0%,
-        rgba(255,250,235,0.52) 35%,
-        rgba(255,250,235,0.52) 65%,
-        rgba(255,252,240,0.75) 100%
+        rgba(0,0,0,0.18) 0%,
+        rgba(0,0,0,0.08) 40%,
+        rgba(0,0,0,0.08) 60%,
+        rgba(0,0,0,0.45) 100%
     );
 }
 
@@ -160,43 +160,44 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-logo-area  { padding: 2.5rem 3rem; flex-shrink: 0; }
 .cb-logo-img   { height: 52px; width: auto; }
 .cb-logo-badge { margin-top: .9rem; display: inline-flex; align-items: center; gap: 6px;
-                 background: rgba(255,252,235,0.85); border: 1px solid rgba(218,165,32,.5);
+                 background: rgba(0,0,0,0.35); border: 1px solid rgba(218,165,32,.55);
                  border-radius: 99px; padding: 3px 12px;
-                 box-shadow: 0 1px 6px rgba(218,165,32,.15); }
+                 backdrop-filter: blur(4px); }
 .cb-badge-dot  { width: 6px; height: 6px; border-radius: 50%; background: #DAA520; display: inline-block; flex-shrink: 0; }
-.cb-badge-text { font-size: .6rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #92670a; }
+.cb-badge-text { font-size: .6rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #fde68a; }
 
 .cb-brand-content { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 3rem 2rem; }
 .cb-accent-line   { display: flex; align-items: center; gap: 10px; margin-bottom: 1.6rem; }
 .cb-accent-bar    { height: 3px; width: 40px; border-radius: 99px; background: linear-gradient(90deg,#DAA520,#f0c040); }
-.cb-accent-fade   { height: 1px; flex: 1; background: linear-gradient(90deg,rgba(218,165,32,.5),transparent); }
+.cb-accent-fade   { height: 1px; flex: 1; background: linear-gradient(90deg,rgba(218,165,32,.6),transparent); }
 
-.cb-heading     { font-size: 2.5rem; font-weight: 800; line-height: 1.18; color: #1a1207;
+.cb-heading     { font-size: 2.5rem; font-weight: 800; line-height: 1.18; color: #ffffff;
                   margin: 0 0 .9rem; letter-spacing: -.025em;
                   font-family: 'Century Gothic','Gill Sans',Arial,sans-serif;
-                  text-shadow: 0 1px 3px rgba(255,252,240,0.8); }
-.cb-heading-gold { background: linear-gradient(135deg,#b8860b,#DAA520,#c8940e);
+                  text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+.cb-heading-gold { background: linear-gradient(135deg,#f0c040,#DAA520,#fde68a);
                    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.cb-subheading  { color: #3d2e08; font-size: .94rem; line-height: 1.75; max-width: 340px; margin: 0 0 2.2rem;
-                  text-shadow: 0 1px 2px rgba(255,252,240,0.7); }
+.cb-subheading  { color: rgba(255,255,255,0.88); font-size: .94rem; line-height: 1.75; max-width: 340px; margin: 0 0 2.2rem;
+                  text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
 
 .cb-features    { display: flex; flex-direction: column; gap: .65rem; }
 .cb-feature-row { display: flex; align-items: center; gap: .75rem; }
 .cb-feature-icon { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
                    display: flex; align-items: center; justify-content: center; font-size: .9rem;
-                   background: rgba(255,252,235,0.80); border: 1px solid rgba(218,165,32,.4);
-                   box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-.cb-feature-text { color: #2d2006; font-size: .87rem; font-weight: 600;
-                   text-shadow: 0 1px 2px rgba(255,252,240,0.6); }
+                   background: rgba(0,0,0,0.30); border: 1px solid rgba(218,165,32,.45);
+                   backdrop-filter: blur(4px); }
+.cb-feature-text { color: rgba(255,255,255,0.92); font-size: .87rem; font-weight: 500;
+                   text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 
 .cb-left-footer { flex-shrink: 0; padding: 1.1rem 3rem;
                   display: flex; align-items: center; justify-content: space-between;
-                  background: rgba(255,252,235,0.75);
-                  border-top: 1px solid rgba(218,165,32,.3); }
-.cb-footer-copy { color: #7a6020; font-size: .72rem; margin: 0; }
+                  background: rgba(0,0,0,0.30);
+                  backdrop-filter: blur(6px);
+                  border-top: 1px solid rgba(218,165,32,.25); }
+.cb-footer-copy { color: rgba(255,255,255,0.65); font-size: .72rem; margin: 0; }
 .cb-online      { display: flex; align-items: center; gap: .4rem; }
 .cb-online-dot  { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
-.cb-online-text { color: #5a4a1a; font-size: .72rem; }
+.cb-online-text { color: rgba(255,255,255,0.65); font-size: .72rem; }
 
 /* ════════════════════════════════════════
    RIGHT PANEL — original plain white
