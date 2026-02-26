@@ -26,11 +26,11 @@
                     <div class="cb-accent-fade"></div>
                 </div>
                 <h1 class="cb-heading">
-                    Smarter Lease<br>
-                    <span class="cb-heading-gold">Management.</span>
+                    Lease Management<br>
+                    <span class="cb-heading-gold">Made Simple.</span>
                 </h1>
                 <p class="cb-subheading">
-                    End-to-end lease management for Chabrin Agencies — from Westlands to Upperhill, every unit, every tenant, every workflow in one platform.
+                    Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
                 </p>
                 <div class="cb-features">
                     @foreach ([
