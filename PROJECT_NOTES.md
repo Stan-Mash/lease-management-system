@@ -7,8 +7,8 @@ Enterprise lease management for Chabrin Agencies — leases, tenants, landlords,
 **GitHub:** git@github.com:Stan-Mash/lease-management-system.git
 
 ## Key Docs (read these, not this file, for detail)
-- [docs/CLAUDE_ARCHITECTURE.md](docs/CLAUDE_ARCHITECTURE.md) — Models, services, enums, resources
-- [docs/CLAUDE_SECURITY.md](docs/CLAUDE_SECURITY.md) — CSP nonce, PII encryption, OTP, file uploads, backups
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Models, services, enums, resources
+- [docs/SECURITY_NOTES.md](docs/SECURITY_NOTES.md) — CSP nonce, PII encryption, OTP, file uploads, backups
 - [docs/FINANCIAL_POLICY.md](docs/FINANCIAL_POLICY.md) — BCMath, MoneyHelper, no float arithmetic
 - [docs/TIMEZONE.md](docs/TIMEZONE.md) — Africa/Nairobi, Carbon usage in commands
 - [docs/SYNC_AND_DEPLOY.md](docs/SYNC_AND_DEPLOY.md) — Sync and deploy workflow

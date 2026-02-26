@@ -104,11 +104,9 @@ export_clean_staff.ps1
 !database/migrations/*.sql
 import_wrapper.sql
 
-# Claude Code worktrees
-.claude/worktrees/
-
-# Claude Code personal overrides (machine-specific)
-.claude/settings.local.json
+# Developer tooling (local only, not for server)
+.claude/
+CLAUDE.md
 CLAUDE.local.md
 
 # Windows null device artifact
