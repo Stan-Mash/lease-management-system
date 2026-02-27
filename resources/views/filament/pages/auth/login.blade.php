@@ -1,100 +1,98 @@
-<div class="cb-login-wrap">
+<div class="cb-wrap">
 
-    {{-- Full-page photo background --}}
+    {{-- Full-page Nairobi photo --}}
     <div class="cb-bg" aria-hidden="true">
         <div class="cb-bg-overlay"></div>
     </div>
 
-    {{-- LEFT — brand content floating over photo --}}
-    <div class="cb-left-panel">
-        <div class="cb-panel-content">
+    {{-- LEFT — brand panel over photo --}}
+    <div class="cb-left">
+        <div class="cb-left-inner">
 
-            <div class="cb-logo-area">
-                <div class="cb-logo-box">
+            {{-- Logo --}}
+            <div class="cb-logo-wrap">
+                <div class="cb-logo-pill">
                     <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
                 </div>
-                <div class="cb-logo-badge">
-                    <span class="cb-badge-dot"></span>
-                    <span class="cb-badge-text">Lease Management System</span>
+                <div class="cb-sys-badge">
+                    <span class="cb-pulse-dot"></span>
+                    <span>Lease Management System</span>
                 </div>
             </div>
 
-            <div class="cb-brand-content">
-                <div class="cb-accent-line">
-                    <div class="cb-accent-bar"></div>
-                    <div class="cb-accent-fade"></div>
-                </div>
-                <h1 class="cb-heading">
-                    Lease Management<br>
-                    <span class="cb-heading-gold">Made Simple.</span>
-                </h1>
-                <p class="cb-subheading">
-                    Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
-                </p>
-                <div class="cb-features">
-                    @foreach ([
-                        ['icon' => '🏢', 'text' => 'Multi-zone property management'],
-                        ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
-                        ['icon' => '📄', 'text' => 'Automated lease document generation'],
-                        ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
-                    ] as $f)
-                    <div class="cb-feature-row">
-                        <div class="cb-feature-icon">{{ $f['icon'] }}</div>
-                        <span class="cb-feature-text">{{ $f['text'] }}</span>
-                    </div>
-                    @endforeach
-                </div>
+            {{-- Headline --}}
+            <div class="cb-headline-area">
+                <div class="cb-rule"></div>
+                <h1 class="cb-h1">Lease Management<br><span class="cb-gold-text">Made Simple.</span></h1>
+                <p class="cb-sub">Manage properties, tenants, and lease workflows —<br>all in one secure platform built for Chabrin Agencies.</p>
             </div>
 
-            <div class="cb-left-footer">
-                <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
-                <div class="cb-online">
-                    <span class="chabrin-pulse cb-online-dot"></span>
-                    <span class="cb-online-text">System Online</span>
+            {{-- Feature chips --}}
+            <div class="cb-chips">
+                @foreach ([
+                    ['icon' => '🏢', 'text' => 'Multi-zone property management'],
+                    ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
+                    ['icon' => '📄', 'text' => 'Automated lease document generation'],
+                    ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
+                ] as $f)
+                <div class="cb-chip">
+                    <div class="cb-chip-icon">{{ $f['icon'] }}</div>
+                    <span class="cb-chip-text">{{ $f['text'] }}</span>
                 </div>
+                @endforeach
+            </div>
+
+            {{-- Footer --}}
+            <div class="cb-left-foot">
+                <span class="cb-foot-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</span>
+                <span class="cb-online"><span class="cb-green-dot chabrin-pulse"></span>System Online</span>
             </div>
 
         </div>
     </div>
 
-    {{-- RIGHT — solid white login card --}}
-    <div class="cb-right-panel">
+    {{-- RIGHT — white login panel --}}
+    <div class="cb-right">
 
-        <div class="cb-mobile-logo">
-            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
+        {{-- Mobile logo --}}
+        <div class="cb-mob-logo">
+            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mob-logo-img">
         </div>
 
-        <div class="cb-form-wrap">
-            <div class="cb-form-header">
-                <span class="cb-portal-badge">
-                    <span class="cb-badge-dot"></span>
+        <div class="cb-form-area">
+
+            {{-- Header --}}
+            <div class="cb-form-head">
+                <div class="cb-secure-tag">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
                     Secure Access Portal
-                </span>
+                </div>
                 <h2 class="cb-welcome">Welcome back</h2>
                 <p class="cb-welcome-sub">Sign in to your Chabrin account to continue</p>
             </div>
 
-            <div class="cb-card">
-                <div class="cb-card-inner">
-                    {{ $this->content }}
-                </div>
+            {{-- Filament form --}}
+            <div class="cb-form-card">
+                {{ $this->content }}
             </div>
 
-            <div class="cb-meta">
-                <span class="cb-meta-item">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            {{-- Trust bar --}}
+            <div class="cb-trust-bar">
+                <span class="cb-trust-item">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
-                    SSL Secured
+                    SSL Encrypted
                 </span>
-                <span class="cb-meta-sep"></span>
+                <span class="cb-trust-sep"></span>
                 <span>Chabrin Agencies Ltd</span>
-                <span class="cb-meta-sep"></span>
+                <span class="cb-trust-sep"></span>
                 <span>{{ date('Y') }}</span>
             </div>
 
-            <p class="cb-mobile-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.</p>
         </div>
     </div>
 
@@ -102,198 +100,223 @@
 
 <style nonce="{{ $cspNonce }}">
 @verbatim
-html body .fi-simple-layout {
-    display: block !important; flex-direction: unset !important;
-    align-items: unset !important; min-height: unset !important;
-    padding: 0 !important; margin: 0 !important;
-}
+/* ── Reset Filament simple-layout wrappers ────────────────────────────── */
+html body .fi-simple-layout,
 html body .fi-simple-main-ctn,
 html body .fi-simple-main,
 html body .fi-simple-page {
-    display: block !important; width: 100% !important;
-    max-width: none !important; padding: 0 !important; margin: 0 !important;
+    display: block !important;
+    width: 100% !important; max-width: none !important;
+    padding: 0 !important; margin: 0 !important;
+    min-height: unset !important; flex-direction: unset !important; align-items: unset !important;
 }
 html, html.dark, html[class~="dark"] { color-scheme: light !important; }
-body.fi-body { background: #0d1526 !important; margin: 0 !important; padding: 0 !important; color-scheme: light !important; }
+body.fi-body { background: #07111f !important; margin: 0; padding: 0; color-scheme: light !important; }
 
-/* ══════════════════════════════════════
-   FULL-PAGE PHOTO BACKGROUND
-   ══════════════════════════════════════ */
+/* ── Photo background (full page, fixed) ─────────────────────────────── */
 .cb-bg {
     position: fixed; inset: 0; z-index: 0;
     background-image: url('/images/nairobi-bg.jpg');
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
+    background-size: cover; background-position: center;
 }
-/* Strong dark overlay — city still visible but text pops clearly over photo */
 .cb-bg-overlay {
     position: absolute; inset: 0;
+    /* Heavier on the left so text pops; lighter on the right so city shows */
     background: linear-gradient(
-        105deg,
-        rgba(6,10,22,0.82) 0%,
-        rgba(6,10,22,0.65) 50%,
-        rgba(6,10,22,0.45) 100%
+        100deg,
+        rgba(4, 8, 18, 0.88) 0%,
+        rgba(4, 8, 18, 0.72) 45%,
+        rgba(4, 8, 18, 0.52) 100%
     );
 }
 
-/* ══════════════════════════════════════
-   OUTER WRAPPER
-   ══════════════════════════════════════ */
-.cb-login-wrap {
+/* ── Outer shell ──────────────────────────────────────────────────────── */
+.cb-wrap {
     position: relative; z-index: 1;
-    display: flex;
-    min-height: 100vh;
+    display: flex; min-height: 100vh;
 }
 
 /* ══════════════════════════════════════
-   LEFT PANEL — transparent, over photo
+   LEFT PANEL
    ══════════════════════════════════════ */
-.cb-left-panel {
-    display: none;
+.cb-left {
+    display: none; /* hidden on mobile */
     flex: 1;
     position: relative;
     flex-direction: column;
 }
 @media (min-width: 1024px) {
-    .cb-left-panel  { display: flex !important; }
-    .cb-mobile-logo { display: none !important; }
+    .cb-left    { display: flex !important; }
+    .cb-mob-logo { display: none !important; }
 }
 
-.cb-panel-content {
-    display: flex; flex-direction: column; height: 100%;
+.cb-left-inner {
+    display: flex; flex-direction: column;
+    height: 100%; padding: 0;
 }
 
-/* Logo */
-.cb-logo-area  { padding: 2.5rem 3rem; flex-shrink: 0; }
-/* White frosted pill behind logo so original colours show through clearly */
-.cb-logo-box {
+/* — Logo area — */
+.cb-logo-wrap { padding: 2.75rem 3.5rem 0; flex-shrink: 0; }
+
+.cb-logo-pill {
     display: inline-block;
-    background: rgba(255,255,255,0.92);
-    border-radius: 14px;
-    padding: 10px 20px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255, 255, 255, 0.93);
+    border-radius: 12px;
+    padding: 10px 22px 10px 18px;
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.45),
+        0 8px 32px rgba(0,0,0,0.35);
 }
-.cb-logo-img   {
-    height: 52px; width: auto; display: block;
-}
-.cb-logo-badge {
-    margin-top: 1rem; display: inline-flex; align-items: center; gap: 7px;
-    background: rgba(218,165,32,0.28); border: 1px solid rgba(218,165,32,.8);
-    border-radius: 99px; padding: 5px 16px;
+.cb-logo-img { height: 48px; width: auto; display: block; }
+
+.cb-sys-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 14px;
+    background: rgba(218,165,32,0.20);
+    border: 1px solid rgba(218,165,32,0.70);
+    border-radius: 99px; padding: 5px 18px;
+    font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: #fde68a;
     box-shadow: 0 2px 12px rgba(0,0,0,0.4);
 }
-.cb-badge-dot  { width: 7px; height: 7px; border-radius: 50%; background: #DAA520; display: inline-block; flex-shrink: 0; }
-.cb-badge-text { font-size: .65rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #fff3b0; }
+.cb-pulse-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #DAA520; flex-shrink: 0; display: inline-block;
+}
 
-/* Brand copy */
-.cb-brand-content {
+/* — Headline area — */
+.cb-headline-area {
     flex: 1; display: flex; flex-direction: column; justify-content: center;
-    padding: 0 3rem 2rem;
+    padding: 0 3.5rem 1.5rem;
 }
-.cb-accent-line { display: flex; align-items: center; gap: 12px; margin-bottom: 1.8rem; }
-.cb-accent-bar  { height: 4px; width: 52px; border-radius: 99px; background: linear-gradient(90deg,#DAA520,#f0c040); }
-.cb-accent-fade { height: 1px; flex: 1; background: linear-gradient(90deg,rgba(218,165,32,.7),transparent); }
-
-.cb-heading {
-    font-size: 3.2rem; font-weight: 800; line-height: 1.12; color: #ffffff;
-    margin: 0 0 1.1rem; letter-spacing: -.03em;
-    font-family: 'Century Gothic','Gill Sans',Arial,sans-serif;
-    text-shadow: 0 2px 4px rgba(0,0,0,1), 0 4px 24px rgba(0,0,0,0.9), 0 8px 40px rgba(0,0,0,0.6);
+.cb-rule {
+    width: 52px; height: 4px; border-radius: 99px; margin-bottom: 2rem;
+    background: linear-gradient(90deg, #DAA520, #f0c040);
 }
-.cb-heading-gold {
-    background: linear-gradient(135deg,#f0c040,#DAA520,#fde68a);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+.cb-h1 {
+    font-size: 3rem; font-weight: 800; line-height: 1.13;
+    letter-spacing: -0.03em; margin: 0 0 1.2rem;
+    font-family: 'Century Gothic', 'Gill Sans', Arial, sans-serif;
+    color: #ffffff;
+    text-shadow:
+        0 1px 2px rgba(0,0,0,1),
+        0 3px 16px rgba(0,0,0,0.9),
+        0 6px 40px rgba(0,0,0,0.6);
 }
-.cb-subheading {
-    color: rgba(255,255,255,0.95); font-size: .96rem; line-height: 1.8;
-    max-width: 380px; margin: 0 0 2.4rem;
-    text-shadow: 0 1px 3px rgba(0,0,0,1), 0 2px 12px rgba(0,0,0,0.9);
+.cb-gold-text {
+    background: linear-gradient(135deg, #f5c842, #DAA520, #fde68a);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
-
-/* Features */
-.cb-features    { display: flex; flex-direction: column; gap: .8rem; }
-.cb-feature-row { display: flex; align-items: center; gap: 1rem; }
-.cb-feature-icon {
-    flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
-    background: rgba(218,165,32,0.18); border: 1px solid rgba(218,165,32,.55);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
-.cb-feature-text {
-    color: #ffffff; font-size: .9rem; font-weight: 600;
-    text-shadow: 0 1px 3px rgba(0,0,0,1), 0 2px 10px rgba(0,0,0,0.8);
+.cb-sub {
+    font-size: 0.94rem; line-height: 1.85; margin: 0 0 2.5rem;
+    color: rgba(255,255,255,0.90); max-width: 370px;
+    text-shadow: 0 1px 3px rgba(0,0,0,1), 0 2px 10px rgba(0,0,0,0.85);
 }
 
-/* Footer */
-.cb-left-footer {
-    flex-shrink: 0; padding: 1.2rem 3rem;
+/* — Feature chips — */
+.cb-chips { display: flex; flex-direction: column; gap: 10px; }
+.cb-chip {
+    display: flex; align-items: center; gap: 14px;
+}
+.cb-chip-icon {
+    flex-shrink: 0; width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; border-radius: 10px;
+    background: rgba(218,165,32,0.16);
+    border: 1px solid rgba(218,165,32,0.50);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.cb-chip-text {
+    font-size: 0.88rem; font-weight: 600; color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0,0,0,1), 0 2px 8px rgba(0,0,0,0.8);
+}
+
+/* — Left footer — */
+.cb-left-foot {
+    flex-shrink: 0; margin-top: 2.5rem;
     display: flex; align-items: center; justify-content: space-between;
-    background: rgba(0,0,0,0.45); backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(218,165,32,.3);
+    padding: 1.1rem 3.5rem;
+    background: rgba(0,0,0,0.50); backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(218,165,32,0.25);
 }
-.cb-footer-copy { color: rgba(255,255,255,0.6); font-size: .73rem; margin: 0; }
-.cb-online      { display: flex; align-items: center; gap: .45rem; }
-.cb-online-dot  { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
-.cb-online-text { color: rgba(255,255,255,0.6); font-size: .73rem; }
+.cb-foot-copy { font-size: 0.71rem; color: rgba(255,255,255,0.55); }
+.cb-online {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.71rem; color: rgba(255,255,255,0.55);
+}
+.cb-green-dot {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; background: #22c55e; flex-shrink: 0;
+}
 
 /* ══════════════════════════════════════
-   RIGHT PANEL — solid white card
+   RIGHT PANEL — clean white
    ══════════════════════════════════════ */
-.cb-right-panel {
-    width: 480px;
-    flex-shrink: 0;
+.cb-right {
+    width: 460px; flex-shrink: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    background: #ffffff;
+    background: #f8f9fb;
     overflow-y: auto; padding: 3rem 2rem;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.3);
+    box-shadow: -12px 0 60px rgba(0,0,0,0.35);
+    border-left: 1px solid rgba(255,255,255,0.08);
 }
 
-.cb-mobile-logo    { margin-bottom: 2rem; text-align: center; }
-.cb-mobile-logo-img { height: 44px; width: auto; margin: 0 auto; }
+/* Mobile logo */
+.cb-mob-logo    { margin-bottom: 2rem; text-align: center; }
+.cb-mob-logo-img { height: 42px; width: auto; margin: 0 auto; }
 
-.cb-form-wrap  { width: 100%; max-width: 360px; }
+/* Form container */
+.cb-form-area { width: 100%; max-width: 340px; }
 
-.cb-form-header { margin-bottom: 1.75rem; }
-.cb-portal-badge {
-    display: inline-flex; align-items: center; gap: .4rem;
-    border-radius: 99px; padding: .3rem .9rem;
-    font-size: .72rem; font-weight: 700; letter-spacing: .05em;
-    background: rgba(218,165,32,.09); color: #8a6a00;
-    border: 1px solid rgba(218,165,32,.3); margin-bottom: .9rem;
+/* Header */
+.cb-form-head { margin-bottom: 1.6rem; }
+
+.cb-secure-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 99px; margin-bottom: 1rem;
+    background: #f0f9f0; border: 1px solid #bbf7d0;
+    font-size: 0.69rem; font-weight: 700; letter-spacing: 0.04em;
+    color: #15803d;
 }
 .cb-welcome {
-    font-size: 1.8rem; font-weight: 800; color: #1a1a1a;
-    margin: 0 0 .35rem; letter-spacing: -.025em;
-    font-family: 'Century Gothic','Gill Sans',Arial,sans-serif;
+    font-size: 1.75rem; font-weight: 800; color: #111827;
+    margin: 0 0 0.3rem; letter-spacing: -0.025em;
+    font-family: 'Century Gothic', 'Gill Sans', Arial, sans-serif;
 }
-.cb-welcome-sub { font-size: .875rem; color: #888; margin: 0; line-height: 1.5; }
+.cb-welcome-sub { font-size: 0.855rem; color: #6b7280; margin: 0; line-height: 1.5; }
 
-.cb-card {
-    border-radius: 16px; background: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(218,165,32,.1);
-    border: 1px solid rgba(218,165,32,.2);
-    border-top: 3px solid #DAA520; overflow: hidden;
+/* Card wrapping Filament's form */
+.cb-form-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e9eaf0;
+    border-top: 3px solid #DAA520;
+    box-shadow:
+        0 1px 3px rgba(0,0,0,0.06),
+        0 8px 32px rgba(218,165,32,0.10);
+    overflow: hidden;
+    padding: 1.6rem 1.6rem 1.4rem;
 }
-.cb-card-inner { padding: 1.75rem; }
 
-.cb-meta {
-    margin-top: 1.75rem; display: flex; align-items: center;
-    justify-content: center; gap: .75rem; font-size: .72rem; color: #aaa;
+/* Trust bar */
+.cb-trust-bar {
+    margin-top: 1.4rem;
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; font-size: 0.70rem; color: #9ca3af;
 }
-.cb-meta-item  { display: flex; align-items: center; gap: .3rem; }
-.cb-meta-sep   { width: 1px; height: 12px; background: #e5e7eb; display: inline-block; }
-.cb-mobile-copy { margin-top: 1.25rem; text-align: center; font-size: .72rem; color: #aaa; display: none; }
+.cb-trust-item { display: flex; align-items: center; gap: 4px; }
+.cb-trust-sep  { width: 1px; height: 10px; background: #d1d5db; display: inline-block; }
+
+/* Mobile tweaks */
 @media (max-width: 1023px) {
-    .cb-right-panel { width: 100%; box-shadow: none; }
-    .cb-mobile-copy { display: block; }
+    .cb-right { width: 100%; box-shadow: none; background: #f8f9fb; }
 }
 
-/* Animations */
-@keyframes chabrin-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+/* Pulse animation */
+@keyframes chabrin-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 .chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
 
 @endverbatim
