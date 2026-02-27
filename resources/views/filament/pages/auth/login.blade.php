@@ -3,25 +3,12 @@
 <style nonce="{{ $cspNonce }}">
 @verbatim
 
-/* ── Reset Filament wrappers (surgical — do NOT use all:unset) ───── */
-html body .fi-simple-layout,
-html body .fi-simple-main-ctn,
-html body .fi-simple-main,
-html body .fi-simple-page {
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    min-height: unset !important;
-    background: transparent !important;
-    flex-direction: unset !important;
-    align-items: unset !important;
-}
+/* ── Body reset ───────────────────────────────────────────────────── */
 html, html.dark, html[class~="dark"] { color-scheme: light !important; }
 body.fi-body {
     margin: 0 !important; padding: 0 !important;
     color-scheme: light !important;
+    min-height: 100vh;
 }
 
 /* ── Full-page photo — THE background of the entire page ─────────── */
@@ -31,12 +18,14 @@ body.fi-body {
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
+    pointer-events: none;
 }
 
 /* Single unified dark overlay across the whole photo */
 .cb-page-overlay {
     position: absolute; inset: 0;
     background: rgba(5, 10, 22, 0.62);
+    pointer-events: none;
 }
 
 /* ── Content layer sits above photo ──────────────────────────────── */
