@@ -134,15 +134,17 @@ body.fi-body {
 .cb-green-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
 
 /* ════════════════════════════════════════════
-   RIGHT — solid white login panel
+   RIGHT — frosted glass over the photo
    ════════════════════════════════════════════ */
 .cb-right {
     width: 460px; flex-shrink: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    background: #f7f8fa;
+    background: rgba(10, 16, 32, 0.45);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     overflow-y: auto; padding: 2.5rem 2rem;
-    box-shadow: -14px 0 64px rgba(0,0,0,0.40);
+    border-left: 1px solid rgba(255,255,255,0.10);
 }
 
 /* Mobile logo (hidden on desktop) */
@@ -156,15 +158,16 @@ body.fi-body {
 .cb-sec-tag {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 11px; border-radius: 99px; margin-bottom: 0.85rem;
-    background: #f0fdf4; border: 1px solid #bbf7d0;
-    font-size: 0.67rem; font-weight: 700; letter-spacing: 0.04em; color: #15803d;
+    background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.40);
+    font-size: 0.67rem; font-weight: 700; letter-spacing: 0.04em; color: #86efac;
 }
 .cb-welcome    {
-    font-size: 1.70rem; font-weight: 800; color: #111827;
+    font-size: 1.70rem; font-weight: 800; color: #ffffff;
     margin: 0 0 0.25rem; letter-spacing: -0.025em;
     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
 }
-.cb-welcome-sub { font-size: 0.84rem; color: #6b7280; margin: 0; line-height: 1.5; }
+.cb-welcome-sub { font-size: 0.84rem; color: rgba(255,255,255,0.65); margin: 0; line-height: 1.5; }
 
 /* Form card */
 .cb-form-card {
@@ -181,15 +184,15 @@ body.fi-body {
 .cb-trust {
     margin-top: 1.3rem;
     display: flex; align-items: center; justify-content: center;
-    gap: 9px; font-size: 0.68rem; color: #9ca3af;
+    gap: 9px; font-size: 0.68rem; color: rgba(255,255,255,0.45);
 }
 .cb-trust-item { display: flex; align-items: center; gap: 4px; }
-.cb-trust-sep  { width: 1px; height: 10px; background: #d1d5db; display: inline-block; }
+.cb-trust-sep  { width: 1px; height: 10px; background: rgba(255,255,255,0.20); display: inline-block; }
 
 /* Responsive: mobile */
 @media (max-width: 1023px) {
     .cb-left       { display: none !important; }
-    .cb-right      { width: 100% !important; box-shadow: none !important; }
+    .cb-right      { width: 100% !important; box-shadow: none !important; border-left: none !important; }
     .cb-mob-logo   { display: block !important; }
 }
 
