@@ -152,9 +152,8 @@ body.fi-body {
     position: absolute; inset: 0;
     background: rgba(4, 8, 18, 0.30);
     pointer-events: none;
-    z-index: 0;
+    z-index: -1;
 }
-.cb-right > * { position: relative; z-index: 1; }
 
 /* Mobile logo (hidden on desktop) */
 .cb-mob-logo    { margin-bottom: 1.5rem; text-align: center; display: none; }
