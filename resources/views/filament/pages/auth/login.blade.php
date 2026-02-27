@@ -35,9 +35,9 @@ body.fi-body {
     position: absolute; inset: 0;
     background: linear-gradient(
         100deg,
-        rgba(4,8,18,0.88) 0%,
-        rgba(4,8,18,0.70) 45%,
-        rgba(4,8,18,0.48) 100%
+        rgba(4,8,18,0.82) 0%,
+        rgba(4,8,18,0.55) 55%,
+        rgba(4,8,18,0.40) 100%
     );
 }
 
@@ -47,6 +47,7 @@ body.fi-body {
     display: flex !important;
     flex-direction: row !important;
     align-items: stretch !important;
+    background: transparent !important;
 }
 
 /* ════════════════════════════════════════════
@@ -134,18 +135,26 @@ body.fi-body {
 .cb-green-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
 
 /* ════════════════════════════════════════════
-   RIGHT — frosted glass over the photo
+   RIGHT — transparent, photo shows through
    ════════════════════════════════════════════ */
 .cb-right {
     width: 460px; flex-shrink: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    background: rgba(10, 16, 32, 0.45);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: transparent;
     overflow-y: auto; padding: 2.5rem 2rem;
-    border-left: 1px solid rgba(255,255,255,0.10);
+    border-left: 1px solid rgba(255,255,255,0.12);
+    position: relative;
 }
+/* Subtle dark scrim only on the right side via pseudo-element */
+.cb-right::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(4, 8, 18, 0.30);
+    pointer-events: none;
+    z-index: 0;
+}
+.cb-right > * { position: relative; z-index: 1; }
 
 /* Mobile logo (hidden on desktop) */
 .cb-mob-logo    { margin-bottom: 1.5rem; text-align: center; display: none; }
