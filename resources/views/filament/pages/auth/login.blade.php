@@ -1,301 +1,263 @@
-{{-- Chabrin Agencies — Login Page --}}
+<div class="cb-login-wrap">
 
-<style nonce="{{ $cspNonce }}">
-@verbatim
+    {{-- LEFT PANEL — cream / gold brand panel --}}
+    <div class="cb-left-panel">
 
-/* ── Body reset ───────────────────────────────────────────────────── */
-html, html.dark, html[class~="dark"] { color-scheme: light !important; }
-body.fi-body {
-    margin: 0 !important; padding: 0 !important;
-    color-scheme: light !important;
-    min-height: 100vh;
-}
+        {{-- Decorative arcs --}}
+        <div class="cb-arc-top" aria-hidden="true"></div>
+        <div class="cb-arc-bottom" aria-hidden="true"></div>
 
-/* ── Full-page photo — THE background of the entire page ─────────── */
-.cb-page {
-    position: fixed; inset: 0; z-index: 0;
-    background-image: url('/images/nairobi-bg.jpg');
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
-    pointer-events: none;
-}
+        {{-- Dot-grid texture --}}
+        <div class="cb-dot-grid" aria-hidden="true"></div>
 
-/* Single unified dark overlay across the whole photo */
-.cb-page-overlay {
-    position: absolute; inset: 0;
-    background: rgba(5, 10, 22, 0.62);
-    pointer-events: none;
-}
+        <div class="cb-panel-content">
 
-/* ── Content layer sits above photo ──────────────────────────────── */
-.cb-content {
-    position: fixed; inset: 0; z-index: 10;
-    display: flex;
-    align-items: stretch;
-}
-
-/* ════════════════════════════
-   LEFT — brand content
-   ════════════════════════════ */
-.cb-left {
-    flex: 1 1 0%;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.cb-logo-wrap { padding: 2.5rem 3rem 0; flex-shrink: 0; }
-.cb-logo-pill {
-    display: inline-block;
-    background: rgba(255,255,255,0.93);
-    border-radius: 12px;
-    padding: 10px 22px 10px 18px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.55), 0 6px 28px rgba(0,0,0,0.35);
-}
-.cb-logo-img { height: 46px; width: auto; display: block; }
-
-.cb-lms-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    margin-top: 12px;
-    background: rgba(218,165,32,0.20);
-    border: 1px solid rgba(218,165,32,0.70);
-    border-radius: 99px; padding: 5px 16px;
-    font-size: 0.60rem; font-weight: 700;
-    letter-spacing: 0.17em; text-transform: uppercase;
-    color: #fde68a;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-}
-.cb-pulse-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #DAA520; display: inline-block; flex-shrink: 0;
-}
-
-.cb-headline {
-    flex: 1; display: flex; flex-direction: column;
-    justify-content: center; padding: 0 3rem 2rem;
-}
-.cb-rule {
-    width: 50px; height: 4px; border-radius: 99px; margin-bottom: 1.8rem;
-    background: linear-gradient(90deg, #DAA520, #f0c040);
-}
-.cb-h1 {
-    font-size: 2.9rem; font-weight: 800; line-height: 1.13;
-    letter-spacing: -0.03em; margin: 0 0 1.1rem;
-    font-family: 'Century Gothic','Gill Sans',Arial,sans-serif;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0,0,0,1), 0 3px 14px rgba(0,0,0,0.9);
-}
-.cb-h1-gold {
-    background: linear-gradient(135deg,#f5c842,#DAA520,#fde68a);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-.cb-sub {
-    font-size: 0.93rem; line-height: 1.85; margin: 0 0 2.2rem;
-    color: rgba(255,255,255,0.88); max-width: 360px;
-    text-shadow: 0 1px 3px rgba(0,0,0,1), 0 2px 10px rgba(0,0,0,0.8);
-}
-.cb-features { display: flex; flex-direction: column; gap: 10px; }
-.cb-feat     { display: flex; align-items: center; gap: 13px; }
-.cb-feat-ico {
-    flex-shrink: 0; width: 37px; height: 37px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.98rem;
-    background: rgba(218,165,32,0.16);
-    border: 1px solid rgba(218,165,32,0.50);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-}
-.cb-feat-txt {
-    font-size: 0.87rem; font-weight: 600; color: #fff;
-    text-shadow: 0 1px 3px rgba(0,0,0,1), 0 2px 8px rgba(0,0,0,0.8);
-}
-
-.cb-left-foot {
-    flex-shrink: 0;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 1rem 3rem;
-    background: rgba(0,0,0,0.45);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(218,165,32,0.22);
-}
-.cb-foot-txt { font-size: 0.70rem; color: rgba(255,255,255,0.50); }
-.cb-online   { display: flex; align-items: center; gap: 7px; font-size: 0.70rem; color: rgba(255,255,255,0.50); }
-.cb-green-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
-
-/* ════════════════════════════
-   RIGHT — glass card column
-   No background on the column itself — photo shows through completely
-   ════════════════════════════ */
-.cb-right {
-    width: 480px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2.5rem 2rem;
-    overflow-y: auto;
-    /* NO background — photo shows through 100% */
-}
-
-/* Mobile logo */
-.cb-mob-logo     { margin-bottom: 1.5rem; text-align: center; display: none; }
-.cb-mob-logo-img { height: 40px; width: auto; margin: 0 auto; }
-
-.cb-form-area { width: 100%; max-width: 340px; }
-
-/* Form header */
-.cb-form-hd { margin-bottom: 1.4rem; }
-.cb-sec-tag {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 11px; border-radius: 99px; margin-bottom: 0.85rem;
-    background: rgba(34,197,94,0.18);
-    border: 1px solid rgba(34,197,94,0.45);
-    font-size: 0.67rem; font-weight: 700; letter-spacing: 0.04em;
-    color: #86efac;
-}
-.cb-welcome {
-    font-size: 1.70rem; font-weight: 800; color: #ffffff;
-    margin: 0 0 0.25rem; letter-spacing: -0.025em;
-    font-family: 'Century Gothic','Gill Sans',Arial,sans-serif;
-    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
-}
-.cb-welcome-sub {
-    font-size: 0.84rem; color: rgba(255,255,255,0.65);
-    margin: 0; line-height: 1.5;
-}
-
-/* The form card — solid white so fields are perfectly readable */
-.cb-form-card {
-    background: #ffffff;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.9);
-    border-top: 3px solid #DAA520;
-    box-shadow:
-        0 4px 24px rgba(0,0,0,0.35),
-        0 1px 4px rgba(0,0,0,0.15),
-        0 0 0 1px rgba(218,165,32,0.12);
-    overflow: hidden;
-    padding: 1.6rem 1.6rem 1.4rem;
-}
-
-/* Trust bar */
-.cb-trust {
-    margin-top: 1.3rem;
-    display: flex; align-items: center; justify-content: center;
-    gap: 9px; font-size: 0.68rem; color: rgba(255,255,255,0.45);
-}
-.cb-trust-item { display: flex; align-items: center; gap: 4px; }
-.cb-trust-sep  { width: 1px; height: 10px; background: rgba(255,255,255,0.20); display: inline-block; }
-
-/* Mobile */
-@media (max-width: 1023px) {
-    .cb-left      { display: none !important; }
-    .cb-right     { width: 100% !important; }
-    .cb-mob-logo  { display: block !important; }
-}
-
-@keyframes chabrin-pulse { 0%,100%{opacity:1} 50%{opacity:.22} }
-.chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
-
-@endverbatim
-</style>
-
-{{-- Full-page photo --}}
-<div class="cb-page" aria-hidden="true">
-    <div class="cb-page-overlay"></div>
-</div>
-
-{{-- All content floats above the photo --}}
-<div class="cb-content">
-
-    {{-- LEFT --}}
-    <div class="cb-left">
-        <div class="cb-logo-wrap">
-            <div class="cb-logo-pill">
+            <div class="cb-logo-area">
                 <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
-            </div>
-            <div class="cb-lms-badge">
-                <span class="cb-pulse-dot"></span>
-                <span>Lease Management System</span>
-            </div>
-        </div>
-
-        <div class="cb-headline">
-            <div class="cb-rule"></div>
-            <h1 class="cb-h1">
-                Lease Management<br>
-                <span class="cb-h1-gold">Made Simple.</span>
-            </h1>
-            <p class="cb-sub">
-                Manage properties, tenants, and lease workflows —<br>
-                all in one secure platform built for Chabrin Agencies.
-            </p>
-            <div class="cb-features">
-                @foreach([
-                    ['🏢','Multi-zone property management'],
-                    ['✍️','Digital signing with OTP verification'],
-                    ['📄','Automated lease document generation'],
-                    ['📊','Real-time occupancy & revenue tracking'],
-                ] as [$ico,$txt])
-                <div class="cb-feat">
-                    <div class="cb-feat-ico">{{ $ico }}</div>
-                    <span class="cb-feat-txt">{{ $txt }}</span>
+                <div class="cb-logo-badge">
+                    <span class="cb-badge-dot"></span>
+                    <span class="cb-badge-text">Lease Management System</span>
                 </div>
-                @endforeach
             </div>
-        </div>
 
-        <div class="cb-left-foot">
-            <span class="cb-foot-txt">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</span>
-            <span class="cb-online">
-                <span class="cb-green-dot chabrin-pulse"></span>
-                System Online
-            </span>
+            <div class="cb-brand-content">
+                <div class="cb-accent-line">
+                    <div class="cb-accent-bar"></div>
+                    <div class="cb-accent-fade"></div>
+                </div>
+                <h1 class="cb-heading">
+                    Lease Management<br>
+                    <span class="cb-heading-gold">Made Simple.</span>
+                </h1>
+                <p class="cb-subheading">
+                    Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
+                </p>
+                <div class="cb-features">
+                    @foreach ([
+                        ['icon' => '🏢', 'text' => 'Multi-zone property management'],
+                        ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
+                        ['icon' => '📄', 'text' => 'Automated lease document generation'],
+                        ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
+                    ] as $f)
+                    <div class="cb-feature-row">
+                        <div class="cb-feature-icon">{{ $f['icon'] }}</div>
+                        <span class="cb-feature-text">{{ $f['text'] }}</span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="cb-left-footer">
+                <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
+                <div class="cb-online">
+                    <span class="chabrin-pulse cb-online-dot"></span>
+                    <span class="cb-online-text">System Online</span>
+                </div>
+            </div>
         </div>
     </div>
 
-    {{-- RIGHT --}}
-    <div class="cb-right">
+    {{-- RIGHT PANEL --}}
+    <div class="cb-right-panel">
 
-        <div class="cb-mob-logo">
-            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mob-logo-img">
+        <div class="cb-mobile-logo">
+            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
         </div>
 
-        <div class="cb-form-area">
-            <div class="cb-form-hd">
-                <div class="cb-sec-tag">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
+        <div class="cb-form-wrap">
+            <div class="cb-form-header">
+                <span class="cb-portal-badge">
+                    <span class="cb-badge-dot"></span>
                     Secure Access Portal
-                </div>
+                </span>
                 <h2 class="cb-welcome">Welcome back</h2>
                 <p class="cb-welcome-sub">Sign in to your Chabrin account to continue</p>
             </div>
 
-            <div class="cb-form-card">
-                {{ $this->content }}
+            <div class="cb-card">
+                <div class="cb-card-inner">
+                    {{ $this->content }}
+                </div>
             </div>
 
-            <div class="cb-trust">
-                <span class="cb-trust-item">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <div class="cb-meta">
+                <span class="cb-meta-item">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                     </svg>
-                    SSL Encrypted
+                    SSL Secured
                 </span>
-                <span class="cb-trust-sep"></span>
+                <span class="cb-meta-sep"></span>
                 <span>Chabrin Agencies Ltd</span>
-                <span class="cb-trust-sep"></span>
+                <span class="cb-meta-sep"></span>
                 <span>{{ date('Y') }}</span>
             </div>
+
+            <p class="cb-mobile-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.</p>
         </div>
     </div>
 
 </div>
+
+<style nonce="{{ $cspNonce }}">
+@verbatim
+html body .fi-simple-layout {
+    display: block !important; flex-direction: unset !important;
+    align-items: unset !important; min-height: unset !important;
+    padding: 0 !important; margin: 0 !important;
+}
+html body .fi-simple-main-ctn,
+html body .fi-simple-main,
+html body .fi-simple-page {
+    display: block !important; width: 100% !important;
+    max-width: none !important; padding: 0 !important; margin: 0 !important;
+}
+html, html.dark, html[class~="dark"] { color-scheme: light !important; }
+body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !important; color-scheme: light !important; }
+
+/* ── Outer wrapper ── */
+.cb-login-wrap { display: flex; min-height: 100vh; background: #fff; }
+
+/* ── Left panel — cream / gold ── */
+.cb-left-panel {
+    display: none;
+    width: 52%;
+    position: relative;
+    overflow: hidden;
+    flex-direction: column;
+    background: linear-gradient(150deg, #fffdf5 0%, #fef9e7 45%, #fdf3c8 100%);
+}
+@media (min-width: 1024px) {
+    .cb-left-panel  { display: flex !important; }
+    .cb-mobile-logo { display: none !important; }
+}
+
+/* Decorative arc — top-right */
+.cb-arc-top {
+    position: absolute;
+    top: -160px; right: -160px;
+    width: 420px; height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(218,165,32,0.18) 0%, rgba(218,165,32,0.06) 60%, transparent 100%);
+    pointer-events: none;
+}
+/* Decorative arc — bottom-left */
+.cb-arc-bottom {
+    position: absolute;
+    bottom: -140px; left: -140px;
+    width: 360px; height: 360px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(218,165,32,0.14) 0%, rgba(218,165,32,0.04) 65%, transparent 100%);
+    pointer-events: none;
+}
+/* Dot-grid texture */
+.cb-dot-grid {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(218,165,32,0.22) 1px, transparent 1px);
+    background-size: 28px 28px;
+    opacity: .55;
+    pointer-events: none;
+}
+
+/* Content */
+.cb-panel-content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.cb-logo-area      { position: relative; z-index: 10; padding: 2.5rem 3rem; flex-shrink: 0; }
+.cb-logo-img       { height: 52px; width: auto; }
+.cb-logo-badge     { margin-top: .9rem; display: inline-flex; align-items: center; gap: 6px;
+                     background: rgba(218,165,32,.12); border: 1px solid rgba(218,165,32,.4);
+                     border-radius: 99px; padding: 3px 10px; }
+.cb-badge-dot      { width: 6px; height: 6px; border-radius: 50%; background: #DAA520;
+                     display: inline-block; flex-shrink: 0; }
+.cb-badge-text     { font-size: .6rem; font-weight: 700; letter-spacing: .14em;
+                     text-transform: uppercase; color: #92670a; }
+
+.cb-brand-content  { position: relative; z-index: 10; flex: 1; display: flex;
+                     flex-direction: column; justify-content: center; padding: 0 3rem 2rem; }
+.cb-accent-line    { display: flex; align-items: center; gap: 10px; margin-bottom: 1.6rem; }
+.cb-accent-bar     { height: 3px; width: 40px; border-radius: 99px;
+                     background: linear-gradient(90deg,#DAA520,#f0c040); }
+.cb-accent-fade    { height: 1px; flex: 1;
+                     background: linear-gradient(90deg,rgba(218,165,32,.5),transparent); }
+
+.cb-heading        { font-size: 2.4rem; font-weight: 800; line-height: 1.18; color: #1a1207;
+                     margin: 0 0 .9rem; letter-spacing: -.025em;
+                     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif; }
+.cb-heading-gold   { background: linear-gradient(135deg,#b8860b,#DAA520,#d4a017);
+                     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                     background-clip: text; }
+.cb-subheading     { color: #5a4a1a; font-size: .94rem; line-height: 1.75;
+                     max-width: 340px; margin: 0 0 2.2rem; }
+
+.cb-features       { display: flex; flex-direction: column; gap: .65rem; }
+.cb-feature-row    { display: flex; align-items: center; gap: .75rem; }
+.cb-feature-icon   { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+                     display: flex; align-items: center; justify-content: center; font-size: .9rem;
+                     background: rgba(218,165,32,.13); border: 1px solid rgba(218,165,32,.35); }
+.cb-feature-text   { color: #3d2e08; font-size: .87rem; font-weight: 500; }
+
+.cb-left-footer    { position: relative; z-index: 10; flex-shrink: 0; padding: 1.1rem 3rem;
+                     border-top: 1px solid rgba(218,165,32,.3);
+                     display: flex; align-items: center; justify-content: space-between;
+                     background: rgba(254,249,231,0.7); }
+.cb-footer-copy    { color: #7a6020; font-size: .72rem; margin: 0; }
+.cb-online         { display: flex; align-items: center; gap: .4rem; }
+.cb-online-dot     { display: inline-block; width: 7px; height: 7px;
+                     border-radius: 50%; background: #22c55e; }
+.cb-online-text    { color: #7a6020; font-size: .72rem; }
+
+/* ── Right panel — plain white ── */
+.cb-right-panel    { flex: 1; display: flex; flex-direction: column;
+                     align-items: center; justify-content: center;
+                     background: #fff; overflow-y: auto; padding: 3rem 1.5rem; }
+
+.cb-mobile-logo    { margin-bottom: 2rem; text-align: center; }
+.cb-mobile-logo-img { height: 44px; width: auto; margin: 0 auto; }
+
+.cb-form-wrap      { width: 100%; max-width: 360px; }
+
+.cb-form-header    { margin-bottom: 1.75rem; }
+.cb-portal-badge   { display: inline-flex; align-items: center; gap: .4rem;
+                     border-radius: 99px; padding: .3rem .85rem;
+                     font-size: .72rem; font-weight: 700; letter-spacing: .05em;
+                     background: rgba(218,165,32,.09); color: #8a6a00;
+                     border: 1px solid rgba(218,165,32,.25); margin-bottom: .9rem; }
+.cb-welcome        { font-size: 1.7rem; font-weight: 800; color: #1a1a1a;
+                     margin: 0 0 .35rem; letter-spacing: -.025em;
+                     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif; }
+.cb-welcome-sub    { font-size: .875rem; color: #888; margin: 0; line-height: 1.5; }
+
+.cb-card           { border-radius: 16px; background: #fff;
+                     box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(218,165,32,.1);
+                     border: 1px solid rgba(218,165,32,.2);
+                     border-top: 3px solid #DAA520; overflow: hidden; }
+.cb-card-inner     { padding: 1.75rem; }
+
+.cb-meta           { margin-top: 1.75rem; display: flex; align-items: center;
+                     justify-content: center; gap: .75rem; font-size: .72rem; color: #aaa; }
+.cb-meta-item      { display: flex; align-items: center; gap: .3rem; }
+.cb-meta-sep       { width: 1px; height: 12px; background: #e5e7eb; display: inline-block; }
+.cb-mobile-copy    { margin-top: 1.25rem; text-align: center;
+                     font-size: .72rem; color: #aaa; display: none; }
+@media (max-width: 1023px) { .cb-mobile-copy { display: block; } }
+
+/* ── Animations ── */
+@keyframes chabrin-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .25; }
+}
+.chabrin-pulse { animation: chabrin-pulse 2.5s ease-in-out infinite; }
+
+@endverbatim
+</style>
 
 <script nonce="{{ $cspNonce }}">
     localStorage.setItem('theme', 'light');
