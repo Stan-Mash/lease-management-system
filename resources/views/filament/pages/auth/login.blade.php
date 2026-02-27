@@ -3,16 +3,20 @@
 <style nonce="{{ $cspNonce }}">
 @verbatim
 
-/* ── Reset all Filament wrappers ──────────────────────────────────── */
+/* ── Reset Filament wrappers (surgical — do NOT use all:unset) ───── */
 html body .fi-simple-layout,
 html body .fi-simple-main-ctn,
 html body .fi-simple-main,
-html body .fi-simple-page,
-html body main.fi-simple-layout,
-html body .fi-body > div,
-html body .fi-body > main {
-    all: unset !important;
+html body .fi-simple-page {
     display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: unset !important;
+    background: transparent !important;
+    flex-direction: unset !important;
+    align-items: unset !important;
 }
 html, html.dark, html[class~="dark"] { color-scheme: light !important; }
 body.fi-body {
