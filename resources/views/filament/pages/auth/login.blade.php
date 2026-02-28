@@ -52,11 +52,11 @@
             </div>
 
             <div class="cb-left-footer">
-                <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
                 <div class="cb-online">
                     <span class="chabrin-pulse cb-online-dot"></span>
                     <span class="cb-online-text">System Online</span>
                 </div>
+                <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
             </div>
         </div>
     </div>
@@ -193,7 +193,8 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 
 .cb-logo-area      { position: relative; z-index: 10; padding: 2.5rem 3rem; flex-shrink: 0; }
 .cb-logo-pill      { display: inline-block; padding: .75rem 1.25rem; border-radius: 9999px;
-                     background: rgba(255,255,255,.22); box-shadow: 0 0 24px rgba(255,255,255,.25), 0 2px 8px rgba(0,0,0,.3); }
+                     background: rgba(0,0,0,.35); border: 1px solid rgba(218,165,32,.55);
+                     box-shadow: 0 0 24px rgba(255,255,255,.15), 0 2px 8px rgba(0,0,0,.35); }
 .cb-logo-img       { height: 52px; width: auto; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
 .cb-logo-badge     { margin-top: .9rem; display: inline-flex; align-items: center; gap: 6px;
                      background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.4);
@@ -225,7 +226,7 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
                      max-width: 340px; margin: 0 0 2.2rem;
                      text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.7); }
 
-.cb-features       { display: flex; flex-direction: column; gap: .65rem; }
+.cb-features       { display: flex; flex-direction: column; gap: .9rem; }
 .cb-feature-row    { display: flex; align-items: center; gap: .75rem; }
 .cb-feature-icon   { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
                      display: flex; align-items: center; justify-content: center; font-size: .9rem;
@@ -233,13 +234,14 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-feature-text   { color: #fff; font-size: .95rem; font-weight: 700;
                      text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 12px rgba(0,0,0,.6), 0 2px 2px rgba(0,0,0,.5); }
 
-.cb-left-footer    { position: relative; z-index: 10; flex-shrink: 0; padding: 1.1rem 3rem;
-                     border-top: 1px solid rgba(255,255,255,.25);
+.cb-left-footer    { position: relative; z-index: 10; flex-shrink: 0; margin-left: -3rem; padding: 1.1rem 3rem;
                      display: flex; align-items: center; justify-content: space-between;
                      background: transparent; }
+.cb-left-footer::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+                          background: rgba(255,255,255,.25); }
 .cb-footer-copy    { color: #fff; font-size: .8rem; font-weight: 700; margin: 0;
-                     text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7); }
-.cb-online         { display: flex; align-items: center; gap: .4rem; }
+                     text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7); order: 1; }
+.cb-online         { display: flex; align-items: center; gap: .4rem; order: 2; }
 .cb-online-dot     { display: inline-block; width: 7px; height: 7px;
                      border-radius: 50%; background: #22c55e; }
 .cb-online-text    { color: #fff; font-size: .8rem; font-weight: 700;
@@ -278,19 +280,22 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-card-inner, .cb-card-inner * { font-weight: 700 !important; }
 .cb-card-inner input, .cb-card-inner input::placeholder { font-weight: 600 !important; }
 .cb-form-wrap label, .cb-card label, .cb-card .fi-fo-field-wrp-label, .cb-card [class*="label"] { font-weight: 700 !important; font-size: .9375rem !important; color: #1f2937 !important; }
+.cb-card .fi-fo-field-label-required-mark { color: #dc2626 !important; }
 .cb-form-wrap .fi-fo-checkbox label, .cb-card input[type="checkbox"] + label { font-weight: 700 !important; }
 .cb-form-wrap input::placeholder { font-weight: 600; }
 .cb-form-wrap button[type="submit"] { font-weight: 800 !important;
     background: linear-gradient(180deg, #e8b923 0%, #c99510 50%, #b8860b 100%) !important;
     box-shadow: 0 2px 8px rgba(184,134,11,.4), inset 0 1px 0 rgba(255,255,255,.25);
-    transition: transform .15s ease, box-shadow .15s ease; }
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
 .cb-form-wrap button[type="submit"]:hover { transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(184,134,11,.45), inset 0 1px 0 rgba(255,255,255,.3); }
-.cb-form-wrap button[type="submit"]:active { transform: translateY(0); }
+    box-shadow: 0 4px 12px rgba(184,134,11,.45), inset 0 1px 0 rgba(255,255,255,.3);
+    filter: brightness(1.1); }
+.cb-form-wrap button[type="submit"]:active { transform: translateY(0) scale(0.97);
+    filter: brightness(1); }
 .cb-form-wrap [type="password"] + div button, .cb-form-wrap [x-ref="togglePassword"] { color: #1f2937 !important; opacity: 1; }
 .cb-card .fi-fo-field-wrp-error-message { margin-top: .35rem; font-size: .875rem; font-weight: 700; color: #dc2626; }
 .cb-card [data-validation-error] input, .cb-card .fi-input-error input, .cb-card input:invalid.ring-danger-500 { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,.25); }
-.cb-forgot-wrap    { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+.cb-forgot-wrap    { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; text-align: right; }
 .cb-forgot-link    { font-size: .9rem; font-weight: 700; color: #b8860b; text-decoration: none; }
 .cb-forgot-link:hover { color: #92670a; text-decoration: underline; }
 .cb-meta-link      { color: #fff; font-weight: 700; text-decoration: none; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
@@ -302,7 +307,7 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
                      justify-content: center; gap: .75rem; font-size: .8rem; font-weight: 700; color: #fff;
                      text-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .cb-meta-item      { display: flex; align-items: center; gap: .3rem; }
-.cb-meta-sep       { width: 1px; height: 12px; background: rgba(255,255,255,.5); display: inline-block; }
+.cb-meta-sep       { width: 1px; height: 12px; background: rgba(255,255,255,.32); display: inline-block; }
 .cb-mobile-copy    { margin-top: 1.25rem; text-align: center;
                      font-size: .8rem; font-weight: 700; color: #fff; display: none;
                      text-shadow: 0 1px 2px rgba(0,0,0,.4); }
