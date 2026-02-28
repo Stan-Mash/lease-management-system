@@ -2,112 +2,99 @@
 <div>
 <div class="cb-login-wrap" style="background-image: url('{{ asset('images/nairobi-login-bg.png') }}');">
 
-    {{-- Left panel: cream overlay --}}
-    <div class="cb-left-panel">
+    <div class="cb-login-main">
+        {{-- Left panel --}}
+        <div class="cb-left-panel">
 
-        {{-- Decorative arcs --}}
-        <div class="cb-arc-top" aria-hidden="true"></div>
-        <div class="cb-arc-bottom" aria-hidden="true"></div>
+            <div class="cb-arc-top" aria-hidden="true"></div>
+            <div class="cb-arc-bottom" aria-hidden="true"></div>
+            <div class="cb-dot-grid" aria-hidden="true"></div>
 
-        {{-- Dot-grid texture --}}
-        <div class="cb-dot-grid" aria-hidden="true"></div>
-
-        <div class="cb-panel-content">
-
-            <div class="cb-logo-area">
-                <div class="cb-logo-pill">
-                    <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
-                </div>
-                <div class="cb-logo-badge">
-                    <span class="cb-badge-dot"></span>
-                    <span class="cb-badge-text">Lease Management System</span>
-                </div>
-            </div>
-
-            <div class="cb-brand-content">
-                <div class="cb-accent-line">
-                    <div class="cb-accent-bar"></div>
-                    <div class="cb-accent-fade"></div>
-                </div>
-                <h1 class="cb-heading">
-                    Lease Management<br>
-                    <span class="cb-heading-gold">Made Simple.</span>
-                </h1>
-                <p class="cb-subheading">
-                    Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
-                </p>
-                <div class="cb-features">
-                    @foreach ([
-                        ['icon' => '🏢', 'text' => 'Multi-zone property management'],
-                        ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
-                        ['icon' => '📄', 'text' => 'Automated lease document generation'],
-                        ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
-                    ] as $f)
-                    <div class="cb-feature-row">
-                        <div class="cb-feature-icon">{{ $f['icon'] }}</div>
-                        <span class="cb-feature-text">{{ $f['text'] }}</span>
+            <div class="cb-panel-content">
+                <div class="cb-logo-area">
+                    <div class="cb-logo-pill">
+                        <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
                     </div>
-                    @endforeach
+                    <div class="cb-logo-badge">
+                        <span class="cb-badge-dot"></span>
+                        <span class="cb-badge-text">Lease Management System</span>
+                    </div>
+                </div>
+
+                <div class="cb-brand-content">
+                    <div class="cb-accent-line">
+                        <div class="cb-accent-bar"></div>
+                        <div class="cb-accent-fade"></div>
+                    </div>
+                    <h1 class="cb-heading">
+                        Lease Management<br>
+                        <span class="cb-heading-gold">Made Simple.</span>
+                    </h1>
+                    <p class="cb-subheading">
+                        Manage properties, tenants, and lease workflows — all in one secure platform built for Chabrin Agencies.
+                    </p>
+                    <div class="cb-features">
+                        @foreach ([
+                            ['icon' => '🏢', 'text' => 'Multi-zone property management'],
+                            ['icon' => '✍️', 'text' => 'Digital signing with OTP verification'],
+                            ['icon' => '📄', 'text' => 'Automated lease document generation'],
+                            ['icon' => '📊', 'text' => 'Real-time occupancy & revenue tracking'],
+                        ] as $f)
+                        <div class="cb-feature-row">
+                            <div class="cb-feature-icon">{{ $f['icon'] }}</div>
+                            <span class="cb-feature-text">{{ $f['text'] }}</span>
+                        </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div class="cb-left-footer">
+        {{-- Right panel: form --}}
+        <div class="cb-right-panel">
+            <div class="cb-mobile-logo">
+                <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
+            </div>
+
+            <div class="cb-form-wrap">
+                <div class="cb-form-header">
+                    <span class="cb-portal-badge">
+                        <span class="cb-badge-dot"></span>
+                        Secure Access Portal
+                    </span>
+                    <h2 class="cb-welcome">Welcome back</h2>
+                    <p class="cb-welcome-sub">Sign in to your Chabrin account to continue</p>
+                </div>
+
+                <div class="cb-card">
+                    <div class="cb-card-inner">
+                        {{ $this->content }}
+                        <div class="cb-forgot-wrap">
+                            <a href="{{ route('password.request') }}" class="cb-forgot-link">Forgot password?</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Global footer: gold line + info zone --}}
+    <footer class="cb-global-footer">
+        <div class="cb-footer-line" aria-hidden="true"></div>
+        <div class="cb-footer-inner">
+            <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
+            <div class="cb-footer-right">
+                <a href="#" class="cb-meta-link" aria-label="Privacy policy">Privacy</a>
+                <span class="cb-footer-sep"></span>
+                <a href="#" class="cb-meta-link" aria-label="Terms of service">Terms</a>
+                <span class="cb-footer-sep"></span>
                 <div class="cb-online">
                     <span class="chabrin-pulse cb-online-dot"></span>
                     <span class="cb-online-text">System Online</span>
                 </div>
-                <p class="cb-footer-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd.</p>
             </div>
         </div>
-    </div>
-
-    {{-- Right panel: form on overlay --}}
-    <div class="cb-right-panel">
-
-        <div class="cb-mobile-logo">
-            <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
-        </div>
-
-        <div class="cb-form-wrap">
-            <div class="cb-form-header">
-                <span class="cb-portal-badge">
-                    <span class="cb-badge-dot"></span>
-                    Secure Access Portal
-                </span>
-                <h2 class="cb-welcome">Welcome back</h2>
-                <p class="cb-welcome-sub">Sign in to your Chabrin account to continue</p>
-            </div>
-
-            <div class="cb-card">
-                <div class="cb-card-inner">
-                    {{ $this->content }}
-                    <div class="cb-forgot-wrap">
-                        <a href="{{ route('password.request') }}" class="cb-forgot-link">Forgot password?</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="cb-meta">
-                <span class="cb-meta-item">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
-                    SSL Secured
-                </span>
-                <span class="cb-meta-sep"></span>
-                <span>Chabrin Agencies Ltd</span>
-                <span class="cb-meta-sep"></span>
-                <a href="#" class="cb-meta-link" aria-label="Privacy policy">Privacy</a>
-                <span class="cb-meta-sep"></span>
-                <a href="#" class="cb-meta-link" aria-label="Terms of service">Terms</a>
-                <span class="cb-meta-sep"></span>
-                <span>{{ date('Y') }}</span>
-            </div>
-
-            <p class="cb-mobile-copy">&copy; {{ date('Y') }} Chabrin Agencies Ltd. All rights reserved.</p>
-        </div>
-    </div>
+    </footer>
 
 </div>
 
@@ -129,7 +116,7 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 
 /* ── Outer wrapper: full-page background image ── */
 .cb-login-wrap {
-    display: flex; min-height: 100vh; position: relative;
+    display: flex; flex-direction: column; min-height: 100vh; position: relative;
     background-color: #0f172a;
     background-size: cover; background-position: center; background-repeat: no-repeat;
 }
@@ -140,7 +127,13 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 }
 .cb-login-wrap > * { position: relative; z-index: 1; }
 
-/* ── Left panel: no white overlay, photo fully visible ── */
+.cb-login-main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+/* ── Left panel ── */
 .cb-left-panel {
     display: none;
     width: 52%;
@@ -234,18 +227,26 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-feature-text   { color: #fff; font-size: .95rem; font-weight: 700;
                      text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 12px rgba(0,0,0,.6), 0 2px 2px rgba(0,0,0,.5); }
 
-.cb-left-footer    { position: relative; z-index: 10; flex-shrink: 0; margin-left: -3rem; padding: 1.1rem 3rem;
-                     display: flex; align-items: center; justify-content: space-between;
-                     background: transparent; }
-.cb-left-footer::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
-                          background: rgba(255,255,255,.25); }
 .cb-footer-copy    { color: #fff; font-size: .8rem; font-weight: 700; margin: 0;
-                     text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7); order: 1; }
-.cb-online         { display: flex; align-items: center; gap: .4rem; order: 2; }
+                     text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7); }
+.cb-online         { display: flex; align-items: center; gap: .4rem; }
 .cb-online-dot     { display: inline-block; width: 7px; height: 7px;
                      border-radius: 50%; background: #22c55e; }
 .cb-online-text    { color: #fff; font-size: .8rem; font-weight: 700;
                      text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7); }
+
+/* ── Global footer: gold line at bottom, then info zone ── */
+.cb-global-footer  { position: relative; z-index: 10; flex-shrink: 0; width: 100%;
+                     background: transparent; }
+.cb-footer-line    { width: 100%; height: 2px;
+                     background: linear-gradient(90deg, #DAA520, #f0c040); }
+.cb-footer-inner   { display: flex; align-items: center; justify-content: space-between;
+                     padding: 1rem 2.5rem 1.25rem; gap: 1rem; flex-wrap: wrap; }
+.cb-footer-copy    { margin-left: 2.5rem; }
+@media (max-width: 639px) { .cb-footer-inner { padding-left: 1.25rem; padding-right: 1.25rem; }
+                            .cb-footer-copy { margin-left: 0; } }
+.cb-footer-right   { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.cb-footer-sep     { width: 1px; height: 12px; background: rgba(255,255,255,.32); display: inline-block; flex-shrink: 0; }
 
 /* ── Right panel: transparent over full-page image ── */
 .cb-right-panel    { flex: 1; display: flex; flex-direction: column;
