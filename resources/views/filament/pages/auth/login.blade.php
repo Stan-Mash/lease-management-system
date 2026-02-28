@@ -57,8 +57,8 @@
         </div>
     </div>
 
-    {{-- RIGHT PANEL --}}
-    <div class="cb-right-panel">
+    {{-- RIGHT PANEL — Nairobi cityscape background (URL must be outside @verbatim) --}}
+    <div class="cb-right-panel" style="background-image: url('{{ asset('images/nairobi-login-bg.png') }}');">
 
         <div class="cb-mobile-logo">
             <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
@@ -218,7 +218,8 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-right-panel    { flex: 1; display: flex; flex-direction: column;
                      align-items: center; justify-content: center;
                      position: relative;
-                     background: #0f172a url("{{ asset('images/nairobi-login-bg.png') }}") center/cover no-repeat;
+                     background-color: #0f172a;
+                     background-size: cover; background-position: center; background-repeat: no-repeat;
                      overflow-y: auto; padding: 3rem 1.5rem; }
 .cb-right-panel::before {
                      content: ''; position: absolute; inset: 0;
