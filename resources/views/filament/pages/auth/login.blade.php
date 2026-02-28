@@ -1,8 +1,8 @@
 {{-- Single root required by Livewire --}}
 <div>
-<div class="cb-login-wrap">
+<div class="cb-login-wrap" style="background-image: url('{{ asset('images/nairobi-login-bg.png') }}');">
 
-    {{-- LEFT PANEL — cream / gold brand panel --}}
+    {{-- Left panel: cream overlay --}}
     <div class="cb-left-panel">
 
         {{-- Decorative arcs --}}
@@ -59,8 +59,8 @@
         </div>
     </div>
 
-    {{-- Right panel: Nairobi cityscape background --}}
-    <div class="cb-right-panel" style="background-image: url('{{ asset('images/nairobi-login-bg.png') }}');">
+    {{-- Right panel: form on overlay --}}
+    <div class="cb-right-panel">
 
         <div class="cb-mobile-logo">
             <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-mobile-logo-img">
@@ -118,17 +118,29 @@ html body .fi-simple-page {
 html, html.dark, html[class~="dark"] { color-scheme: light !important; }
 body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !important; color-scheme: light !important; }
 
-/* ── Outer wrapper ── */
-.cb-login-wrap { display: flex; min-height: 100vh; background: #fff; }
+/* ── Outer wrapper: full-page background image ── */
+.cb-login-wrap {
+    display: flex; min-height: 100vh; position: relative;
+    background-color: #0f172a;
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+.cb-login-wrap::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg,
+        rgba(255,253,245,.88) 0%, rgba(254,249,231,.9) 48%,
+        rgba(15,23,42,.68) 52%, rgba(15,23,42,.82) 100%);
+    pointer-events: none;
+}
+.cb-login-wrap > * { position: relative; z-index: 1; }
 
-/* ── Left panel — cream / gold ── */
+/* ── Left panel: cream tint over image ── */
 .cb-left-panel {
     display: none;
     width: 52%;
     position: relative;
     overflow: hidden;
     flex-direction: column;
-    background: linear-gradient(150deg, #fffdf5 0%, #fef9e7 45%, #fdf3c8 100%);
+    background: linear-gradient(150deg, rgba(255,253,245,.92) 0%, rgba(254,249,231,.92) 45%, rgba(253,243,200,.85) 100%);
 }
 @media (min-width: 1024px) {
     .cb-left-panel  { display: flex !important; }
@@ -216,17 +228,11 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
                      border-radius: 50%; background: #22c55e; }
 .cb-online-text    { color: #7a6020; font-size: .72rem; }
 
-/* ── Right panel — Nairobi cityscape background ── */
+/* ── Right panel: transparent over full-page image ── */
 .cb-right-panel    { flex: 1; display: flex; flex-direction: column;
                      align-items: center; justify-content: center;
                      position: relative;
-                     background-color: #0f172a;
-                     background-size: cover; background-position: center; background-repeat: no-repeat;
                      overflow-y: auto; padding: 3rem 1.5rem; }
-.cb-right-panel::before {
-                     content: ''; position: absolute; inset: 0;
-                     background: linear-gradient(135deg, rgba(15,23,42,.72) 0%, rgba(30,41,59,.55) 100%);
-                     pointer-events: none; }
 .cb-right-panel > * { position: relative; z-index: 1; }
 
 .cb-mobile-logo    { margin-bottom: 2rem; text-align: center; }
