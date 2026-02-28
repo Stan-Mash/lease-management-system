@@ -1,0 +1,19 @@
+# Chabrin Lease System — Cursor Rules
+
+## CRITICAL: No AI attribution in commits
+Never add `Co-Authored-By:` lines or any AI-tool attribution to commit messages.
+All commits must be completely clean — no mention of Claude, Cursor, Anthropic, ChatGPT,
+Copilot, OpenAI, or any AI tool. The git history is audited and must remain free of AI traces.
+
+## Project
+- Laravel 11 + Filament 4.5, PostgreSQL 16
+- See CLAUDE.md for full architecture, schema rules, security policies, and deployment guide
+
+## Key rules (quick reference)
+- PII casts on Tenant + Landlord (`national_id`, `passport_number`, `pin_number`) — never remove
+- Financial math: always use `App\Helpers\Money` or `MoneyHelper` (BCMath) — never native floats
+- DB dropdowns: `DB::table()->select()->get()` + `Cache::remember(600)` — never `Model::get()`
+- Inline `<script>` in Blade: must include `nonce="{{ $cspNonce }}"` for CSP
+- CHIPS column names in SQL: `names`, `national_id`, `mobile_number`, `email_address`, `pin_number`,
+  `property_name`, `reference_number`, `rent_amount` — not the old names
+- Timezone: use `now(config('app.timezone'))` in commands — never bare `Carbon::today()`

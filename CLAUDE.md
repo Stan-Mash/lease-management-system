@@ -179,6 +179,12 @@ Claude must detect which machine it is on by checking the working directory path
 - All machines (laptop, desktop, server) push/pull through GitHub
 - Feature branches for new work, merge to main
 
+### Commit messages — NO AI attribution (MANDATORY)
+**Never** include `Co-Authored-By:` lines or any AI tool attribution in commit messages.
+All commits must be completely clean with no reference to Claude, Cursor, Anthropic, or any AI tool.
+This applies to every session — Claude Code, Cursor, and any other AI tooling.
+The git history is audited and must remain free of AI traces at all times.
+
 ### Commit strategy — IMPORTANT
 Claude must commit incrementally during multi-step tasks, not only at the end:
 - Commit after each logical unit of work (model change, migration, resource update, bug fix)
