@@ -59,7 +59,7 @@
         </div>
     </div>
 
-    {{-- RIGHT PANEL — Nairobi cityscape background (URL must be outside @verbatim) --}}
+    {{-- Right panel: Nairobi cityscape background --}}
     <div class="cb-right-panel" style="background-image: url('{{ asset('images/nairobi-login-bg.png') }}');">
 
         <div class="cb-mobile-logo">
