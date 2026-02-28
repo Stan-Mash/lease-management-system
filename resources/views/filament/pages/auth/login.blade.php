@@ -1,3 +1,5 @@
+{{-- Single root required by Livewire --}}
+<div>
 <div class="cb-login-wrap">
 
     {{-- LEFT PANEL — cream / gold brand panel --}}
@@ -271,3 +273,4 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
     localStorage.setItem('theme', 'light');
     document.documentElement.classList.remove('dark');
 </script>
+</div>
