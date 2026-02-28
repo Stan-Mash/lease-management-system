@@ -114,7 +114,7 @@ class ZonePerformanceWidget extends BaseWidget
     protected function buildTableQuery(): Builder
     {
         $dateColumn = 'created_at';
-        $cacheKey   = 'widget:zone_performance:'
+        $cacheKey = 'widget:zone_performance:'
             . ($this->dateFilter ?? 'none') . ':'
             . ($this->startDate ?? '') . ':'
             . ($this->endDate ?? '');

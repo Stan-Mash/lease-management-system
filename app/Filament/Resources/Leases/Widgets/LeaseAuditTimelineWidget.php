@@ -9,11 +9,11 @@ use Filament\Widgets\Widget;
 
 class LeaseAuditTimelineWidget extends Widget
 {
+    public ?Lease $record = null;
+
     protected string $view = 'filament.resources.leases.widgets.lease-audit-timeline-widget';
 
     protected int|string|array $columnSpan = 'full';
-
-    public ?Lease $record = null;
 
     public function mount(): void
     {

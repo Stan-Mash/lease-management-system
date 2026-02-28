@@ -19,14 +19,6 @@ class MoneyHelper
     public const DECIMAL_PLACES = 2;
 
     /**
-     * Scale used for bcmath operations (decimal places).
-     */
-    private static function scale(): int
-    {
-        return self::DECIMAL_PLACES;
-    }
-
-    /**
      * Round a monetary value to the standard decimal places.
      * Use this for all financial calculations to avoid inconsistent rounding.
      */
@@ -114,6 +106,14 @@ class MoneyHelper
         $onePlusRate = bcadd('1', $rate, 6);
 
         return bcmul($amount, $onePlusRate, self::scale());
+    }
+
+    /**
+     * Scale used for bcmath operations (decimal places).
+     */
+    private static function scale(): int
+    {
+        return self::DECIMAL_PLACES;
     }
 
     /**

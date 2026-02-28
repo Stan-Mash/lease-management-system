@@ -65,19 +65,19 @@ class Tenant extends Model
     ];
 
     protected $casts = [
-        'date_time'        => 'datetime',
-        'registered_date'  => 'date',
+        'date_time' => 'datetime',
+        'registered_date' => 'date',
         'lease_start_date' => 'date',
-        'lease_years'      => 'integer',
-        'rent_amount'      => 'decimal:2',
-        'escalation_rate'  => 'decimal:4',
+        'lease_years' => 'integer',
+        'rent_amount' => 'decimal:2',
+        'escalation_rate' => 'decimal:4',
         'overdraft_penalty' => 'decimal:2',
         // PII encrypted at rest — Kenya Data Protection Act 2019 compliance.
         // Stored as AES-256-CBC ciphertext using the application's APP_KEY.
         // Run `php artisan pii:encrypt` after first deploy to encrypt existing plain-text rows.
-        'national_id'     => 'encrypted',
+        'national_id' => 'encrypted',
         'passport_number' => 'encrypted',
-        'pin_number'      => 'encrypted',
+        'pin_number' => 'encrypted',
     ];
 
     /**

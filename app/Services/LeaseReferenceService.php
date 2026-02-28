@@ -101,7 +101,7 @@ class LeaseReferenceService
         $year = $year ?? now()->year;
 
         // Use database transaction with row locking to prevent race conditions
-        return DB::transaction(function () use ($source, $leaseType, $unitCode, $year, $zoneId) {
+        return DB::transaction(function () use ($source, $leaseType, $unitCode, $year) {
             // Lock the row for this year/lease_type combination
             // Sequence is shared across all units for a given year + type
             $sequence = DB::table('lease_sequences')

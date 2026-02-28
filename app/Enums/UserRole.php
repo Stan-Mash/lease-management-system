@@ -18,13 +18,13 @@ namespace App\Enums;
  */
 enum UserRole: string
 {
-    case SuperAdmin    = 'super_admin';
-    case Admin         = 'admin';
-    case ZoneManager   = 'zone_manager';
-    case FieldOfficer  = 'field_officer';
-    case Lawyer        = 'lawyer';
-    case LandlordUser  = 'landlord_user';
-    case ReadOnly      = 'read_only';
+    case SuperAdmin = 'super_admin';
+    case Admin = 'admin';
+    case ZoneManager = 'zone_manager';
+    case FieldOfficer = 'field_officer';
+    case Lawyer = 'lawyer';
+    case LandlordUser = 'landlord_user';
+    case ReadOnly = 'read_only';
 
     /**
      * Human-readable label for UI display.
@@ -32,13 +32,13 @@ enum UserRole: string
     public function label(): string
     {
         return match ($this) {
-            self::SuperAdmin   => 'Super Administrator',
-            self::Admin        => 'Administrator',
-            self::ZoneManager  => 'Zone Manager',
+            self::SuperAdmin => 'Super Administrator',
+            self::Admin => 'Administrator',
+            self::ZoneManager => 'Zone Manager',
             self::FieldOfficer => 'Field Officer',
-            self::Lawyer       => 'Lawyer',
+            self::Lawyer => 'Lawyer',
             self::LandlordUser => 'Landlord',
-            self::ReadOnly     => 'Read Only',
+            self::ReadOnly => 'Read Only',
         };
     }
 

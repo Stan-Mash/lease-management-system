@@ -15,7 +15,7 @@ Artisan::command('inspire', function () {
 */
 
 // Alert when signing links expired in the last hour (run hourly)
-Schedule::command(\App\Console\Commands\AlertExpiredSigningLinksCommand::class)
+Schedule::command(App\Console\Commands\AlertExpiredSigningLinksCommand::class)
     ->hourly()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/expired-signing-links.log'));

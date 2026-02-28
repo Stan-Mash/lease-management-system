@@ -144,13 +144,13 @@ class DownloadLeaseController extends Controller
         $signatureImagePath = $digitalSignature ? $pdfService->writeSignatureTempFile($digitalSignature) : null;
 
         $data = [
-            'lease'              => $lease,
-            'tenant'             => $lease->tenant,
-            'unit'               => $lease->unit,
-            'landlord'           => $lease->landlord,
-            'property'           => $lease->property,
-            'today'              => now()->format('d/m/Y'),
-            'digitalSignature'   => $digitalSignature ?? null,
+            'lease' => $lease,
+            'tenant' => $lease->tenant,
+            'unit' => $lease->unit,
+            'landlord' => $lease->landlord,
+            'property' => $lease->property,
+            'today' => now()->format('d/m/Y'),
+            'digitalSignature' => $digitalSignature ?? null,
             'signatureImagePath' => $signatureImagePath,
         ];
 

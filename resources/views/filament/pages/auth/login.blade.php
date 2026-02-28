@@ -214,10 +214,17 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
                      border-radius: 50%; background: #22c55e; }
 .cb-online-text    { color: #7a6020; font-size: .72rem; }
 
-/* ── Right panel — plain white ── */
+/* ── Right panel — Nairobi cityscape background ── */
 .cb-right-panel    { flex: 1; display: flex; flex-direction: column;
                      align-items: center; justify-content: center;
-                     background: #fff; overflow-y: auto; padding: 3rem 1.5rem; }
+                     position: relative;
+                     background: #0f172a url("{{ asset('images/nairobi-login-bg.png') }}") center/cover no-repeat;
+                     overflow-y: auto; padding: 3rem 1.5rem; }
+.cb-right-panel::before {
+                     content: ''; position: absolute; inset: 0;
+                     background: linear-gradient(135deg, rgba(15,23,42,.72) 0%, rgba(30,41,59,.55) 100%);
+                     pointer-events: none; }
+.cb-right-panel > * { position: relative; z-index: 1; }
 
 .cb-mobile-logo    { margin-bottom: 2rem; text-align: center; }
 .cb-mobile-logo-img { height: 44px; width: auto; margin: 0 auto; }
@@ -228,12 +235,12 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-portal-badge   { display: inline-flex; align-items: center; gap: .4rem;
                      border-radius: 99px; padding: .3rem .85rem;
                      font-size: .72rem; font-weight: 700; letter-spacing: .05em;
-                     background: rgba(218,165,32,.09); color: #8a6a00;
-                     border: 1px solid rgba(218,165,32,.25); margin-bottom: .9rem; }
-.cb-welcome        { font-size: 1.7rem; font-weight: 800; color: #1a1a1a;
+                     background: rgba(255,255,255,.18); color: rgba(255,255,255,.95);
+                     border: 1px solid rgba(255,255,255,.3); margin-bottom: .9rem; }
+.cb-welcome        { font-size: 1.7rem; font-weight: 800; color: #fff;
                      margin: 0 0 .35rem; letter-spacing: -.025em;
-                     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif; }
-.cb-welcome-sub    { font-size: .875rem; color: #888; margin: 0; line-height: 1.5; }
+                     font-family: 'Century Gothic','Gill Sans',Arial,sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.cb-welcome-sub    { font-size: .875rem; color: rgba(255,255,255,.85); margin: 0; line-height: 1.5; }
 
 .cb-card           { border-radius: 16px; background: #fff;
                      box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(218,165,32,.1);
@@ -242,11 +249,11 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-card-inner     { padding: 1.75rem; }
 
 .cb-meta           { margin-top: 1.75rem; display: flex; align-items: center;
-                     justify-content: center; gap: .75rem; font-size: .72rem; color: #aaa; }
+                     justify-content: center; gap: .75rem; font-size: .72rem; color: rgba(255,255,255,.7); }
 .cb-meta-item      { display: flex; align-items: center; gap: .3rem; }
-.cb-meta-sep       { width: 1px; height: 12px; background: #e5e7eb; display: inline-block; }
+.cb-meta-sep       { width: 1px; height: 12px; background: rgba(255,255,255,.4); display: inline-block; }
 .cb-mobile-copy    { margin-top: 1.25rem; text-align: center;
-                     font-size: .72rem; color: #aaa; display: none; }
+                     font-size: .72rem; color: rgba(255,255,255,.7); display: none; }
 @media (max-width: 1023px) { .cb-mobile-copy { display: block; } }
 
 /* ── Animations ── */

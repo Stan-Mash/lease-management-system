@@ -37,7 +37,7 @@ class Property extends Model
         'date_time' => 'datetime',
         'acquisition_date' => 'date',
     ];
-    
+
     // Backward-compat: legacy attribute helpers (kept minimal to avoid duplication)
 
     /**

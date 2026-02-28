@@ -6,6 +6,7 @@ use App\Enums\LeaseWorkflowState;
 use App\Filament\Forms\Components\SignaturePad;
 use App\Models\DigitalSignature;
 use App\Models\Lease;
+use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -307,9 +308,9 @@ class LeasesTable
                         ])
                         ->action(function (Collection $records, array $data) {
                             $countersignedBy = $data['countersigned_by'];
-                            $signatureData   = $data['manager_signature_data'] ?? null;
-                            $activated       = 0;
-                            $skipped         = 0;
+                            $signatureData = $data['manager_signature_data'] ?? null;
+                            $activated = 0;
+                            $skipped = 0;
 
                             if (empty($signatureData)) {
                                 Notification::make()
@@ -333,33 +334,33 @@ class LeasesTable
 
                                 try {
                                     $lease->update([
-                                        'countersigned_by'  => $countersignedBy,
-                                        'countersigned_at'  => now(),
+                                        'countersigned_by' => $countersignedBy,
+                                        'countersigned_at' => now(),
                                         'countersign_notes' => 'Bulk countersigned via lease list.',
                                     ]);
 
                                     // Store manager drawn signature for this lease
                                     DigitalSignature::create([
-                                        'lease_id'           => $lease->id,
-                                        'tenant_id'          => null,
-                                        'signer_type'        => 'manager',
-                                        'signed_by_user_id'  => Auth::id(),
-                                        'signed_by_name'     => $countersignedBy,
-                                        'signature_data'     => $signatureData,
-                                        'signature_type'     => 'drawn',
-                                        'ip_address'         => request()->ip(),
-                                        'user_agent'         => request()->userAgent(),
-                                        'signed_at'          => now(),
-                                        'is_verified'        => true,
-                                        'verification_hash'  => $verificationHash,
+                                        'lease_id' => $lease->id,
+                                        'tenant_id' => null,
+                                        'signer_type' => 'manager',
+                                        'signed_by_user_id' => Auth::id(),
+                                        'signed_by_name' => $countersignedBy,
+                                        'signature_data' => $signatureData,
+                                        'signature_type' => 'drawn',
+                                        'ip_address' => request()->ip(),
+                                        'user_agent' => request()->userAgent(),
+                                        'signed_at' => now(),
+                                        'is_verified' => true,
+                                        'verification_hash' => $verificationHash,
                                     ]);
 
                                     $lease->transitionTo(LeaseWorkflowState::ACTIVE);
                                     $activated++;
-                                } catch (\Exception $e) {
+                                } catch (Exception $e) {
                                     \Illuminate\Support\Facades\Log::warning('Bulk countersign failed for lease', [
                                         'lease_id' => $lease->id,
-                                        'error'    => $e->getMessage(),
+                                        'error' => $e->getMessage(),
                                     ]);
                                     $skipped++;
                                 }

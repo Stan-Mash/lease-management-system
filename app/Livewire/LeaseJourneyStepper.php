@@ -238,101 +238,19 @@ class LeaseJourneyStepper extends Component
     }
 
     /**
-     * When each workflow state was entered (from audit log + model fields).
-     *
-     * For states that never appeared as new_state in audit logs (skipped states),
-     * we fall back to: model timestamp columns → surrounding audit log entries.
-     * This prevents "Not yet reached" from appearing on completed steps.
+     * When each workflow state was entered (from audit log).
      *
      * @return array<string, string>
      */
     private function getDetailStepTimestamps(Lease $lease): array
     {
-        // 1. Primary: build a map from audit log new_state entries
-        $logs = LeaseAuditLog::where('lease_id', $lease->id)
+        return LeaseAuditLog::where('lease_id', $lease->id)
             ->whereNotNull('new_state')
             ->orderBy('created_at')
-            ->get();
-
-        $auditMap = [];
-        foreach ($logs as $log) {
-            if (! isset($auditMap[$log->new_state])) {
-                $auditMap[$log->new_state] = $log->created_at;
-            }
-        }
-
-        // Also index audit log old_state entries so we know when a state was LEFT
-        $leftMap = [];
-        foreach ($logs as $log) {
-            if ($log->old_state && ! isset($leftMap[$log->old_state])) {
-                $leftMap[$log->old_state] = $log->created_at;
-            }
-        }
-
-        // 2. Model-level fallbacks: explicit timestamp columns on the Lease model
-        // (approved_at does not exist; countersigned_at is the only known ts column beyond created_at)
-        $modelFallbacks = array_filter([
-            'active'          => isset($lease->countersigned_at) ? $lease->countersigned_at : null,
-            'pending_deposit' => isset($lease->countersigned_at) ? $lease->countersigned_at : null,
-        ]);
-
-        // 3. Ordered state list to find "nearest neighbour" timestamps for skipped states
-        //    We use LeaseWorkflowState order + the audit map to interpolate.
-        $stateOrder = [
-            'draft', 'received', 'pending_landlord_approval', 'approved',
-            'printed', 'checked_out', 'sent_digital', 'pending_otp',
-            'pending_tenant_signature', 'returned_unsigned', 'tenant_signed',
-            'with_lawyer', 'pending_upload', 'pending_deposit',
-            'active', 'renewal_offered', 'renewal_accepted',
-            'expired', 'terminated', 'cancelled', 'renewal_declined', 'archived',
-        ];
-
-        // Build a resolved timestamp for every state we know was "reached" in the journey
-        // by filling backward: if state X has no audit entry but state X+1 does,
-        // use the earliest available adjacent timestamp.
-        $resolved = [];
-        foreach ($stateOrder as $state) {
-            if (isset($auditMap[$state])) {
-                $resolved[$state] = $auditMap[$state];
-            } elseif (isset($modelFallbacks[$state]) && $modelFallbacks[$state]) {
-                $resolved[$state] = \Carbon\Carbon::parse($modelFallbacks[$state]);
-            }
-        }
-
-        // For done states still missing a timestamp, find the closest EARLIER resolved ts
-        // This handles states that were skipped (e.g. draft→approved skipping received)
-        $currentWorkflowPos = array_search($lease->workflow_state, $stateOrder);
-        foreach ($stateOrder as $idx => $state) {
-            if (isset($resolved[$state])) {
-                continue;
-            }
-            // Only fill in states that are "before" the current workflow position (i.e. done)
-            if ($currentWorkflowPos !== false && $idx >= $currentWorkflowPos) {
-                continue;
-            }
-
-            // Find the nearest earlier resolved timestamp
-            $fallbackTs = null;
-            for ($j = $idx - 1; $j >= 0; $j--) {
-                if (isset($resolved[$stateOrder[$j]])) {
-                    $fallbackTs = $resolved[$stateOrder[$j]];
-                    break;
-                }
-            }
-            // If no earlier one found, use lease created_at (very first state = draft)
-            if (! $fallbackTs) {
-                $fallbackTs = $lease->created_at;
-            }
-            $resolved[$state] = $fallbackTs;
-        }
-
-        // Also ensure 'draft' always has a timestamp (lease creation time)
-        if (! isset($resolved['draft'])) {
-            $resolved['draft'] = $lease->created_at;
-        }
-
-        // Format all to human-readable
-        return array_map(fn ($ts) => $ts->format('j M Y, g:i A'), $resolved);
+            ->get()
+            ->unique('new_state')
+            ->mapWithKeys(fn ($log) => [$log->new_state => $log->created_at->format('j M Y, g:i A')])
+            ->all();
     }
 
     /**

@@ -30,11 +30,11 @@ class LeaseTenantSignedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tenantName   = $this->lease->tenant?->names ?? 'The tenant';
-        $reference    = $this->lease->reference_number ?? 'N/A';
+        $tenantName = $this->lease->tenant?->names ?? 'The tenant';
+        $reference = $this->lease->reference_number ?? 'N/A';
         $propertyName = $this->lease->property?->property_name ?? 'N/A';
-        $unitNumber   = $this->lease->unit?->unit_number ?? 'N/A';
-        $signedAt     = now()->format('d M Y, h:i A');
+        $unitNumber = $this->lease->unit?->unit_number ?? 'N/A';
+        $signedAt = now()->format('d M Y, h:i A');
 
         $leaseUrl = url('/admin/leases/' . $this->lease->id);
 
@@ -56,13 +56,13 @@ class LeaseTenantSignedNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            'lease_id'         => $this->lease->id,
+            'lease_id' => $this->lease->id,
             'reference_number' => $this->lease->reference_number,
-            'tenant_name'      => $this->lease->tenant?->names,
-            'property_name'    => $this->lease->property?->property_name,
-            'unit_number'      => $this->lease->unit?->unit_number,
-            'action'           => 'tenant_signed',
-            'message'          => ($this->lease->tenant?->names ?? 'A tenant') . ' has signed lease ' . $this->lease->reference_number . '. Countersign required.',
+            'tenant_name' => $this->lease->tenant?->names,
+            'property_name' => $this->lease->property?->property_name,
+            'unit_number' => $this->lease->unit?->unit_number,
+            'action' => 'tenant_signed',
+            'message' => ($this->lease->tenant?->names ?? 'A tenant') . ' has signed lease ' . $this->lease->reference_number . '. Countersign required.',
         ];
     }
 }

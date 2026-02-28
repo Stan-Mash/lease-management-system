@@ -7,6 +7,7 @@ use App\Models\LeaseTemplate;
 use Exception;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class TemplateRenderService
 {
@@ -67,15 +68,16 @@ class TemplateRenderService
         // content that was inserted directly into the database.
         try {
             app(TemplateSanitizer::class)->assertSafe($templateContent);
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             Log::critical('Unsafe template content detected at render time', [
-                'template_id'   => $template->id,
+                'template_id' => $template->id,
                 'template_name' => $template->name,
-                'error'         => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             throw new Exception(
                 "Template '{$template->name}' contains disallowed content and cannot be rendered. " .
-                'Contact a system administrator.'
+                'Contact a system administrator.',
             );
         }
 

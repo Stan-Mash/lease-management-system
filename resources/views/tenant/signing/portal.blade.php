@@ -247,24 +247,18 @@
         <div id="step4-content" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
             <h2 class="text-xl font-semibold text-gray-900 mb-2">Step 4: Upload ID Copy</h2>
             <p class="text-gray-600 mb-1">As required by the lease agreement, please attach a copy of your identification document.</p>
-            <p class="text-sm text-gray-500 mb-2">Accepted: National ID (front &amp; back) or Passport biodata page only.</p>
-            <ul class="text-xs text-gray-500 mb-6 list-disc list-inside space-y-0.5">
-                <li>Formats: JPG, PNG, or a <strong>single-page</strong> PDF scan</li>
-                <li>Maximum 2 files (e.g. front and back of ID card)</li>
-                <li>Maximum 2 MB per file</li>
-                <li>Do <strong>not</strong> upload lease agreements or other multi-page documents</li>
-            </ul>
+            <p class="text-sm text-gray-500 mb-6">Accepted: National ID (front &amp; back), Passport biodata page. Formats: JPG, PNG, PDF. Max 5MB per file.</p>
 
             {{-- Upload zone --}}
             <div id="drop-zone" class="drop-zone mb-4" onclick="document.getElementById('id-file-input').click()">
-                <input type="file" id="id-file-input" accept="image/jpeg,image/png,application/pdf" multiple class="hidden">
+                <input type="file" id="id-file-input" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden">
                 <div id="drop-zone-idle">
                     <svg class="mx-auto mb-3 text-gray-400" style="width:48px;height:48px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                     </svg>
                     <p class="text-gray-600 font-medium">Click to select files or drag &amp; drop here</p>
-                    <p class="text-xs text-gray-400 mt-1">JPG, PNG or single-page PDF &bull; Max 2 MB each &bull; Up to 2 files</p>
+                    <p class="text-xs text-gray-400 mt-1">JPG, PNG or PDF &bull; Max 5MB each</p>
                 </div>
                 <div id="drop-zone-files" class="hidden text-left"></div>
             </div>
@@ -505,10 +499,7 @@
                     })
                 });
                 if (!response.ok && response.status !== 400) {
-                    const msg = response.status === 429
-                        ? 'Too many attempts. Please wait a moment and try again.'
-                        : 'Something went wrong (' + response.status + '). Please try again.';
-                    showMessage('signature-message', 'error', msg, true);
+                    showMessage('signature-message', 'error', 'Server error (' + response.status + '). Please try again.', true);
                     btn.disabled = false;
                     btn.textContent = 'Submit Signature';
                     return;
@@ -560,21 +551,16 @@
         }
 
         function handleFileSelection(files) {
-            const maxSize  = 2 * 1024 * 1024; // 2MB — ID scans are always small
-            const maxFiles = 2;               // front + back of ID card only
-            const allowed  = ['image/jpeg', 'image/png', 'application/pdf'];
-            selectedFiles  = [];
-            const errors   = [];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+            selectedFiles = [];
+            const errors  = [];
 
-            if (files.length > maxFiles) {
-                errors.push(`You can upload a maximum of ${maxFiles} files (e.g. front and back of your ID card).`);
-            }
-
-            Array.from(files).slice(0, maxFiles).forEach(file => {
+            Array.from(files).forEach(file => {
                 if (!allowed.includes(file.type)) {
-                    errors.push(`${file.name}: unsupported format. Use JPG, PNG, or a single-page PDF scan.`);
+                    errors.push(`${file.name}: unsupported format (use JPG, PNG or PDF)`);
                 } else if (file.size > maxSize) {
-                    errors.push(`${file.name}: file too large (max 2 MB). Please use a compressed photo or scan.`);
+                    errors.push(`${file.name}: file too large (max 5MB)`);
                 } else {
                     selectedFiles.push(file);
                 }

@@ -130,7 +130,7 @@ class QRCodeService
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($lease) {
             $verificationUrl = $lease->verification_url ?? route('lease.verify', [
                 'serial' => $lease->serial_number ?? $lease->reference_number,
-                'hash'   => self::generateVerificationHash($lease),
+                'hash' => self::generateVerificationHash($lease),
             ]);
 
             $qrCodePng = QrCode::renderer('gd')->format('png')

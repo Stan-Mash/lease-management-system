@@ -112,7 +112,7 @@ class LeaseObserver
             } catch (Exception $e) {
                 Log::warning('Failed to notify manager of tenant signing', [
                     'lease_id' => $lease->id,
-                    'error'    => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -128,7 +128,7 @@ class LeaseObserver
                 } catch (Exception $e) {
                     Log::warning('Failed to send tenant lease confirmation on ACTIVE transition', [
                         'lease_id' => $lease->id,
-                        'error'    => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -174,9 +174,10 @@ class LeaseObserver
         if ($zoneManager) {
             $zoneManager->notify($notification);
             Log::info('Zone manager notified of tenant signing', [
-                'lease_id'       => $lease->id,
+                'lease_id' => $lease->id,
                 'zone_manager_id' => $zoneManager->id,
             ]);
+
             return;
         }
 
@@ -190,7 +191,7 @@ class LeaseObserver
         }
 
         Log::info('Admins notified of tenant signing (no zone manager set)', [
-            'lease_id'    => $lease->id,
+            'lease_id' => $lease->id,
             'admin_count' => $admins->count(),
         ]);
     }

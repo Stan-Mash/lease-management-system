@@ -121,8 +121,8 @@ class DatabaseBackupCommand extends Command
      */
     protected function writePgPassFile(array $dbConfig): string
     {
-        $host     = $dbConfig['host'] ?? 'localhost';
-        $port     = $dbConfig['port'] ?? 5432;
+        $host = $dbConfig['host'] ?? 'localhost';
+        $port = $dbConfig['port'] ?? 5432;
         $database = $dbConfig['database'];
         $username = $dbConfig['username'];
         $password = $dbConfig['password'] ?? '';

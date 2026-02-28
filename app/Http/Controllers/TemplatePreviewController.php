@@ -118,29 +118,6 @@ class TemplatePreviewController extends Controller
     }
 
     /**
-     * Allowed view names for direct preview (whitelist to prevent LFI).
-     */
-    private static function allowedPreviewViews(): array
-    {
-        return [
-            'templates.lease-residential-major',
-            'templates.lease-residential-micro',
-            'templates.lease-commercial',
-            'pdf.residential-major',
-            'pdf.residential-micro',
-            'pdf.commercial',
-        ];
-    }
-
-    /**
-     * Allowed template types for sample data (whitelist).
-     */
-    private static function allowedPreviewTypes(): array
-    {
-        return ['residential_major', 'residential_micro', 'commercial'];
-    }
-
-    /**
      * Preview template with direct blade rendering (for testing new templates).
      * View and type are whitelisted to prevent path traversal / LFI.
      */
@@ -202,5 +179,28 @@ class TemplatePreviewController extends Controller
         $mockLease->unit = $sampleData['unit'];
 
         return $mockLease;
+    }
+
+    /**
+     * Allowed view names for direct preview (whitelist to prevent LFI).
+     */
+    private static function allowedPreviewViews(): array
+    {
+        return [
+            'templates.lease-residential-major',
+            'templates.lease-residential-micro',
+            'templates.lease-commercial',
+            'pdf.residential-major',
+            'pdf.residential-micro',
+            'pdf.commercial',
+        ];
+    }
+
+    /**
+     * Allowed template types for sample data (whitelist).
+     */
+    private static function allowedPreviewTypes(): array
+    {
+        return ['residential_major', 'residential_micro', 'commercial'];
     }
 }

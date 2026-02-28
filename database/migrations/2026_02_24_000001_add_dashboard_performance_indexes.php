@@ -98,10 +98,10 @@ return new class extends Migration
     private function indexExists(string $table, string $indexName): bool
     {
         return collect(
-            \Illuminate\Support\Facades\DB::select(
-                "SELECT indexname FROM pg_indexes WHERE tablename = ? AND indexname = ?",
-                [$table, $indexName]
-            )
+            Illuminate\Support\Facades\DB::select(
+                'SELECT indexname FROM pg_indexes WHERE tablename = ? AND indexname = ?',
+                [$table, $indexName],
+            ),
         )->isNotEmpty();
     }
 };

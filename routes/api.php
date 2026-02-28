@@ -13,10 +13,11 @@ Route::prefix('v1')
         // Health check for load balancers / monitoring (no auth)
         Route::get('/health', function () {
             $database = false;
+
             try {
                 DB::connection()->getPdo();
                 $database = true;
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // leave false
             }
 

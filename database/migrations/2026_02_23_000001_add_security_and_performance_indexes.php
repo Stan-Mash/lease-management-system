@@ -23,8 +23,7 @@ return new class extends Migration
     public function up(): void
     {
         // Helper: skip if index already exists (safe to run multiple times)
-        $indexExists = fn (string $table, string $name): bool =>
-            DB::select('SELECT 1 FROM pg_indexes WHERE tablename = ? AND indexname = ?', [$table, $name]) !== [];
+        $indexExists = fn (string $table, string $name): bool => DB::select('SELECT 1 FROM pg_indexes WHERE tablename = ? AND indexname = ?', [$table, $name]) !== [];
 
         // otp_verifications — queried on every signing step
         Schema::table('otp_verifications', function (Blueprint $table) use ($indexExists) {

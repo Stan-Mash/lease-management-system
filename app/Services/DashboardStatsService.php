@@ -45,7 +45,7 @@ class DashboardStatsService
     public static function getAdminStats(): array
     {
         return Cache::remember(self::KEY_ADMIN, self::TTL, function () {
-            $tz  = config('app.timezone', 'Africa/Nairobi');
+            $tz = config('app.timezone', 'Africa/Nairobi');
             $now = Carbon::now($tz);
 
             $row = DB::table('leases')
@@ -67,13 +67,13 @@ class DashboardStatsService
                 ->first();
 
             return [
-                'active_leases'  => (int) $row->active_leases,
-                'draft_leases'   => (int) $row->draft_leases,
+                'active_leases' => (int) $row->active_leases,
+                'draft_leases' => (int) $row->draft_leases,
                 'pending_leases' => (int) $row->pending_leases,
-                'tenant_signed'  => (int) $row->tenant_signed,
-                'expiring_30d'   => (int) $row->expiring_30d,
-                'expiring_7d'    => (int) $row->expiring_7d,
-                'generated_at'   => $now->toIso8601String(),
+                'tenant_signed' => (int) $row->tenant_signed,
+                'expiring_30d' => (int) $row->expiring_30d,
+                'expiring_7d' => (int) $row->expiring_7d,
+                'generated_at' => $now->toIso8601String(),
             ];
         });
     }
@@ -88,7 +88,7 @@ class DashboardStatsService
         $key = sprintf(self::KEY_ZONE, $zoneId);
 
         return Cache::remember($key, self::TTL, function () use ($zoneId) {
-            $tz  = config('app.timezone', 'Africa/Nairobi');
+            $tz = config('app.timezone', 'Africa/Nairobi');
             $now = Carbon::now($tz);
 
             $row = DB::table('leases')
@@ -105,10 +105,10 @@ class DashboardStatsService
                 ->first();
 
             return [
-                'active_leases'   => (int) $row->active_leases,
+                'active_leases' => (int) $row->active_leases,
                 'pending_approval' => (int) $row->pending_approval,
-                'expiring_30d'    => (int) $row->expiring_30d,
-                'generated_at'    => $now->toIso8601String(),
+                'expiring_30d' => (int) $row->expiring_30d,
+                'generated_at' => $now->toIso8601String(),
             ];
         });
     }
@@ -118,7 +118,7 @@ class DashboardStatsService
      *
      * Call this from LeaseObserver::updated() whenever workflow_state changes.
      *
-     * @param  int|null  $zoneId  If provided, also clears zone-specific cache.
+     * @param int|null $zoneId If provided, also clears zone-specific cache.
      */
     public static function invalidate(?int $zoneId = null): void
     {

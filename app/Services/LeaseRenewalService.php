@@ -53,7 +53,7 @@ class LeaseRenewalService
      */
     public function calculateRenewalRent(Lease $lease, ?float $customRate = null): float
     {
-        $rate   = $customRate ?? config('lease.renewal.default_escalation_rate', 0.10);
+        $rate = $customRate ?? config('lease.renewal.default_escalation_rate', 0.10);
         $amount = (string) $lease->monthly_rent;
 
         // applyRate uses bcmath internally: amount * (1 + rate) with 6 decimal precision

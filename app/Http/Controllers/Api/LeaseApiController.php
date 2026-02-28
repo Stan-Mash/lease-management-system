@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 class LeaseApiController extends Controller
 {
     use AuthorizesRequests;
+
     /**
      * Display a listing of leases.
      *

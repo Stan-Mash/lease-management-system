@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Throwable;
 
 class User extends Authenticatable implements FilamentUser
 {
@@ -81,7 +82,7 @@ class User extends Authenticatable implements FilamentUser
 
         try {
             return decrypt($this->signature_image_encrypted);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

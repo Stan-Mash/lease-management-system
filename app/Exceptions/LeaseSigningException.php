@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Exceptions;
 
 use Illuminate\Http\JsonResponse;
+use RuntimeException;
+use Throwable;
 
 /**
  * Domain exception for lease digital signing failures.
@@ -13,13 +15,13 @@ use Illuminate\Http\JsonResponse;
  * consistent error codes and messages across the signing workflow.
  * Each case has a machine-readable $code for API clients.
  */
-class LeaseSigningException extends \RuntimeException
+class LeaseSigningException extends RuntimeException
 {
     public function __construct(
         string $message,
         private readonly string $errorCode = 'signing_error',
         int $httpStatus = 422,
-        ?\Throwable $previous = null,
+        ?Throwable $previous = null,
     ) {
         parent::__construct($message, $httpStatus, $previous);
     }
@@ -37,9 +39,9 @@ class LeaseSigningException extends \RuntimeException
     public function toJsonResponse(): JsonResponse
     {
         return response()->json([
-            'success'    => false,
-            'error'      => $this->errorCode,
-            'message'    => $this->getMessage(),
+            'success' => false,
+            'error' => $this->errorCode,
+            'message' => $this->getMessage(),
         ], $this->getCode());
     }
 

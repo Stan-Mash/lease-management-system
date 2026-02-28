@@ -279,12 +279,9 @@ class TenantSigningController extends Controller
     {
         $this->verifySignedUrlAndTenant($request, $lease);
 
-        // Max 2 files (front + back of an ID card) — 2 MB each.
-        // ID scans are always small images or single-page PDFs; anything larger
-        // is almost certainly the wrong document (e.g. a multi-page lease PDF).
         $request->validate([
-            'id_documents'   => ['required', 'array', 'min:1', 'max:2'],
-            'id_documents.*' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
+            'id_documents'   => ['required', 'array', 'min:1', 'max:5'],
+            'id_documents.*' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         try {
@@ -304,29 +301,14 @@ class TenantSigningController extends Controller
                     ], 422);
                 }
 
-                // 2. For PDFs: reject multi-page documents.
-                //    A genuine ID scan is always a single page.
-                //    A lease agreement or similar document will have many pages.
-                if ($realMime === 'application/pdf') {
-                    $pdfContent = file_get_contents($file->getRealPath());
-                    $pageCount  = preg_match_all('/\/Page\b/', $pdfContent);
-                    if ($pageCount > 2) {
-                        // Allow up to 2 /Page markers (some single-page PDFs have 2 due to structure)
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'The PDF you uploaded appears to have multiple pages. Please upload only your ID document (a single-page scan or photo).',
-                        ], 422);
-                    }
-                }
-
-                // 3. Map real MIME to a safe extension — never trust the original filename
+                // 2. Map real MIME to a safe extension — never trust the original filename
                 $extension = match ($realMime) {
                     'image/jpeg'      => 'jpg',
                     'image/png'       => 'png',
                     'application/pdf' => 'pdf',
                 };
 
-                // 4. Use UUID filename + lease UUID directory — no user input in path ever
+                // 3. Use UUID filename + lease UUID directory — no user input in path ever
                 //    Stored in the private disk (storage/app/private) — never web-accessible
                 $filename = Str::uuid()->toString() . '.' . $extension;
                 $directory = 'tenant-id-documents/' . ($lease->uuid ?? $lease->id);

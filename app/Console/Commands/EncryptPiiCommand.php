@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * One-time migration command to encrypt existing plain-text PII fields.
@@ -24,20 +25,20 @@ use Illuminate\Support\Facades\Log;
  */
 class EncryptPiiCommand extends Command
 {
-    protected $signature = 'pii:encrypt
-                            {--dry-run : Preview changes without writing to the database}
-                            {--force : Skip confirmation prompt}';
-
-    protected $description = 'One-time migration: encrypt existing plain-text PII fields (national_id, passport_number, pin_number)';
-
     /**
      * Tables and fields to encrypt.
      * All fields are encrypted using Laravel's Crypt::encryptString().
      */
     private const TARGETS = [
-        'tenants'   => ['national_id', 'passport_number', 'pin_number'],
+        'tenants' => ['national_id', 'passport_number', 'pin_number'],
         'landlords' => ['national_id', 'passport_number', 'pin_number'],
     ];
+
+    protected $signature = 'pii:encrypt
+                            {--dry-run : Preview changes without writing to the database}
+                            {--force : Skip confirmation prompt}';
+
+    protected $description = 'One-time migration: encrypt existing plain-text PII fields (national_id, passport_number, pin_number)';
 
     public function handle(): int
     {
@@ -59,20 +60,21 @@ class EncryptPiiCommand extends Command
 
             if (! $this->confirm('Have you taken a backup and are ready to proceed?')) {
                 $this->info('Aborted. No changes made.');
+
                 return self::SUCCESS;
             }
         }
 
         $totalEncrypted = 0;
-        $totalSkipped   = 0;
-        $totalErrors    = 0;
+        $totalSkipped = 0;
+        $totalErrors = 0;
 
         foreach (self::TARGETS as $table => $fields) {
             $this->info("  Processing table: {$table}");
             [$encrypted, $skipped, $errors] = $this->encryptTable($table, $fields, $dryRun);
             $totalEncrypted += $encrypted;
-            $totalSkipped   += $skipped;
-            $totalErrors    += $errors;
+            $totalSkipped += $skipped;
+            $totalErrors += $errors;
         }
 
         $this->info('');
@@ -87,6 +89,7 @@ class EncryptPiiCommand extends Command
 
         if ($totalErrors > 0) {
             $this->error("  {$totalErrors} row(s) had errors. Check logs for details.");
+
             return self::FAILURE;
         }
 
@@ -96,7 +99,7 @@ class EncryptPiiCommand extends Command
             $this->info('  ✓ PII encryption complete.');
             Log::info('PII encryption migration completed', [
                 'encrypted' => $totalEncrypted,
-                'skipped'   => $totalSkipped,
+                'skipped' => $totalSkipped,
             ]);
         }
 
@@ -111,12 +114,17 @@ class EncryptPiiCommand extends Command
     private function encryptTable(string $table, array $fields, bool $dryRun): array
     {
         $encrypted = 0;
-        $skipped   = 0;
-        $errors    = 0;
+        $skipped = 0;
+        $errors = 0;
 
         // Read raw database values — bypass model casts entirely
         DB::table($table)->orderBy('id')->chunk(200, function ($rows) use (
-            $table, $fields, $dryRun, &$encrypted, &$skipped, &$errors
+            $table,
+            $fields,
+            $dryRun,
+            &$encrypted,
+            &$skipped,
+            &$errors
         ) {
             foreach ($rows as $row) {
                 $updates = [];
@@ -147,7 +155,7 @@ class EncryptPiiCommand extends Command
                     try {
                         DB::table($table)->where('id', $row->id)->update($updates);
                         $encrypted += count($updates);
-                    } catch (\Throwable $e) {
+                    } catch (Throwable $e) {
                         $errors++;
                         Log::error("PII encryption failed for {$table} row {$row->id}", [
                             'error' => $e->getMessage(),

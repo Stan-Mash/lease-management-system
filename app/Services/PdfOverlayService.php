@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\DigitalSignature;
 use App\Models\Lease;
+use InvalidArgumentException;
 use setasign\Fpdi\Fpdi;
 
 /**
@@ -18,14 +19,14 @@ class PdfOverlayService
     /**
      * Stamp text fields onto an uploaded PDF template.
      *
-     * @param  array<string, string>  $fields  ['tenant_name' => 'John Doe', 'unit_code' => '484A-001', ...]
-     * @param  array<string, array{page: int, x: float, y: float, size?: int, color?: string}>  $coordinates  field => [page, x, y, fontSize?, fontColor?]
+     * @param array<string, string> $fields ['tenant_name' => 'John Doe', 'unit_code' => '484A-001', ...]
+     * @param array<string, array{page: int, x: float, y: float, size?: int, color?: string}> $coordinates field => [page, x, y, fontSize?, fontColor?]
      */
     public function stampFields(
         string $sourcePdfPath,
         array $fields,
         array $coordinates,
-        string $outputPath
+        string $outputPath,
     ): string {
         $pdf = new Fpdi('P', 'mm', 'A4');
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
@@ -69,10 +70,10 @@ class PdfOverlayService
         float $y,
         float $width,
         float $height,
-        string $outputPath
+        string $outputPath,
     ): string {
         if (! file_exists($signaturePngPath)) {
-            throw new \InvalidArgumentException("Signature file not found: {$signaturePngPath}");
+            throw new InvalidArgumentException("Signature file not found: {$signaturePngPath}");
         }
 
         $pdf = new Fpdi('P', 'mm', 'A4');
@@ -104,7 +105,7 @@ class PdfOverlayService
         Lease $lease,
         DigitalSignature $tenantSig,
         DigitalSignature $managerSig,
-        string $outputPath
+        string $outputPath,
     ): string {
         $ref = $lease->reference_number ?? 'N/A';
         $hashPrefix = $managerSig->verification_hash

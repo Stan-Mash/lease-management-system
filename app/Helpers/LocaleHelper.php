@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Helpers;
 
-use App\Models\Tenant;
 use App\Enums\PreferredLanguage;
+use App\Models\Tenant;
 
 /**
  * Tenant-level localization for lease-related strings (SMS, email, portal).

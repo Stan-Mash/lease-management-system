@@ -30,17 +30,17 @@ class LeasePdfService
         $needsDraft = $this->needsDraftWatermark($lease);
 
         // Tenant signature — the drawn canvas signature from the signing portal
-        $tenantSignature     = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first()
+        $tenantSignature = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first()
             ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: any signature (legacy rows have no signer_type)
-        $tenantSigPath       = $tenantSignature ? $this->writeSignatureTempFile($tenantSignature) : null;
+        $tenantSigPath = $tenantSignature ? $this->writeSignatureTempFile($tenantSignature) : null;
 
         // Manager countersignature — drawn by the property manager on countersign
-        $managerSignature    = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
-        $managerSigPath      = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
+        $managerSignature = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
+        $managerSigPath = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
 
         // Legacy alias — keeps Strategy 3 Blade views working without change
-        $digitalSignature    = $tenantSignature;
-        $signatureImagePath  = $tenantSigPath;
+        $digitalSignature = $tenantSignature;
+        $signatureImagePath = $tenantSigPath;
 
         try {
             // Strategy 0: Landlord-provided PDF with coordinate map — stamp fields + signatures
@@ -75,7 +75,7 @@ class LeasePdfService
                                 (float) ($coord['y'] ?? 240),
                                 (float) ($coord['width'] ?? 50),
                                 (float) ($coord['height'] ?? 20),
-                                $step2
+                                $step2,
                             );
                             @unlink($current);
                             $current = $step2;
@@ -91,7 +91,7 @@ class LeasePdfService
                                 (float) ($coord['y'] ?? 260),
                                 (float) ($coord['width'] ?? 50),
                                 (float) ($coord['height'] ?? 20),
-                                $next
+                                $next,
                             );
                             if ($current !== $step1) {
                                 @unlink($current);
@@ -120,7 +120,7 @@ class LeasePdfService
                     } catch (Exception $e) {
                         Log::warning('LeasePdfService: PDF overlay strategy failed, falling back to template', [
                             'lease_id' => $lease->id,
-                            'error'    => $e->getMessage(),
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -140,7 +140,7 @@ class LeasePdfService
                 } catch (Exception $e) {
                     Log::warning('LeasePdfService: custom template failed, trying default', [
                         'lease_id' => $lease->id,
-                        'error'    => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -164,7 +164,7 @@ class LeasePdfService
                 } catch (Exception $e) {
                     Log::warning('LeasePdfService: default template failed, trying hardcoded view', [
                         'lease_id' => $lease->id,
-                        'error'    => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -173,23 +173,23 @@ class LeasePdfService
             $viewName = match ($lease->lease_type) {
                 'residential_major' => 'pdf.residential-major',
                 'residential_micro' => 'pdf.residential-micro',
-                'commercial'        => 'pdf.commercial',
-                default             => 'pdf.residential-major',
+                'commercial' => 'pdf.commercial',
+                default => 'pdf.residential-major',
             };
 
             $data = [
-                'lease'              => $lease,
-                'tenant'             => $lease->tenant,
-                'unit'               => $lease->unit,
-                'landlord'           => $lease->landlord,
-                'property'           => $lease->property,
-                'today'              => now()->format('d/m/Y'),
+                'lease' => $lease,
+                'tenant' => $lease->tenant,
+                'unit' => $lease->unit,
+                'landlord' => $lease->landlord,
+                'property' => $lease->property,
+                'today' => now()->format('d/m/Y'),
                 // Tenant signature (legacy variable name kept for backward compat with Blade views)
-                'digitalSignature'   => $tenantSignature,
+                'digitalSignature' => $tenantSignature,
                 'signatureImagePath' => $tenantSigPath,
                 // Manager countersignature
-                'managerSignature'   => $managerSignature,
-                'managerSigPath'     => $managerSigPath,
+                'managerSignature' => $managerSignature,
+                'managerSigPath' => $managerSigPath,
             ];
 
             $pdf = Pdf::loadView($viewName, $data);
@@ -243,8 +243,9 @@ class LeasePdfService
             file_put_contents($path, $imageData);
 
             return $path;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::warning('Could not write signature temp file', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -268,7 +269,7 @@ class LeasePdfService
         // or just the tenant if the manager hasn't countersigned yet.
         $sigBlock = '';
 
-        $hasTenant  = $tenantSigPath && file_exists($tenantSigPath) && $tenantSignature;
+        $hasTenant = $tenantSigPath && file_exists($tenantSigPath) && $tenantSignature;
         $hasManager = $managerSigPath && file_exists($managerSigPath) && $managerSignature;
 
         if ($hasTenant || $hasManager) {
@@ -281,7 +282,7 @@ class LeasePdfService
             $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>TENANT SIGNATURE</strong></p>';
             if ($hasTenant) {
                 $tenantSignedAt = $tenantSignature->created_at?->format('d M Y, h:i A') ?? '';
-                $tenantIp       = htmlspecialchars($tenantSignature->ip_address ?? 'N/A');
+                $tenantIp = htmlspecialchars($tenantSignature->ip_address ?? 'N/A');
                 $sigBlock .= '<img src="' . $tenantSigPath . '" alt="Tenant Signature"
                     style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
                 $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">Signed: ' . $tenantSignedAt . '<br>IP: ' . $tenantIp . '</p>';
@@ -296,8 +297,8 @@ class LeasePdfService
             $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>PROPERTY MANAGER SIGNATURE</strong></p>';
             if ($hasManager) {
                 $mgrSignedAt = $managerSignature->created_at?->format('d M Y, h:i A') ?? '';
-                $mgrName     = htmlspecialchars($managerSignature->signed_by_name ?? 'Property Manager');
-                $mgrIp       = htmlspecialchars($managerSignature->ip_address ?? 'N/A');
+                $mgrName = htmlspecialchars($managerSignature->signed_by_name ?? 'Property Manager');
+                $mgrIp = htmlspecialchars($managerSignature->ip_address ?? 'N/A');
                 $sigBlock .= '<img src="' . $managerSigPath . '" alt="Manager Signature"
                     style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
                 $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">' . $mgrName . '<br>Signed: ' . $mgrSignedAt . '<br>IP: ' . $mgrIp . '</p>';

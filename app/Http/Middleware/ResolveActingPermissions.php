@@ -59,7 +59,7 @@ class ResolveActingPermissions
      */
     protected function resolveActingContext(Request $request, User $user): void
     {
-        $cacheKey    = "acting_context:user:{$user->id}:for:{$user->acting_for_user_id}";
+        $cacheKey = "acting_context:user:{$user->id}:for:{$user->acting_for_user_id}";
         $actingAttrs = Cache::remember($cacheKey, 300, function () use ($user) {
             $zoneManager = User::find($user->acting_for_user_id);
 
@@ -68,11 +68,11 @@ class ResolveActingPermissions
             }
 
             return [
-                'id'           => $zoneManager->id,
-                'name'         => $zoneManager->name,
-                'role'         => $zoneManager->role,
+                'id' => $zoneManager->id,
+                'name' => $zoneManager->name,
+                'role' => $zoneManager->role,
                 'role_display' => $zoneManager->getRoleDisplayName(),
-                'zone_id'      => $zoneManager->zone_id,
+                'zone_id' => $zoneManager->zone_id,
             ];
         });
 

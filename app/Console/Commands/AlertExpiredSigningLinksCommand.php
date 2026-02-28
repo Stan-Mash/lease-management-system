@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\Lease;
 use App\Helpers\LocaleHelper;
+use App\Models\Lease;
 use App\Models\User;
 use App\Notifications\LeaseSigningLinkExpiredNotification;
 use App\Services\SMSService;

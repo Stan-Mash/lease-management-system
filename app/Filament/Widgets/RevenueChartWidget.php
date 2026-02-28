@@ -62,7 +62,7 @@ class RevenueChartWidget extends ChartWidget
 
     protected function getChartData(): array
     {
-        $groupBy    = $this->getGroupingPeriod();
+        $groupBy = $this->getGroupingPeriod();
         $periodExpr = $this->getDateSelectExpression($groupBy);
 
         $cacheKey = 'widget:revenue_chart:'
@@ -72,7 +72,7 @@ class RevenueChartWidget extends ChartWidget
             . ($this->startDate ?? '') . ':'
             . ($this->endDate ?? '');
 
-        $revenueData = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($periodExpr, $groupBy) {
+        $revenueData = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($periodExpr) {
             $query = $this->getFilteredQuery();
 
             return (clone $query)

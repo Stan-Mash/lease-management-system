@@ -16,7 +16,7 @@ class SafeDownloadFilename
      * Return a safe filename for use in Content-Disposition.
      * Strips path components, control chars, and keeps only safe characters.
      */
-    public static function make(string|null $filename, string $fallback = 'document'): string
+    public static function make(?string $filename, string $fallback = 'document'): string
     {
         if ($filename === null || trim($filename) === '') {
             return $fallback;

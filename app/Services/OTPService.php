@@ -181,7 +181,7 @@ class OTPService
         if ($otp->expires_at && now()->isAfter($otp->expires_at)) {
             Log::info('OTP rejected — server-side expiry enforced', [
                 'lease_id' => $lease->id,
-                'otp_id'   => $otp->id,
+                'otp_id' => $otp->id,
                 'expired_at' => $otp->expires_at->toIso8601String(),
             ]);
             // Mark as expired so it is excluded from future valid() queries

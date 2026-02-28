@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 /**
  * Validates Blade template content submitted by admin users before storage.
@@ -19,6 +19,7 @@ class TemplateSanitizer
 {
     /**
      * PHP functions and language constructs that are NEVER allowed inside
+     *
      * @php blocks or Blade expressions in lease templates.
      */
     private const BLOCKED_PATTERNS = [
@@ -57,15 +58,15 @@ class TemplateSanitizer
     /**
      * Validate template content and throw if dangerous patterns are found.
      *
-     * @throws \InvalidArgumentException with a human-readable message safe to show in UI
+     * @throws InvalidArgumentException with a human-readable message safe to show in UI
      */
     public function assertSafe(string $template): void
     {
         // Reject raw PHP open tags — only @php/@endphp is allowed
         if (preg_match('/<\?php|<\?=/i', $template)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 'Direct PHP tags (<?php, <?=) are not permitted in templates. ' .
-                'Use @php/@endphp Blade directives instead.'
+                'Use @php/@endphp Blade directives instead.',
             );
         }
 
@@ -75,9 +76,9 @@ class TemplateSanitizer
             // Use word-boundary matching to avoid false positives
             // e.g. "system" should not match "systemVersion"
             if (preg_match('/\b' . preg_quote(strtolower($pattern), '/') . '\s*[\(\:]/i', $lowerTemplate)) {
-                throw new \InvalidArgumentException(
+                throw new InvalidArgumentException(
                     "Template contains a disallowed function or keyword: [{$pattern}]. " .
-                    'Contact a system administrator if this is a legitimate requirement.'
+                    'Contact a system administrator if this is a legitimate requirement.',
                 );
             }
         }
@@ -90,8 +91,9 @@ class TemplateSanitizer
     {
         try {
             $this->assertSafe($template);
+
             return true;
-        } catch (\InvalidArgumentException) {
+        } catch (InvalidArgumentException) {
             return false;
         }
     }

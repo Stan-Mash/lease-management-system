@@ -89,6 +89,7 @@ class LeaseDocumentController extends Controller
             }
 
             $safeName = SafeDownloadFilename::make($leaseDocument->original_filename, 'document-' . $leaseDocument->id);
+
             return response()->file($extractedPath, [
                 'Content-Type' => $leaseDocument->mime_type,
                 'Content-Disposition' => 'inline; filename="' . addslashes($safeName) . '"',
@@ -96,6 +97,7 @@ class LeaseDocumentController extends Controller
         }
 
         $safeName = SafeDownloadFilename::make($leaseDocument->original_filename, 'document-' . $leaseDocument->id);
+
         return response()->file($filePath, [
             'Content-Type' => $leaseDocument->mime_type,
             'Content-Disposition' => 'inline; filename="' . addslashes($safeName) . '"',
