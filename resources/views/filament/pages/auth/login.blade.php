@@ -126,21 +126,19 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 }
 .cb-login-wrap::before {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(90deg,
-        rgba(255,253,245,.42) 0%, rgba(254,249,231,.5) 48%,
-        rgba(15,23,42,.35) 52%, rgba(15,23,42,.45) 100%);
+    background: rgba(0,0,0,.22);
     pointer-events: none;
 }
 .cb-login-wrap > * { position: relative; z-index: 1; }
 
-/* ── Left panel: light cream tint so image shows through ── */
+/* ── Left panel: solid brand panel (no washed-out image) ── */
 .cb-left-panel {
     display: none;
     width: 52%;
     position: relative;
     overflow: hidden;
     flex-direction: column;
-    background: linear-gradient(150deg, rgba(255,253,245,.55) 0%, rgba(254,249,231,.6) 45%, rgba(253,243,200,.5) 100%);
+    background: linear-gradient(160deg, #fffdf8 0%, #fef9eb 50%, #fdf6e0 100%);
 }
 @media (min-width: 1024px) {
     .cb-left-panel  { display: flex !important; }
@@ -252,8 +250,8 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-welcome-sub    { font-size: .875rem; color: rgba(255,255,255,.85); margin: 0; line-height: 1.5; }
 
 .cb-card           { border-radius: 16px; background: #fff;
-                     box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 40px rgba(218,165,32,.1);
-                     border: 1px solid rgba(218,165,32,.2);
+                     box-shadow: 0 4px 6px rgba(0,0,0,.08), 0 20px 50px rgba(0,0,0,.25);
+                     border: 1px solid rgba(255,255,255,.4);
                      border-top: 3px solid #DAA520; overflow: hidden; }
 .cb-card-inner     { padding: 1.75rem; }
 
