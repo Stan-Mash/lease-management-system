@@ -128,7 +128,7 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
     content: ''; position: absolute; inset: 0;
     background: linear-gradient(90deg,
         rgba(255,253,245,.88) 0%, rgba(254,249,231,.9) 48%,
-        rgba(15,23,42,.68) 52%, rgba(15,23,42,.82) 100%);
+        rgba(15,23,42,.35) 52%, rgba(15,23,42,.45) 100%);
     pointer-events: none;
 }
 .cb-login-wrap > * { position: relative; z-index: 1; }
