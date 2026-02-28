@@ -127,20 +127,20 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-login-wrap::before {
     content: ''; position: absolute; inset: 0;
     background: linear-gradient(90deg,
-        rgba(255,253,245,.88) 0%, rgba(254,249,231,.9) 48%,
+        rgba(255,253,245,.42) 0%, rgba(254,249,231,.5) 48%,
         rgba(15,23,42,.35) 52%, rgba(15,23,42,.45) 100%);
     pointer-events: none;
 }
 .cb-login-wrap > * { position: relative; z-index: 1; }
 
-/* ── Left panel: cream tint over image ── */
+/* ── Left panel: light cream tint so image shows through ── */
 .cb-left-panel {
     display: none;
     width: 52%;
     position: relative;
     overflow: hidden;
     flex-direction: column;
-    background: linear-gradient(150deg, rgba(255,253,245,.92) 0%, rgba(254,249,231,.92) 45%, rgba(253,243,200,.85) 100%);
+    background: linear-gradient(150deg, rgba(255,253,245,.55) 0%, rgba(254,249,231,.6) 45%, rgba(253,243,200,.5) 100%);
 }
 @media (min-width: 1024px) {
     .cb-left-panel  { display: flex !important; }
