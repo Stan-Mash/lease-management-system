@@ -15,7 +15,9 @@
         <div class="cb-panel-content">
 
             <div class="cb-logo-area">
-                <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
+                <div class="cb-logo-pill">
+                    <img src="{{ asset('images/Chabrin-Logo-background.png') }}" alt="Chabrin Agencies" class="cb-logo-img">
+                </div>
                 <div class="cb-logo-badge">
                     <span class="cb-badge-dot"></span>
                     <span class="cb-badge-text">Lease Management System</span>
@@ -79,6 +81,9 @@
             <div class="cb-card">
                 <div class="cb-card-inner">
                     {{ $this->content }}
+                    <div class="cb-forgot-wrap">
+                        <a href="{{ route('password.request') }}" class="cb-forgot-link">Forgot password?</a>
+                    </div>
                 </div>
             </div>
 
@@ -92,6 +97,10 @@
                 </span>
                 <span class="cb-meta-sep"></span>
                 <span>Chabrin Agencies Ltd</span>
+                <span class="cb-meta-sep"></span>
+                <a href="#" class="cb-meta-link" aria-label="Privacy policy">Privacy</a>
+                <span class="cb-meta-sep"></span>
+                <a href="#" class="cb-meta-link" aria-label="Terms of service">Terms</a>
                 <span class="cb-meta-sep"></span>
                 <span>{{ date('Y') }}</span>
             </div>
@@ -183,7 +192,9 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 }
 
 .cb-logo-area      { position: relative; z-index: 10; padding: 2.5rem 3rem; flex-shrink: 0; }
-.cb-logo-img       { height: 52px; width: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,.8)); }
+.cb-logo-pill      { display: inline-block; padding: .75rem 1.25rem; border-radius: 9999px;
+                     background: rgba(255,255,255,.22); box-shadow: 0 0 24px rgba(255,255,255,.25), 0 2px 8px rgba(0,0,0,.3); }
+.cb-logo-img       { height: 52px; width: auto; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
 .cb-logo-badge     { margin-top: .9rem; display: inline-flex; align-items: center; gap: 6px;
                      background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.4);
                      border-radius: 99px; padding: 3px 10px; }
@@ -220,7 +231,7 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
                      display: flex; align-items: center; justify-content: center; font-size: .9rem;
                      background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.3); }
 .cb-feature-text   { color: #fff; font-size: .95rem; font-weight: 600;
-                     text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.7); }
+                     text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 12px rgba(0,0,0,.6), 0 2px 2px rgba(0,0,0,.5); }
 
 .cb-left-footer    { position: relative; z-index: 10; flex-shrink: 0; padding: 1.1rem 3rem;
                      border-top: 1px solid rgba(255,255,255,.25);
@@ -266,7 +277,23 @@ body.fi-body { background: #fff !important; margin: 0 !important; padding: 0 !im
 .cb-card-inner     { padding: 1.75rem; }
 .cb-form-wrap label, .cb-card label, .cb-card .fi-fo-field-wrp-label { font-weight: 600 !important; font-size: .9375rem !important; color: #1f2937 !important; }
 .cb-form-wrap input::placeholder { font-weight: 500; }
-.cb-form-wrap button[type="submit"] { font-weight: 700 !important; }
+.cb-form-wrap button[type="submit"] { font-weight: 700 !important;
+    background: linear-gradient(180deg, #e8b923 0%, #c99510 50%, #b8860b 100%) !important;
+    box-shadow: 0 2px 8px rgba(184,134,11,.4), inset 0 1px 0 rgba(255,255,255,.25);
+    transition: transform .15s ease, box-shadow .15s ease; }
+.cb-form-wrap button[type="submit"]:hover { transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(184,134,11,.45), inset 0 1px 0 rgba(255,255,255,.3); }
+.cb-form-wrap button[type="submit"]:active { transform: translateY(0); }
+.cb-form-wrap [type="password"] + div button, .cb-form-wrap [x-ref="togglePassword"] { color: #1f2937 !important; opacity: 1; }
+.cb-card .fi-fo-field-wrp-error-message { margin-top: .35rem; font-size: .875rem; font-weight: 600; color: #dc2626; }
+.cb-card [data-validation-error] input, .cb-card .fi-input-error input, .cb-card input:invalid.ring-danger-500 { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,.25); }
+.cb-forgot-wrap    { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+.cb-forgot-link    { font-size: .9rem; font-weight: 600; color: #b8860b; text-decoration: none; }
+.cb-forgot-link:hover { color: #92670a; text-decoration: underline; }
+.cb-meta-link      { color: #fff; font-weight: 600; text-decoration: none; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.cb-meta-link:hover { text-decoration: underline; }
+.cb-form-wrap button[type="submit"]:disabled { opacity: .85; cursor: wait; }
+.cb-form-wrap button[type="submit"] .fi-btn-loading-icon { margin-right: .5rem; }
 
 .cb-meta           { margin-top: 1.75rem; display: flex; align-items: center;
                      justify-content: center; gap: .75rem; font-size: .8rem; font-weight: 600; color: #fff;

@@ -13,6 +13,11 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
+// Password reset request (for login page "Forgot password?" link)
+Route::get('/forgot-password', function () {
+    return view('auth.forgot-password');
+})->name('password.request');
+
 // Public lease verification routes (no auth required)
 Route::get('/verify/lease', [LeaseVerificationController::class, 'show'])
     ->name('lease.verify');
