@@ -78,7 +78,8 @@ class LeaseTemplateResource extends Resource
                                         'system_default' => 'System Default',
                                     ])
                                     ->required()
-                                    ->default('custom_blade'),
+                                    ->default('custom_blade')
+                                    ->live(),
 
                                 Forms\Components\Textarea::make('description')
                                     ->rows(3)
@@ -127,13 +128,12 @@ class LeaseTemplateResource extends Resource
                                         return is_array($decoded) ? $decoded : null;
                                     })
                                     ->formatStateUsing(function (?array $state): ?string {
-                                        if ($state === null) {
+                                        if ($state === null || ! is_array($state)) {
                                             return null;
                                         }
                                         return json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
                                     }),
-                            ])
-                            ->visible(fn ($get) => $get('source_type') === 'uploaded_pdf'),
+                            ]),
 
                         // Tab 3: Template Editor
                         Tabs\Tab::make('Template Editor')
