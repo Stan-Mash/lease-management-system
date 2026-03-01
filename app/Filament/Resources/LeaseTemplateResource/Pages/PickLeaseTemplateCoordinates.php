@@ -12,7 +12,7 @@ class PickLeaseTemplateCoordinates extends Page
 {
     protected static string $resource = LeaseTemplateResource::class;
 
-    protected static string $view = 'filament.resources.lease-template-resource.pages.pick-lease-template-coordinates';
+    protected string $view = 'filament.resources.lease-template-resource.pages.pick-lease-template-coordinates';
 
     protected static ?string $title = 'Pick Field Positions';
 
