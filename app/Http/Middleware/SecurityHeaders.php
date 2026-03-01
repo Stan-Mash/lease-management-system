@@ -60,7 +60,17 @@ class SecurityHeaders
             );
         }
 
-        // Remove server fingerprinting headers
+        // Remove server fingerprinting headers.
+        // $response->headers->remove() only removes headers set by Laravel/Symfony.
+        // PHP's SAPI (built-in server, Apache mod_php, FPM) sets X-Powered-By at the
+        // C level before Laravel runs. header_remove() operates on PHP's own header list
+        // and is the only way to suppress the SAPI-injected X-Powered-By header.
+        // ini_set('expose_php', '0') is the canonical fix, but header_remove() works at
+        // runtime without needing php.ini access.
+        if (function_exists('header_remove')) {
+            header_remove('X-Powered-By');
+            header_remove('Server');
+        }
         $response->headers->remove('X-Powered-By');
         $response->headers->remove('Server');
 

@@ -15,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Redirect unauthenticated web requests to Filament's login page.
+        // Laravel's default Authenticate middleware calls route('login'), which does NOT
+        // exist — this app uses Filament (filament.admin.auth.login) instead of a vanilla
+        // login page. Without this, unauthenticated access throws RouteNotFoundException (500).
+        $middleware->redirectGuestsTo(fn () => route('filament.admin.auth.login'));
+
         // Apply security headers to every response
         $middleware->append(App\Http\Middleware\SecurityHeaders::class);
 

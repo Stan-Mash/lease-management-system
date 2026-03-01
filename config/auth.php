@@ -40,6 +40,18 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Sanctum guard used by API routes (auth:sanctum middleware).
+        // Laravel Sanctum is not installed as a separate package — routes/web.php
+        // serves the landlord and field-officer API endpoints through the session
+        // middleware stack, so a session-backed guard is appropriate here.
+        // Without this entry, auth:sanctum throws InvalidArgumentException (500).
+        // TODO: install laravel/sanctum for full token-based API auth if a mobile
+        //       client that cannot use cookies is required.
+        'sanctum' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
     ],
 
     /*

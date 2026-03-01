@@ -121,11 +121,33 @@ class TemplateSanitizer
         // 4. Block variable-function calls: $someVar('arg') or $someVar::method().
         //    An attacker can assign a dangerous function to a variable and call it:
         //    @php $f = 'system'; $f('id'); @endphp
-        //    We block the call syntax (\$identifier followed by ( or ::) inside @php blocks.
-        if (preg_match('/@php.*?\$\w+\s*[\(\:]{2}/si', $template)) {
+        //
+        //    SECURITY BUG FIX: original regex was `[\(\:]{2}` (TWO characters from the set),
+        //    which only matched `::` or `((` — it did NOT match a single `$f(`.
+        //    Correct pattern: `\(` (single open paren) to catch `$f("id")` style calls,
+        //    plus `::` via a separate alternation to catch static dispatch `$Cls::method()`.
+        //
+        //    The check is scoped to `@php ... @endphp` blocks only (the `.*?` non-greedy
+        //    match with the `s` flag). Blade `{{ $var }}` expressions do not execute PHP
+        //    function calls, so they are not affected.
+        if (preg_match('/@php.*?\$\w+\s*(?:\(|::)/si', $template)) {
             throw new InvalidArgumentException(
-                'Template contains a variable function call pattern which is not permitted. ' .
+                'Template contains a variable function or static-dispatch call pattern ($var(...) or $Cls::method()) which is not permitted. ' .
                 'Use named functions directly instead.',
+            );
+        }
+
+        // 5. Block IIFE / expression-result invocation: ($expr)('arg')
+        //    PHP 7+ allows calling the result of a parenthesised expression:
+        //    ($f = 'system')('id') — this bypasses the $var( check above
+        //    because the call site has no $identifier immediately before (.
+        //    The signature is `)` followed by optional whitespace then `(` inside a @php block.
+        //    Legitimate templates never need this construct; arithmetic like max(0, min(100, $v))
+        //    has `)` then `)`, not `)` then `(`.
+        if (preg_match('/@php.*?\)\s*\(/si', $template)) {
+            throw new InvalidArgumentException(
+                'Template contains an expression-invocation pattern (...)(args) which is not permitted. ' .
+                'Contact a system administrator if this is a legitimate requirement.',
             );
         }
     }
