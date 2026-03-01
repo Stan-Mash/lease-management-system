@@ -50,18 +50,13 @@ class PickLeaseTemplateCoordinates extends Page
             $this->redirect(LeaseTemplateResource::getUrl('edit', ['record' => $this->record]));
         }
 
-        // Resolve PDF URL for browser access
+        // Use the same path resolution as TemplatePreviewController so the file is found
+        // in public, app, or app/private. Always use the serve-pdf route so the PDF is
+        // served with auth and correct headers (no dependency on storage symlink).
         $path = $this->record->source_pdf_path;
-        foreach (['public', null] as $disk) {
-            $fullPath = $disk
-                ? storage_path('app/public/' . $path)
-                : storage_path('app/' . $path);
-            if (file_exists($fullPath)) {
-                $this->pdfUrl = $disk
-                    ? asset('storage/' . $path)
-                    : route('templates.serve-pdf', ['template' => $this->record->id]);
-                break;
-            }
+        $fullPath = $this->resolveSourcePdfPath($path);
+        if ($fullPath && file_exists($fullPath)) {
+            $this->pdfUrl = route('templates.serve-pdf', ['template' => $this->record->id]);
         }
 
         if (! $this->pdfUrl) {
@@ -71,6 +66,28 @@ class PickLeaseTemplateCoordinates extends Page
                 ->danger()
                 ->send();
         }
+    }
+
+    /**
+     * Resolve the full filesystem path for the template's source PDF.
+     * Must match TemplatePreviewController::resolveSourcePdfPath() so serve-pdf finds the same file.
+     */
+    private function resolveSourcePdfPath(string $path): ?string
+    {
+        $candidates = [
+            Storage::disk('public')->path($path),
+            storage_path('app/public/' . $path),
+            storage_path('app/' . $path),
+            storage_path('app/private/' . $path),
+        ];
+
+        foreach ($candidates as $fullPath) {
+            if (file_exists($fullPath)) {
+                return $fullPath;
+            }
+        }
+
+        return null;
     }
 
     public function saveCoordinates(array $coordinates): void
