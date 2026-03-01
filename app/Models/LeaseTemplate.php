@@ -170,7 +170,14 @@ class LeaseTemplate extends Model
             // Only create version if blade_content or css_styles changed (not version_number)
             if (($template->wasChanged('blade_content') || $template->wasChanged('css_styles'))
                 && ! $template->wasChanged('version_number')) {
-                $template->createVersionSnapshot('Template updated');
+                try {
+                    $template->createVersionSnapshot('Template updated');
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('LeaseTemplate version snapshot failed', [
+                        'template_id' => $template->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         });
     }

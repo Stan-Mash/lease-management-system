@@ -109,6 +109,18 @@ If the PDF Upload tab shows "Error during upload" or "source_pdf_path failed to 
 
 4. **Nginx** — `client_max_body_size` ≥ 10M in the server block.
 
+### "Error while loading page" when clicking Save
+
+If the edit form shows this generic error on save:
+
+1. **Check PHP limits** — Lease template forms (blade_content, etc.) can be large. Ensure `php.ini` has:
+   - `post_max_size` = 20M or higher
+   - `upload_max_filesize` = 20M or higher
+
+2. **Check Laravel log** — On the server: `tail -50 storage/logs/laravel.log` for the actual exception (validation, database, etc.).
+
+3. **Save in steps** — If you only changed the PDF Upload tab, try saving the Basic Information tab first, then the PDF, to reduce payload size.
+
 ---
 
 ## Summary

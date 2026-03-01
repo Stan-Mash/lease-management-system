@@ -4,9 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LeaseTemplateResource\Pages;
 use App\Models\LeaseTemplate;
-use App\Services\TemplateSanitizer;
+use App\Rules\SafeTemplateRule;
 use BackedEnum;
-use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -18,7 +17,6 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use InvalidArgumentException;
 use UnitEnum;
 
 class LeaseTemplateResource extends Resource
@@ -150,13 +148,7 @@ class LeaseTemplateResource extends Resource
                                     ->rules([
                                         'required',
                                         'string',
-                                        static function (string $attribute, mixed $value, Closure $fail) {
-                                            try {
-                                                app(TemplateSanitizer::class)->assertSafe($value);
-                                            } catch (InvalidArgumentException $e) {
-                                                $fail($e->getMessage());
-                                            }
-                                        },
+                                        new SafeTemplateRule(),
                                     ])
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, \Filament\Schemas\Components\Utilities\Set $set) {
