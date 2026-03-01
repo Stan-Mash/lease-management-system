@@ -90,6 +90,27 @@ Coordinates are in PDF points (72 points ≈ 1 inch). You can measure positions 
 
 ---
 
+## Troubleshooting: PDF upload errors
+
+If the PDF Upload tab shows "Error during upload" or "source_pdf_path failed to upload":
+
+1. **Livewire temp disk** — The app uses `temporary_file_upload.disk = 'public'` so temp uploads go to `storage/app/public`. Ensure that directory is writable by the web server.
+
+2. **On the server** (with sudo if needed):
+   ```bash
+   mkdir -p storage/app/public/livewire-tmp storage/app/public/templates/source-pdfs
+   sudo chown -R www-data:www-data storage
+   sudo chmod -R 775 storage
+   php artisan storage:link
+   php artisan config:clear
+   ```
+
+3. **PHP limits** — `upload_max_filesize` and `post_max_size` ≥ 10M in php.ini.
+
+4. **Nginx** — `client_max_body_size` ≥ 10M in the server block.
+
+---
+
 ## Summary
 
 | Approach | What happens | Looks like uploaded PDF? |
