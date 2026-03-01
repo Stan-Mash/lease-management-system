@@ -168,6 +168,30 @@ class TemplatePreviewController extends Controller
     }
 
     /**
+     * Serve the raw source PDF file (for coordinate picker)
+     */
+    public function servePdf(LeaseTemplate $template)
+    {
+        $path = $template->source_pdf_path;
+        if (empty($path)) {
+            abort(404, 'No source PDF');
+        }
+
+        $fullPath = storage_path('app/' . $path);
+        if (! file_exists($fullPath)) {
+            $fullPath = storage_path('app/public/' . $path);
+        }
+        if (! file_exists($fullPath)) {
+            abort(404, 'PDF file not found');
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
+        ]);
+    }
+
+    /**
      * Create a mock lease object from sample data
      */
     protected function createMockLeaseFromSample(array $sampleData): object

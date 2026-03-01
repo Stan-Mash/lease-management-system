@@ -47,6 +47,9 @@ class LeasePdfService
             $template = $lease->leaseTemplate;
             if ($template && $template->source_pdf_path && $template->pdf_coordinate_map) {
                 $sourcePath = storage_path('app/' . $template->source_pdf_path);
+                if (! file_exists($sourcePath)) {
+                    $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
+                }
                 if (file_exists($sourcePath)) {
                     try {
                         $outDir = storage_path('app/lease-pdf-overlay');

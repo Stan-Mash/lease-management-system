@@ -97,6 +97,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('preview-pdf');
         Route::get('/{template}/preview-html', [TemplatePreviewController::class, 'previewHtml'])
             ->name('preview-html');
+        Route::get('/{template}/serve-pdf', [TemplatePreviewController::class, 'servePdf'])
+            ->name('serve-pdf');
         Route::get('/preview-direct', [TemplatePreviewController::class, 'previewDirect'])
             ->name('preview-direct');
     });

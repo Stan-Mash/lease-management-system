@@ -13,6 +13,13 @@ class ViewLeaseTemplate extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('pickCoordinates')
+                ->label('Pick positions on PDF')
+                ->icon('heroicon-o-cursor-arrow-rays')
+                ->color('warning')
+                ->url(fn () => LeaseTemplateResource::getUrl('pick-coordinates', ['record' => $this->record]))
+                ->visible(fn () => ! empty($this->record->source_pdf_path)),
+
             Actions\Action::make('preview')
                 ->label('Preview Template')
                 ->icon('heroicon-o-eye')

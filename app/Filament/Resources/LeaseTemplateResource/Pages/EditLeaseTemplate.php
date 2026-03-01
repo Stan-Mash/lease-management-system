@@ -14,6 +14,14 @@ class EditLeaseTemplate extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('pickCoordinates')
+                ->label('Pick positions on PDF')
+                ->icon('heroicon-o-cursor-arrow-rays')
+                ->color('warning')
+                ->url(fn () => LeaseTemplateResource::getUrl('pick-coordinates', ['record' => $this->record]))
+                ->visible(fn () => ! empty($this->record->source_pdf_path))
+                ->tooltip('Click on the PDF to mark where each field appears (makes output match your PDF exactly)'),
+
             Actions\Action::make('preview_pdf')
                 ->label('Preview as PDF')
                 ->icon('heroicon-o-document')

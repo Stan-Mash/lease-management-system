@@ -108,6 +108,30 @@ class LeaseTemplateResource extends Resource
                                 Forms\Components\Placeholder::make('upload_info')
                                     ->content('After uploading a PDF, the template content will be automatically populated in the Template Editor tab.')
                                     ->columnSpanFull(),
+
+                                Forms\Components\Textarea::make('pdf_coordinate_map')
+                                    ->label('PDF coordinate map (optional)')
+                                    ->rows(12)
+                                    ->helperText(new \Illuminate\Support\HtmlString(
+                                        'To make generated leases <strong>look exactly like this PDF</strong>, provide a JSON map of field names to positions (page, x, y in points). '
+                                        . 'Keys: tenant_name, unit_code, property_name, monthly_rent, start_date, end_date, landlord_name, reference_number; '
+                                        . 'plus tenant_signature and manager_signature with width/height. See docs/LEASE_TEMPLATES_AND_PDF_LOOKALIKE.md.'
+                                    ))
+                                    ->placeholder('{"tenant_name":{"page":1,"x":120,"y":180},"tenant_signature":{"page":2,"x":140,"y":240,"width":80,"height":30},...}')
+                                    ->columnSpanFull()
+                                    ->dehydrateStateUsing(function (?string $state): ?array {
+                                        if (blank($state)) {
+                                            return null;
+                                        }
+                                        $decoded = json_decode($state, true);
+                                        return is_array($decoded) ? $decoded : null;
+                                    })
+                                    ->formatStateUsing(function (?array $state): ?string {
+                                        if ($state === null) {
+                                            return null;
+                                        }
+                                        return json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                                    }),
                             ])
                             ->visible(fn ($get) => $get('source_type') === 'uploaded_pdf'),
 
@@ -295,6 +319,13 @@ class LeaseTemplateResource extends Resource
                     ->url(fn ($record) => route('templates.preview-pdf', ['template' => $record]))
                     ->openUrlInNewTab()
                     ->tooltip('Preview with sample data'),
+                Action::make('pickCoordinates')
+                    ->label('Pick positions')
+                    ->icon('heroicon-o-cursor-arrow-rays')
+                    ->color('warning')
+                    ->url(fn ($record) => static::getUrl('pick-coordinates', ['record' => $record]))
+                    ->visible(fn ($record) => ! empty($record->source_pdf_path))
+                    ->tooltip('Click on the PDF to mark where each field appears (makes output match your PDF exactly)'),
                 Action::make('view')
                     ->label('View')
                     ->icon('heroicon-o-eye')
@@ -323,6 +354,7 @@ class LeaseTemplateResource extends Resource
             'create' => Pages\CreateLeaseTemplate::route('/create'),
             'view' => Pages\ViewLeaseTemplate::route('/{record}'),
             'edit' => Pages\EditLeaseTemplate::route('/{record}/edit'),
+            'pick-coordinates' => Pages\PickLeaseTemplateCoordinates::route('/{record}/pick-coordinates'),
         ];
     }
 }
