@@ -72,7 +72,7 @@
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800" style="max-height: 70vh;">
+                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 flex items-start justify-center" style="min-height: 70vh; max-height: 70vh;">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
                                 class="cursor-crosshair block mx-auto"
@@ -98,7 +98,6 @@
                     pdfUrl: @js($pdfUrl),
                     currentPage: 1,
                     totalPages: 1,
-                    scale: 1.5,
                     viewportSize: { width: 0, height: 0 },
                     selectedField: null,
                     isSignature: false,
@@ -140,7 +139,15 @@
                     async renderPage() {
                         if (!pdfDocRef) return;
                         const page = await pdfDocRef.getPage(this.currentPage);
-                        viewportRef = page.getViewport({ scale: this.scale });
+                        const container = document.getElementById('pdf-container');
+                        const baseViewport = page.getViewport({ scale: 1 });
+                        const containerW = container ? container.clientWidth : 800;
+                        const containerH = container ? container.clientHeight : 700;
+                        const scaleW = containerW / baseViewport.width;
+                        const scaleH = containerH / baseViewport.height;
+                        const scale = Math.min(scaleW, scaleH, 2);
+                        const fitScale = Math.max(0.5, scale);
+                        viewportRef = page.getViewport({ scale: fitScale });
                         this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
                         const canvas = document.getElementById('pdf-canvas');
                         const ctx = canvas.getContext('2d');
