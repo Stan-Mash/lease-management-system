@@ -87,16 +87,19 @@
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
         <script nonce="{{ $cspNonce ?? '' }}">
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
 
             function coordinatePicker() {
+                var pdfDocRef = null;
+                var viewportRef = null;
                 return {
                     pdfUrl: @js($pdfUrl),
-                    pdfDoc: null,
                     currentPage: 1,
                     totalPages: 1,
                     scale: 1.5,
-                    viewport: null,
+                    viewportSize: { width: 0, height: 0 },
                     selectedField: null,
                     isSignature: false,
                     coordinates: @js($record->pdf_coordinate_map ?? []),
@@ -106,6 +109,10 @@
                     },
 
                     async loadPdf() {
+                        if (typeof pdfjsLib === 'undefined') {
+                            alert('PDF viewer library could not be loaded. Check your connection or try again.');
+                            return;
+                        }
                         try {
                             const r = await fetch(this.pdfUrl, { method: 'GET', credentials: 'include' });
                             if (!r.ok) {
@@ -120,8 +127,8 @@
                                 throw new Error('PDF file is empty.');
                             }
                             const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-                            this.pdfDoc = await loadingTask.promise;
-                            this.totalPages = this.pdfDoc.numPages;
+                            pdfDocRef = await loadingTask.promise;
+                            this.totalPages = pdfDocRef.numPages;
                             await this.renderPage();
                         } catch (e) {
                             console.error('PDF load failed:', e);
@@ -131,14 +138,15 @@
                     },
 
                     async renderPage() {
-                        if (!this.pdfDoc) return;
-                        const page = await this.pdfDoc.getPage(this.currentPage);
-                        this.viewport = page.getViewport({ scale: this.scale });
+                        if (!pdfDocRef) return;
+                        const page = await pdfDocRef.getPage(this.currentPage);
+                        viewportRef = page.getViewport({ scale: this.scale });
+                        this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
                         const canvas = document.getElementById('pdf-canvas');
                         const ctx = canvas.getContext('2d');
-                        canvas.height = this.viewport.height;
-                        canvas.width = this.viewport.width;
-                        await page.render({ canvasContext: ctx, viewport: this.viewport }).promise;
+                        canvas.height = viewportRef.height;
+                        canvas.width = viewportRef.width;
+                        await page.render({ canvasContext: ctx, viewport: viewportRef }).promise;
                     },
 
                     async prevPage() {
@@ -161,15 +169,15 @@
                     },
 
                     onCanvasClick(ev) {
-                        if (!this.selectedField || !this.viewport) return;
+                        if (!this.selectedField || !this.viewportSize || !this.viewportSize.width) return;
                         const canvas = document.getElementById('pdf-canvas');
                         const rect = canvas.getBoundingClientRect();
                         const scaleX = canvas.width / rect.width;
                         const scaleY = canvas.height / rect.height;
                         const canvasX = (ev.clientX - rect.left) * scaleX;
                         const canvasY = (ev.clientY - rect.top) * scaleY;
-                        const pdfX = (canvasX / canvas.width) * this.viewport.width;
-                        const pdfY = this.viewport.height - (canvasY / canvas.height) * this.viewport.height;
+                        const pdfX = (canvasX / canvas.width) * this.viewportSize.width;
+                        const pdfY = this.viewportSize.height - (canvasY / canvas.height) * this.viewportSize.height;
 
                         this.coordinates[this.selectedField] = {
                             page: this.currentPage,
