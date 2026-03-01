@@ -32,6 +32,9 @@ class CreateLease extends CreateRecord
         // Set created by
         $data['created_by'] = auth()->id();
 
+        // Don't pass repeater data to the model (handled in afterCreate)
+        unset($data['guarantors']);
+
         return $data;
     }
 

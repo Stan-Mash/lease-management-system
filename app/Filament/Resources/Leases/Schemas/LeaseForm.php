@@ -76,7 +76,7 @@ class LeaseForm
                     ->default('chabrin_issued')
                     ->required()
                     ->live()
-                    ->afterStateUpdated(fn (callable $set) => $set('lease_type', null)),
+                    ->afterStateUpdated(fn ($state, callable $set) => $set('lease_type', null)),
 
                 Forms\Components\Select::make('lease_type')
                     ->options(function ($get) {
