@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Leases\Pages;
 
 use App\Filament\Resources\Leases\LeaseResource;
+use App\Models\Guarantor;
 use App\Models\Unit;
 use App\Services\LeaseReferenceService;
 use Filament\Resources\Pages\CreateRecord;
@@ -32,6 +33,30 @@ class CreateLease extends CreateRecord
         $data['created_by'] = auth()->id();
 
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        $items = $this->data['guarantors'] ?? [];
+        if (empty($items) || ! is_array($items)) {
+            return;
+        }
+        foreach ($items as $row) {
+            if (empty($row['name'] ?? null)) {
+                continue;
+            }
+            Guarantor::create([
+                'lease_id' => $this->record->id,
+                'name' => $row['name'],
+                'id_number' => $row['id_number'] ?? '',
+                'phone' => $row['phone'] ?? '',
+                'email' => $row['email'] ?? null,
+                'relationship' => $row['relationship'] ?? 'Other',
+                'guarantee_amount' => $row['guarantee_amount'] ?? null,
+                'signed' => (bool) ($row['signed'] ?? false),
+                'notes' => $row['notes'] ?? null,
+            ]);
+        }
     }
 
     protected function getRedirectUrl(): string

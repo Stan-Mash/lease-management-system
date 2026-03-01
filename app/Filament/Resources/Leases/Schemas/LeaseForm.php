@@ -201,7 +201,6 @@ class LeaseForm
                     ->default(false),
 
                 Forms\Components\Repeater::make('guarantors')
-                    ->relationship('guarantors')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
