@@ -53,10 +53,10 @@ class PickLeaseTemplateCoordinates extends Page
         // Use the same path resolution as TemplatePreviewController so the file is found
         // in public, app, or app/private. Always use the serve-pdf route so the PDF is
         // served with auth and correct headers (no dependency on storage symlink).
-        $path = $this->record->source_pdf_path;
+        $path = $this->normalizePath($this->record->source_pdf_path);
         $fullPath = $this->resolveSourcePdfPath($path);
         if ($fullPath && file_exists($fullPath)) {
-            $this->pdfUrl = route('templates.serve-pdf', ['template' => $this->record->id]);
+            $this->pdfUrl = url(route('templates.serve-pdf', ['template' => $this->record->id]));
         }
 
         if (! $this->pdfUrl) {
@@ -66,6 +66,12 @@ class PickLeaseTemplateCoordinates extends Page
                 ->danger()
                 ->send();
         }
+    }
+
+    /** Normalize path so Linux server finds files when path was saved from Windows. */
+    private function normalizePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 
     /**

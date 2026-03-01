@@ -234,6 +234,7 @@ class TemplatePreviewController extends Controller
      */
     protected function resolveSourcePdfPath(string $path): ?string
     {
+        $path = str_replace('\\', '/', $path);
         $candidates = [
             Storage::disk('public')->path($path),
             storage_path('app/public/' . $path),

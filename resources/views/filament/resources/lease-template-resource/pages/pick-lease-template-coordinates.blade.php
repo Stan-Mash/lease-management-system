@@ -107,12 +107,23 @@
 
                     async loadPdf() {
                         try {
-                            this.pdfDoc = await pdfjsLib.getDocument(this.pdfUrl).promise;
+                            const loadingTask = pdfjsLib.getDocument({
+                                url: this.pdfUrl,
+                                withCredentials: true
+                            });
+                            this.pdfDoc = await loadingTask.promise;
                             this.totalPages = this.pdfDoc.numPages;
                             await this.renderPage();
                         } catch (e) {
                             console.error('PDF load failed:', e);
-                            alert('Could not load PDF. Check browser console.');
+                            let msg = 'Could not load PDF. ';
+                            try {
+                                const r = await fetch(this.pdfUrl, { method: 'GET', credentials: 'include' });
+                                msg += 'Server returned ' + r.status + (r.status === 404 ? ' (file not found on server).' : r.status === 403 ? ' (forbidden).' : '.');
+                            } catch (fetchErr) {
+                                msg += 'Check browser console.';
+                            }
+                            alert(msg);
                         }
                     },
 
