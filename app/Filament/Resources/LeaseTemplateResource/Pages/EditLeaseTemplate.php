@@ -14,6 +14,14 @@ class EditLeaseTemplate extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('viewUploadedPdf')
+                ->label('View uploaded PDF')
+                ->icon('heroicon-o-document-magnifying-glass')
+                ->url(fn () => route('templates.serve-pdf', ['template' => $this->record]))
+                ->visible(fn () => ! empty($this->record->source_pdf_path))
+                ->openUrlInNewTab()
+                ->tooltip('Open the raw uploaded PDF (no data stamped)'),
+
             Actions\Action::make('pickCoordinates')
                 ->label('Pick positions on PDF')
                 ->icon('heroicon-o-cursor-arrow-rays')

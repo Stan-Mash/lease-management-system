@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Handles template preview with sample data
@@ -38,22 +39,48 @@ class TemplatePreviewController extends Controller
 
             // Prefer uploaded PDF when available
             if ($template->source_pdf_path) {
-                $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
-                if (! file_exists($sourcePath)) {
-                    $sourcePath = storage_path('app/' . $template->source_pdf_path);
-                }
-                if (file_exists($sourcePath)) {
-                    $binary = $this->leasePdfService->generateForPreview($template, $sampleData);
-                    $filename = 'Preview-' . $template->slug . '.pdf';
+                $sourcePath = $this->resolveSourcePdfPath($template->source_pdf_path);
+                if ($sourcePath) {
+                    try {
+                        $binary = $this->leasePdfService->generateForPreview($template, $sampleData, $sourcePath);
+                        $filename = 'Preview-' . $template->slug . '.pdf';
 
-                    return response($binary, 200, [
-                        'Content-Type' => 'application/pdf',
-                        'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                        Log::info('Template preview using uploaded PDF', ['template_id' => $template->id]);
+
+                        return response($binary, 200, [
+                            'Content-Type' => 'application/pdf',
+                            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                        ]);
+                    } catch (Exception $e) {
+                        Log::warning('PDF overlay failed, falling back to Blade', [
+                            'template_id' => $template->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                } else {
+                    Log::warning('Template has source_pdf_path but file not found', [
+                        'template_id' => $template->id,
+                        'path' => $template->source_pdf_path,
                     ]);
+                    return response()->view('filament.pages.template-upload-prompt', [
+                        'template' => $template,
+                        'editUrl' => \App\Filament\Resources\LeaseTemplateResource::getUrl('edit', ['record' => $template]),
+                        'message' => 'PDF file not found',
+                    ], 200);
                 }
             }
 
-            // Fallback: render Blade template
+            // No PDF uploaded — show helpful message instead of generic Blade
+            if (! $template->source_pdf_path) {
+                Log::info('Template preview: no PDF, returning upload prompt', ['template_id' => $template->id]);
+
+                return response()->view('filament.pages.template-upload-prompt', [
+                    'template' => $template,
+                    'editUrl' => \App\Filament\Resources\LeaseTemplateResource::getUrl('edit', ['record' => $template]),
+                ], 200);
+            }
+
+            // Fallback: render Blade template (PDF path set but file not found)
             $mockLease = $this->createMockLeaseFromSample($sampleData);
             $html = $this->templateRenderer->render($template, $mockLease);
 
@@ -64,7 +91,7 @@ class TemplatePreviewController extends Controller
             $pdf = Pdf::loadHTML($html);
             $filename = 'Preview-' . $template->slug . '.pdf';
 
-            Log::info('Template PDF preview generated successfully', [
+            Log::info('Template PDF preview generated (Blade fallback)', [
                 'template_id' => $template->id,
             ]);
 
@@ -181,7 +208,7 @@ class TemplatePreviewController extends Controller
     }
 
     /**
-     * Serve the raw source PDF file (for coordinate picker)
+     * Serve the raw source PDF file (for coordinate picker and "View uploaded PDF")
      */
     public function servePdf(LeaseTemplate $template)
     {
@@ -190,18 +217,37 @@ class TemplatePreviewController extends Controller
             abort(404, 'No source PDF');
         }
 
-        $fullPath = storage_path('app/' . $path);
-        if (! file_exists($fullPath)) {
-            $fullPath = storage_path('app/public/' . $path);
-        }
-        if (! file_exists($fullPath)) {
-            abort(404, 'PDF file not found');
+        $fullPath = $this->resolveSourcePdfPath($path);
+        if (! $fullPath || ! file_exists($fullPath)) {
+            abort(404, 'PDF file not found: ' . $path);
         }
 
         return response()->file($fullPath, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
         ]);
+    }
+
+    /**
+     * Resolve the full filesystem path for an uploaded PDF.
+     * Checks public disk (templates/source-pdfs) and local/private.
+     */
+    protected function resolveSourcePdfPath(string $path): ?string
+    {
+        $candidates = [
+            Storage::disk('public')->path($path),
+            storage_path('app/public/' . $path),
+            storage_path('app/' . $path),
+            storage_path('app/private/' . $path),
+        ];
+
+        foreach ($candidates as $fullPath) {
+            if (file_exists($fullPath)) {
+                return $fullPath;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -22,17 +22,23 @@ class LeasePdfService
      * Generate PDF preview for a template with sample data. Uses uploaded PDF when available.
      *
      * @param  array{lease: object, tenant: object, landlord: object, property: object, unit: object}  $sampleData
+     * @param  string|null  $resolvedSourcePath  Full path to source PDF (if already resolved)
      *
      * @throws Exception If PDF generation fails
      */
-    public function generateForPreview(LeaseTemplate $template, array $sampleData): string
+    public function generateForPreview(LeaseTemplate $template, array $sampleData, ?string $resolvedSourcePath = null): string
     {
-        if ($template->source_pdf_path) {
-            $sourcePath = storage_path('app/' . $template->source_pdf_path);
+        $sourcePath = $resolvedSourcePath;
+        if (! $sourcePath && $template->source_pdf_path) {
+            $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
             if (! file_exists($sourcePath)) {
-                $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
+                $sourcePath = storage_path('app/' . $template->source_pdf_path);
             }
-            if (file_exists($sourcePath)) {
+            if (! file_exists($sourcePath)) {
+                $sourcePath = storage_path('app/private/' . $template->source_pdf_path);
+            }
+        }
+        if ($sourcePath && file_exists($sourcePath)) {
                 $fields = $this->overlayFieldsFromSample($sampleData);
                 $coordinates = $template->pdf_coordinate_map ?? [];
                 $textCoordinates = is_array($coordinates)
@@ -51,7 +57,6 @@ class LeasePdfService
                 if ($binary !== false) {
                     return $binary;
                 }
-            }
         }
 
         throw new Exception('No uploaded PDF found. Upload your PDF on the Lease Template PDF Upload tab.');
