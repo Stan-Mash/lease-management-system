@@ -107,22 +107,25 @@
 
                     async loadPdf() {
                         try {
-                            const loadingTask = pdfjsLib.getDocument({
-                                url: this.pdfUrl,
-                                withCredentials: true
-                            });
+                            const r = await fetch(this.pdfUrl, { method: 'GET', credentials: 'include' });
+                            if (!r.ok) {
+                                throw new Error('Server returned ' + r.status);
+                            }
+                            const contentType = (r.headers.get('Content-Type') || '').toLowerCase();
+                            if (!contentType.includes('pdf')) {
+                                throw new Error('Server did not return a PDF (Content-Type: ' + (contentType || 'none') + '). You may need to re-upload the PDF for this template.');
+                            }
+                            const arrayBuffer = await r.arrayBuffer();
+                            if (arrayBuffer.byteLength === 0) {
+                                throw new Error('PDF file is empty.');
+                            }
+                            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
                             this.pdfDoc = await loadingTask.promise;
                             this.totalPages = this.pdfDoc.numPages;
                             await this.renderPage();
                         } catch (e) {
                             console.error('PDF load failed:', e);
-                            let msg = 'Could not load PDF. ';
-                            try {
-                                const r = await fetch(this.pdfUrl, { method: 'GET', credentials: 'include' });
-                                msg += 'Server returned ' + r.status + (r.status === 404 ? ' (file not found on server).' : r.status === 403 ? ' (forbidden).' : '.');
-                            } catch (fetchErr) {
-                                msg += 'Check browser console.';
-                            }
+                            const msg = e.message || ('Could not load PDF. ' + (e.toString?.() ?? 'Check browser console.'));
                             alert(msg);
                         }
                     },
