@@ -323,7 +323,15 @@ return [
         |
         */
 
-        'DOMPDF_ALLOWED_REMOTE_HOSTS' => null,
+        // Restrict remote image/asset fetching to the app's own domain only.
+        // This prevents SSRF — a malicious template cannot force dompdf to
+        // fetch arbitrary URLs (e.g., cloud metadata endpoints, internal services).
+        // Add 'fonts.gstatic.com', 'fonts.googleapis.com' only if external fonts
+        // are used in templates; prefer self-hosted fonts instead.
+        'DOMPDF_ALLOWED_REMOTE_HOSTS' => array_filter([
+            parse_url(env('APP_URL', 'http://127.0.0.1:8000'), PHP_URL_HOST),
+            env('APP_ALLOWED_REMOTE_HOST'), // optional override via .env
+        ]),
 
     ],
 

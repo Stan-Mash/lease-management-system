@@ -82,6 +82,7 @@
 </head>
 <body>
 
+{{-- {!! !!} safe: $qr['svg'] is library-generated from a server-controlled URL, not user input --}}
 @php $qr = \App\Services\QRCodeService::generateForLease($lease, false); @endphp
 <div class="qr-fixed">{!! $qr['svg'] !!}</div>
 <div class="ref-tag">Ref: {{ $lease->reference_number }}<br>@if($lease->serial_number)S/N: {{ $lease->serial_number }}@endif</div>

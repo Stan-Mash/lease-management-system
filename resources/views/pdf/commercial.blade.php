@@ -143,6 +143,8 @@
 <body>
 
 {{-- QR code fixed top-left on inner pages --}}
+{{-- {!! !!} is safe here: $qr['svg'] is a library-generated QR graphic (GD/SVG renderer)
+     whose input is a server-controlled verification URL, not raw user input. --}}
 @php $qr = \App\Services\QRCodeService::generateForLease($lease, false); @endphp
 <div class="qr-fixed">{!! $qr['svg'] !!}</div>
 <div class="ref-tag">Ref: {{ $lease->reference_number }}<br>@if($lease->serial_number)S/N: {{ $lease->serial_number }}@endif</div>

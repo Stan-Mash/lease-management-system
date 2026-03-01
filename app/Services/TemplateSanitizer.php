@@ -48,21 +48,45 @@ class TemplateSanitizer
         'hex2bin', 'convert_uuencode', 'convert_uudecode',
 
         // Include/require (allows loading arbitrary PHP files)
+        // NOTE: also checked via BLOCKED_INCLUDE_PATTERNS below (no-parens form)
         'include', 'include_once', 'require', 'require_once',
+
+        // Higher-order functions that accept dangerous callbacks.
+        // An attacker can write: array_map('system', ['id']) — these must be blocked
+        // even though 'system' itself is already blocked, because the callback is a string.
+        'array_map', 'array_filter', 'array_walk', 'array_walk_recursive',
+        'usort', 'uasort', 'uksort', 'array_reduce',
+
+        // Execution hooks / shutdown handlers
+        'register_shutdown_function', 'register_tick_function',
+        'set_error_handler', 'set_exception_handler',
+        'ob_start',  // ob_start('system') is a valid attack vector
+        'spl_autoload_register',
+
+        // Variable injection into scope
+        'extract', 'parse_str',
 
         // Misc dangerous
         'putenv', 'getenv', 'phpinfo', 'php_uname', 'posix_', 'dl',
         'reflectionclass', 'reflectionfunction', 'reflectionmethod',
+        'header',   // HTTP header injection / redirect
+        'mail',     // SMTP header injection
     ];
 
     /**
      * Validate template content and throw if dangerous patterns are found.
      *
+     * Defence layers applied in order:
+     *  1. Reject raw <?php / <?= open tags.
+     *  2. Check BLOCKED_PATTERNS (function-call form: name followed by ( or :).
+     *  3. Check include/require without parentheses (the no-parens language-construct form).
+     *  4. Check variable-function call pattern ($var(...)) — detects dynamic dispatch.
+     *
      * @throws InvalidArgumentException with a human-readable message safe to show in UI
      */
     public function assertSafe(string $template): void
     {
-        // Reject raw PHP open tags — only @php/@endphp is allowed
+        // 1. Reject raw PHP open tags — only @php/@endphp is allowed
         if (preg_match('/<\?php|<\?=/i', $template)) {
             throw new InvalidArgumentException(
                 'Direct PHP tags (<?php, <?=) are not permitted in templates. ' .
@@ -72,6 +96,7 @@ class TemplateSanitizer
 
         $lowerTemplate = strtolower($template);
 
+        // 2. Blocked function/keyword patterns (require `(` or `:` after the name)
         foreach (self::BLOCKED_PATTERNS as $pattern) {
             // Use word-boundary matching to avoid false positives
             // e.g. "system" should not match "systemVersion"
@@ -81,6 +106,27 @@ class TemplateSanitizer
                     'Contact a system administrator if this is a legitimate requirement.',
                 );
             }
+        }
+
+        // 3. Block include/require in no-parens form: `include 'file'` or `include $var`
+        //    The BLOCKED_PATTERNS check above only catches `include(` and `include:`.
+        //    PHP allows `include 'path'` (no parens), which the regex above would miss.
+        if (preg_match('/\b(?:include|include_once|require|require_once)\s+[\'"\$\/]/i', $template)) {
+            throw new InvalidArgumentException(
+                'Template contains a disallowed include/require statement. ' .
+                'Contact a system administrator if this is a legitimate requirement.',
+            );
+        }
+
+        // 4. Block variable-function calls: $someVar('arg') or $someVar::method().
+        //    An attacker can assign a dangerous function to a variable and call it:
+        //    @php $f = 'system'; $f('id'); @endphp
+        //    We block the call syntax (\$identifier followed by ( or ::) inside @php blocks.
+        if (preg_match('/@php.*?\$\w+\s*[\(\:]{2}/si', $template)) {
+            throw new InvalidArgumentException(
+                'Template contains a variable function call pattern which is not permitted. ' .
+                'Use named functions directly instead.',
+            );
         }
     }
 

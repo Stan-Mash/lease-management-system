@@ -107,6 +107,7 @@
 <body>
 
 {{-- QR code --}}
+{{-- {!! !!} safe: $qr['svg'] is library-generated from a server-controlled URL, not user input --}}
 @php $qr = \App\Services\QRCodeService::generateForLease($lease, false); @endphp
 <div class="qr-fixed">{!! $qr['svg'] !!}</div>
 <div class="ref-tag">

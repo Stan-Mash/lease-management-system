@@ -384,8 +384,14 @@ class DownloadLeaseController extends Controller
         if (stripos($html, '<body>') !== false) {
             $html = str_ireplace('<body>', '<body>' . $watermarkHtml, $html);
         } elseif (stripos($html, '<body') !== false) {
-            // Handle <body class="..."> or <body style="...">
-            $html = preg_replace('/<body([^>]*)>/i', '<body$1>' . $watermarkHtml, $html);
+            // Use preg_replace_callback so $watermarkHtml is never treated as a
+            // replacement pattern (avoids backreference injection if content changes).
+            $html = preg_replace_callback(
+                '/<body([^>]*)>/i',
+                static fn (array $m) => '<body' . $m[1] . '>' . $watermarkHtml,
+                $html,
+                limit: 1,
+            );
         }
 
         return $html;
