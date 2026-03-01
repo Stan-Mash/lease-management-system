@@ -102,8 +102,10 @@ class LeaseTemplateResource extends Resource
                                 Forms\Components\FileUpload::make('source_pdf_path')
                                     ->label('Upload PDF Template')
                                     ->acceptedFileTypes(['application/pdf'])
+                                    ->disk('public')
                                     ->directory('templates/source-pdfs')
-                                    ->helperText('Upload your existing PDF lease document. The system will extract content and convert it to an editable template.')
+                                    ->maxSize(10 * 1024 * 1024)
+                                    ->helperText('Upload your existing PDF lease document (max 10 MB). The system will extract content and convert it to an editable template.')
                                     ->columnSpanFull(),
 
                                 Forms\Components\Placeholder::make('upload_info')
