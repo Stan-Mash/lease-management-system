@@ -13,6 +13,10 @@ class ViewLeaseTemplate extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\EditAction::make()
+                ->label('Edit')
+                ->tooltip('Click Edit to upload or change the PDF'),
+
             Actions\Action::make('pickCoordinates')
                 ->label('Pick positions on PDF')
                 ->icon('heroicon-o-cursor-arrow-rays')
@@ -28,8 +32,6 @@ class ViewLeaseTemplate extends ViewRecord
                 ->modalContent(view('filament.pages.template-preview', ['template' => $this->record]))
                 ->modalWidth('7xl')
                 ->slideOver(),
-
-            Actions\EditAction::make(),
 
             Actions\DeleteAction::make(),
         ];
