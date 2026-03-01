@@ -208,7 +208,8 @@ class TemplatePreviewController extends Controller
     }
 
     /**
-     * Serve the raw source PDF file (for coordinate picker and "View uploaded PDF")
+     * Serve the raw source PDF file (for coordinate picker and "View uploaded PDF").
+     * Supports Range requests so pdf.js can stream the document.
      */
     public function servePdf(LeaseTemplate $template)
     {
@@ -217,15 +218,47 @@ class TemplatePreviewController extends Controller
             abort(404, 'No source PDF');
         }
 
+        $path = str_replace('\\', '/', $path);
         $fullPath = $this->resolveSourcePdfPath($path);
         if (! $fullPath || ! file_exists($fullPath)) {
             abort(404, 'PDF file not found: ' . $path);
         }
 
-        return response()->file($fullPath, [
+        $filesize = filesize($fullPath);
+        if ($filesize === 0) {
+            abort(404, 'PDF file is empty');
+        }
+
+        $headers = [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
-        ]);
+            'Accept-Ranges' => 'bytes',
+            'Content-Length' => $filesize,
+        ];
+
+        $rangeHeader = request()->header('Range');
+        if ($rangeHeader && preg_match('/^bytes=(\d*)-(\d*)$/', $rangeHeader, $m)) {
+            $start = $m[1] === '' ? 0 : (int) $m[1];
+            $end = $m[2] === '' ? $filesize - 1 : min((int) $m[2], $filesize - 1);
+            if ($start > $end) {
+                return response('', 416)
+                    ->withHeaders(['Content-Range' => 'bytes */' . $filesize]);
+            }
+            $length = $end - $start + 1;
+            $stream = fopen($fullPath, 'rb');
+            fseek($stream, $start);
+            $content = fread($stream, $length);
+            fclose($stream);
+            return response($content, 206)
+                ->withHeaders([
+                    'Content-Range' => "bytes {$start}-{$end}/{$filesize}",
+                    'Content-Length' => $length,
+                    'Accept-Ranges' => 'bytes',
+                    'Content-Type' => 'application/pdf',
+                ]);
+        }
+
+        return response()->file($fullPath, $headers);
     }
 
     /**
