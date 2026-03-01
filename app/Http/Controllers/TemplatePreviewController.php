@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeaseTemplate;
+use App\Services\LeasePdfService;
 use App\Services\SampleLeaseDataService;
 use App\Services\TemplateRenderService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -15,15 +16,15 @@ use Illuminate\Support\Facades\Log;
  */
 class TemplatePreviewController extends Controller
 {
-    protected TemplateRenderService $templateRenderer;
-
-    public function __construct(TemplateRenderService $templateRenderer)
-    {
-        $this->templateRenderer = $templateRenderer;
-    }
+    public function __construct(
+        protected TemplateRenderService $templateRenderer,
+        protected LeasePdfService $leasePdfService,
+    ) {}
 
     /**
-     * Preview template as PDF with sample data
+     * Preview template as PDF with sample data.
+     * When template has an uploaded PDF (source_pdf_path), uses that PDF with sample data stamped.
+     * Otherwise falls back to Blade rendering.
      */
     public function previewPdf(LeaseTemplate $template)
     {
@@ -33,20 +34,33 @@ class TemplatePreviewController extends Controller
                 'template_name' => $template->name,
             ]);
 
-            // Generate sample data
             $sampleData = SampleLeaseDataService::generate($template->template_type);
 
-            // Create a mock lease object from sample data
-            $mockLease = $this->createMockLeaseFromSample($sampleData);
+            // Prefer uploaded PDF when available
+            if ($template->source_pdf_path) {
+                $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
+                if (! file_exists($sourcePath)) {
+                    $sourcePath = storage_path('app/' . $template->source_pdf_path);
+                }
+                if (file_exists($sourcePath)) {
+                    $binary = $this->leasePdfService->generateForPreview($template, $sampleData);
+                    $filename = 'Preview-' . $template->slug . '.pdf';
 
-            // Render the template with sample data
+                    return response($binary, 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                    ]);
+                }
+            }
+
+            // Fallback: render Blade template
+            $mockLease = $this->createMockLeaseFromSample($sampleData);
             $html = $this->templateRenderer->render($template, $mockLease);
 
             if (empty(trim($html))) {
                 throw new Exception('Template rendered empty HTML');
             }
 
-            // Generate PDF
             $pdf = Pdf::loadHTML($html);
             $filename = 'Preview-' . $template->slug . '.pdf';
 
@@ -54,7 +68,6 @@ class TemplatePreviewController extends Controller
                 'template_id' => $template->id,
             ]);
 
-            // Stream the PDF
             return response($pdf->output(), 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="' . $filename . '"',

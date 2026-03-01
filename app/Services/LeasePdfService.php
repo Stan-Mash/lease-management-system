@@ -19,6 +19,45 @@ class LeasePdfService
     ) {}
 
     /**
+     * Generate PDF preview for a template with sample data. Uses uploaded PDF when available.
+     *
+     * @param  array{lease: object, tenant: object, landlord: object, property: object, unit: object}  $sampleData
+     *
+     * @throws Exception If PDF generation fails
+     */
+    public function generateForPreview(LeaseTemplate $template, array $sampleData): string
+    {
+        if ($template->source_pdf_path) {
+            $sourcePath = storage_path('app/' . $template->source_pdf_path);
+            if (! file_exists($sourcePath)) {
+                $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
+            }
+            if (file_exists($sourcePath)) {
+                $fields = $this->overlayFieldsFromSample($sampleData);
+                $coordinates = $template->pdf_coordinate_map ?? [];
+                $textCoordinates = is_array($coordinates)
+                    ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
+                    : [];
+
+                $outDir = storage_path('app/lease-pdf-overlay');
+                if (! is_dir($outDir)) {
+                    mkdir($outDir, 0755, true);
+                }
+                $outputPath = $outDir . '/preview-' . $template->id . '-' . uniqid() . '.pdf';
+                $this->pdfOverlay->stampFields($sourcePath, $fields, $textCoordinates, $outputPath);
+                $binary = file_get_contents($outputPath);
+                @unlink($outputPath);
+
+                if ($binary !== false) {
+                    return $binary;
+                }
+            }
+        }
+
+        throw new Exception('No uploaded PDF found. Upload your PDF on the Lease Template PDF Upload tab.');
+    }
+
+    /**
      * Generate the lease PDF and return raw binary content.
      * Uses the same 3-strategy fallback chain as DownloadLeaseController.
      *
@@ -371,6 +410,33 @@ class LeasePdfService
             $lease->property?->property_name ?? 'Unknown Property',
         ));
         $dompdf->addInfo('CreationDate', now()->format('D:YmdHis'));
+    }
+
+    /**
+     * Build overlay fields from sample data (for preview).
+     *
+     * @param  array{lease: object, tenant: object, landlord: object, property: object, unit: object}  $sampleData
+     *
+     * @return array<string, string>
+     */
+    private function overlayFieldsFromSample(array $sampleData): array
+    {
+        $lease = $sampleData['lease'];
+        $tenant = $sampleData['tenant'];
+        $landlord = $sampleData['landlord'];
+        $property = $sampleData['property'];
+        $unit = $sampleData['unit'];
+
+        return [
+            'tenant_name' => $tenant->names ?? $tenant->full_name ?? '',
+            'unit_code' => $unit->unit_code ?? $unit->unit_number ?? '',
+            'property_name' => $property->property_name ?? $property->name ?? '',
+            'monthly_rent' => $lease->monthly_rent ? number_format((float) $lease->monthly_rent, 2) : '',
+            'start_date' => isset($lease->start_date) ? (method_exists($lease->start_date, 'format') ? $lease->start_date->format('d/m/Y') : (string) $lease->start_date) : '',
+            'end_date' => isset($lease->end_date) ? (method_exists($lease->end_date, 'format') ? $lease->end_date->format('d/m/Y') : (string) $lease->end_date) : '',
+            'landlord_name' => $landlord->names ?? $landlord->name ?? '',
+            'reference_number' => $lease->reference_number ?? '',
+        ];
     }
 
     /**
