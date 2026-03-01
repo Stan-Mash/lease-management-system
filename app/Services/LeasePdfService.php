@@ -43,9 +43,10 @@ class LeasePdfService
         $signatureImagePath = $tenantSigPath;
 
         try {
-            // Strategy 0: Landlord-provided PDF with coordinate map — stamp fields + signatures
+            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures when coordinates exist
+            // When source_pdf_path exists, we always prefer it over Blade so output matches the uploaded design
             $template = $lease->leaseTemplate;
-            if ($template && $template->source_pdf_path && $template->pdf_coordinate_map) {
+            if ($template && $template->source_pdf_path) {
                 $sourcePath = storage_path('app/' . $template->source_pdf_path);
                 if (! file_exists($sourcePath)) {
                     $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
@@ -62,14 +63,16 @@ class LeasePdfService
                         $step3 = $outDir . '/' . $baseName . '-final.pdf';
 
                         $fields = $this->overlayFieldsFromLease($lease);
-                        $coordinates = $template->pdf_coordinate_map;
-                        $textCoordinates = array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH);
+                        $coordinates = $template->pdf_coordinate_map ?? [];
+                        $textCoordinates = is_array($coordinates)
+                            ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
+                            : [];
 
                         $this->pdfOverlay->stampFields($sourcePath, $fields, $textCoordinates, $step1);
 
                         $current = $step1;
-                        if ($tenantSigPath && file_exists($tenantSigPath)) {
-                            $coord = $coordinates['tenant_signature'] ?? ['page' => 1, 'x' => 140, 'y' => 240, 'width' => 50, 'height' => 20];
+                        if ($tenantSigPath && file_exists($tenantSigPath) && is_array($coordinates) && isset($coordinates['tenant_signature'])) {
+                            $coord = $coordinates['tenant_signature'];
                             $this->pdfOverlay->stampSignature(
                                 $current,
                                 $tenantSigPath,
@@ -83,8 +86,8 @@ class LeasePdfService
                             @unlink($current);
                             $current = $step2;
                         }
-                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature) {
-                            $coord = $coordinates['manager_signature'] ?? ['page' => 1, 'x' => 140, 'y' => 260, 'width' => 50, 'height' => 20];
+                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature && is_array($coordinates) && isset($coordinates['manager_signature'])) {
+                            $coord = $coordinates['manager_signature'];
                             $next = $current === $step2 ? $step3 : $step2;
                             $this->pdfOverlay->stampSignature(
                                 $current,

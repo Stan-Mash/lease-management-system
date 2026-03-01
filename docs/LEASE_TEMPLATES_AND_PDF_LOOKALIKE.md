@@ -33,7 +33,7 @@ To get output that **does** look like the uploaded PDF, you must use **“fill t
 
 ## How to get output that looks like the uploaded PDF
 
-The codebase already supports a **“fill the uploaded PDF”** path. When both of these are set on a lease template:
+The codebase already supports a **“fill the uploaded PDF”** path. When **`source_pdf_path`** is set, the system uses the uploaded PDF as the base (coordinate map is optional):
 
 - **`source_pdf_path`** – path to the uploaded PDF (e.g. from the “PDF Upload” tab)
 - **`pdf_coordinate_map`** – positions (page, x, y, and optionally width/height) for each field and for signatures
@@ -127,8 +127,8 @@ If the edit form shows this generic error on save:
 
 | Approach | What happens | Looks like uploaded PDF? |
 |----------|--------------|---------------------------|
-| Upload PDF only (no coordinate map) | Text extracted → generic HTML/Blade → DomPDF | **No** – generic layout |
-| Upload PDF + **pdf_coordinate_map** | Original PDF is kept; data and signatures stamped at coordinates | **Yes** – same layout as your PDF |
+| Upload PDF only (no coordinate map) | Uses uploaded PDF as-is; no data stamped | **Yes** – same layout (tenant/rent blank) |
+| Upload PDF + **pdf_coordinate_map** | Original PDF + data and signatures stamped at coordinates | **Yes** – filled lease matching your PDF |
 | Custom Blade template | You write HTML/Blade to match your design | Only if you design it to match |
 
 So: **lease templates are not similar to the uploaded PDF by default** because the pipeline is “text extraction + generic layout”. To make them match, use the **uploaded PDF plus a coordinate map** so the system fills your PDF instead of generating a new layout.
