@@ -51,10 +51,10 @@ class UnitResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         // Eager-load relationships rendered in UnitsTable columns
-        // (property.property_name, client.names) to prevent N+1 queries.
+        // (property.property_name, landlord.names) to prevent N+1 queries.
         return parent::getEloquentQuery()->with([
             'property:id,property_name',
-            'client:id,names',
+            'landlord:id,names',
         ]);
     }
 

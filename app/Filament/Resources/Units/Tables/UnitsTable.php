@@ -43,8 +43,8 @@ class UnitsTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('client.names')
-                    ->label('Client')
+                TextColumn::make('landlord.names')
+                    ->label('Landlord')
                     ->searchable()
                     ->toggleable(),
 
