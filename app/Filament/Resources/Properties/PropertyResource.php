@@ -44,16 +44,16 @@ class PropertyResource extends Resource
         return [
             'Ref' => $record->reference_number ?? 'N/A',
             'LR' => $record->lr_number ?? 'N/A',
-            'Client' => $record->client?->names ?? 'N/A',
+            'Landlord' => $record->landlord?->names ?? 'N/A',
         ];
     }
 
     public static function getEloquentQuery(): Builder
     {
         // Eager-load all relationships rendered in PropertiesTable columns
-        // (client.names, fieldOfficer.name, zoneManager.name) to prevent N+1 queries.
+        // (landlord.names, fieldOfficer.name, zoneManager.name) to prevent N+1 queries.
         return parent::getEloquentQuery()->with([
-            'client:id,names',
+            'landlord:id,names',
             'fieldOfficer:id,name',
             'zoneManager:id,name',
         ]);
@@ -61,7 +61,7 @@ class PropertyResource extends Resource
 
     public static function getGlobalSearchEloquentQuery(): Builder
     {
-        return parent::getGlobalSearchEloquentQuery()->with('client:id,names');
+        return parent::getGlobalSearchEloquentQuery()->with('landlord:id,names');
     }
 
     public static function form(Schema $schema): Schema

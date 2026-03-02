@@ -32,8 +32,8 @@ class PropertiesTable
                     ->sortable()
                     ->weight('bold'),
 
-                TextColumn::make('client.names')
-                    ->label('Client')
+                TextColumn::make('landlord.names')
+                    ->label('Landlord')
                     ->searchable()
                     ->sortable(),
 
