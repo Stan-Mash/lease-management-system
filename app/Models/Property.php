@@ -13,7 +13,7 @@ class Property extends Model
 
     protected $fillable = [
         'date_time',
-        'client_id',
+        'landlord_id',
         'reference_number',
         'description',
         'lat_long',
@@ -76,9 +76,9 @@ class Property extends Model
             ->sum('monthly_rent');
     }
 
-    public function client(): BelongsTo
+    public function landlord(): BelongsTo
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Landlord::class);
     }
 
     public function units(): HasMany

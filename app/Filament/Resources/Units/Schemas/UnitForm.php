@@ -15,7 +15,7 @@ class UnitForm
         return $schema
             ->components([
                 DateTimePicker::make('date_time'),
-                TextInput::make('client_id')->numeric(),
+                TextInput::make('landlord_id')->numeric(),
                 TextInput::make('property_id')->numeric(),
                 TextInput::make('unit_type_id')->numeric(),
                 TextInput::make('usage_type_id')->numeric(),

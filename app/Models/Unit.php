@@ -13,7 +13,7 @@ class Unit extends Model
 
     protected $fillable = [
         'date_time',
-        'client_id',
+        'landlord_id',
         'property_id',
         'unit_type_id',
         'usage_type_id',
@@ -62,9 +62,9 @@ class Unit extends Model
         return $this->belongsTo(Property::class);
     }
 
-    public function client(): BelongsTo
+    public function landlord(): BelongsTo
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Landlord::class);
     }
 
     public function leases(): HasMany
@@ -84,6 +84,6 @@ class Unit extends Model
 
     public function blockOwnerTenant(): BelongsTo
     {
-        return $this->belongsTo(Client::class, 'block_owner_tenant_id');
+        return $this->belongsTo(Tenant::class, 'block_owner_tenant_id');
     }
 }

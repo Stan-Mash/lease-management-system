@@ -15,7 +15,7 @@ class PropertyForm
         return $schema
             ->components([
                 DateTimePicker::make('date_time'),
-                TextInput::make('client_id')->numeric(),
+                TextInput::make('landlord_id')->numeric(),
                 TextInput::make('reference_number'),
                 Textarea::make('description'),
                 TextInput::make('lat_long'),

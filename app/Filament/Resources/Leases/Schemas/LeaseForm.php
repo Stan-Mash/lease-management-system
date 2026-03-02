@@ -254,7 +254,6 @@ class LeaseForm
                                 $set('tenant_id', null);
                                 $set('monthly_rent', null);
                                 $set('landlord_id', null);
-                                $set('client_id', null);
                                 $set('zone_id', null);
                                 $set('assigned_field_officer_id', null);
 
@@ -263,7 +262,6 @@ class LeaseForm
                                     $property = \App\Models\Property::find($state);
                                     if ($property) {
                                         $set('landlord_id', $property->landlord_id);
-                                        $set('client_id', $property->client_id);
                                         if ($property->zone_id) {
                                             $set('zone_id', $property->zone_id);
                                         }
@@ -313,7 +311,6 @@ class LeaseForm
                                     // property was pre-selected via property_id field
                                     if ($unit->property) {
                                         $set('landlord_id', $unit->property->landlord_id);
-                                        $set('client_id', $unit->property->client_id);
                                         if ($unit->property->zone_id) {
                                             $set('zone_id', $unit->property->zone_id);
                                             $fieldOfficer = \App\Models\User::where('zone_id', $unit->property->zone_id)
@@ -358,7 +355,6 @@ class LeaseForm
 
                         // Hidden auto-filled fields
                         Forms\Components\Hidden::make('landlord_id'),
-                        Forms\Components\Hidden::make('client_id'),
                         Forms\Components\Hidden::make('zone')->default('A'),
                         Forms\Components\Hidden::make('zone_id'),
                         Forms\Components\Hidden::make('assigned_field_officer_id'),

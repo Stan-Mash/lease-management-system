@@ -679,7 +679,7 @@ class DocumentUploadCenter extends Page implements HasForms
                     'tenant_id' => $data['lease_tenant_id'],
                     'unit_id' => $data['lease_unit_id'],
                     'property_id' => $property?->id,
-                    'client_id' => $property?->client_id,
+                    'landlord_id' => $property?->landlord_id,
                     'zone_id' => $property?->zone_id,
                     'monthly_rent' => $data['monthly_rent'] ?? 0,
                     'deposit_amount' => $data['deposit_amount'] ?? 0,
