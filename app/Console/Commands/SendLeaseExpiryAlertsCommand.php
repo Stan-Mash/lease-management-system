@@ -43,9 +43,9 @@ class SendLeaseExpiryAlertsCommand extends Command
         $targetDate = now(config('app.timezone', 'Africa/Nairobi'))->addDays($days)->format('Y-m-d');
 
         $leases = Lease::query()
-            ->where('status', 'active')
+            ->where('workflow_state', 'active')
             ->whereDate('end_date', $targetDate)
-            ->with(['tenant', 'landlord', 'unit.property', 'zone'])
+            ->with(['tenant:id,names,mobile_number,email_address,notification_preference', 'unit.property:id,property_name', 'zone:id,name'])
             ->get();
 
         if ($leases->isEmpty()) {

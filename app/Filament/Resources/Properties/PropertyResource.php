@@ -14,6 +14,7 @@ use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class PropertyResource extends Resource
@@ -47,9 +48,20 @@ class PropertyResource extends Resource
         ];
     }
 
-    public static function getGlobalSearchEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
-        return parent::getGlobalSearchEloquentQuery()->with('client');
+        // Eager-load all relationships rendered in PropertiesTable columns
+        // (client.names, fieldOfficer.name, zoneManager.name) to prevent N+1 queries.
+        return parent::getEloquentQuery()->with([
+            'client:id,names',
+            'fieldOfficer:id,name',
+            'zoneManager:id,name',
+        ]);
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with('client:id,names');
     }
 
     public static function form(Schema $schema): Schema

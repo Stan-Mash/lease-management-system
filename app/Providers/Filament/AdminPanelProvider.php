@@ -76,6 +76,7 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarWidth('16rem')
             ->collapsedSidebarWidth('4.5rem')
             ->darkMode(false)
+            ->spa()
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
@@ -91,7 +92,7 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
             ])
             ->databaseNotifications()
-            ->databaseNotificationsPolling('30s')
+            ->databaseNotificationsPolling('60s')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

@@ -2,14 +2,15 @@
 
 namespace App\Observers;
 
+use App\Jobs\SendSignedConfirmationsJob;
 use App\Models\Lease;
 use App\Models\User;
 use App\Notifications\LeaseTenantSignedNotification;
 use App\Services\DashboardStatsService;
-use App\Services\DigitalSigningService;
 use App\Services\QRCodeService;
 use App\Services\SerialNumberService;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Storage;
 
@@ -66,10 +67,11 @@ class LeaseObserver
      */
     public function updated(Lease $lease): void
     {
-        // Invalidate dashboard stat caches whenever workflow_state changes —
-        // ensures admin/zone manager dashboards show current counts.
+        // Invalidate dashboard stat caches and navigation badge whenever
+        // workflow_state changes — ensures dashboards and sidebar counts stay current.
         if ($lease->wasChanged('workflow_state')) {
             DashboardStatsService::invalidate($lease->zone_id);
+            Cache::forget('lease_navigation_badge_count');
         }
 
         // If workflow state changed to 'approved', ensure QR code exists
@@ -118,19 +120,18 @@ class LeaseObserver
         }
 
         // When a digitally-signed lease becomes ACTIVE (property manager has countersigned /
-        // all approvals complete), send the tenant their final confirmation email + PDF.
+        // all approvals complete), dispatch a background job to send the tenant their final
+        // confirmation email + PDF. Dispatching as a job prevents the user from waiting for
+        // email delivery and PDF generation to complete before the UI responds.
         // We do NOT send this immediately after the tenant signs — the manager must sign first.
         if ($lease->wasChanged('workflow_state') && $lease->workflow_state === 'active') {
             $hasDigitalSignature = $lease->digitalSignatures()->exists();
             if ($hasDigitalSignature) {
-                try {
-                    DigitalSigningService::sendSignedConfirmations($lease);
-                } catch (Exception $e) {
-                    Log::warning('Failed to send tenant lease confirmation on ACTIVE transition', [
-                        'lease_id' => $lease->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                SendSignedConfirmationsJob::dispatch($lease->id);
+
+                Log::info('SendSignedConfirmationsJob dispatched for lease', [
+                    'lease_id' => $lease->id,
+                ]);
             }
         }
     }

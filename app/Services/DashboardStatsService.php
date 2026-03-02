@@ -117,6 +117,8 @@ class DashboardStatsService
      * Invalidate cached stats.
      *
      * Call this from LeaseObserver::updated() whenever workflow_state changes.
+     * Also clears ZonePerformanceWidget's aggregation cache so the admin table
+     * widget reflects the updated lease counts within the same 5-minute window.
      *
      * @param int|null $zoneId If provided, also clears zone-specific cache.
      */
@@ -127,5 +129,11 @@ class DashboardStatsService
         if ($zoneId !== null) {
             Cache::forget(sprintf(self::KEY_ZONE, $zoneId));
         }
+
+        // Invalidate ZonePerformanceWidget's cached zone ID sets so the next
+        // render picks up accurate aggregation data.
+        // The widget builds keys in the form: widget:zone_performance:{filter}:{start}:{end}:ids
+        // We clear the most common no-filter variant; filtered views expire naturally.
+        Cache::forget('widget:zone_performance:none:::ids');
     }
 }

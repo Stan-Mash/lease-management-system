@@ -14,6 +14,7 @@ use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ClientResource extends Resource
@@ -55,6 +56,14 @@ class ClientResource extends Resource
     public static function infolist(Schema $schema): Schema
     {
         return ClientInfolist::configure($schema);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // ClientsTable columns are all direct fields — no relationships displayed.
+        // This override provides a consistent hook for future eager loading if
+        // relation columns are added to the table.
+        return parent::getEloquentQuery();
     }
 
     public static function table(Table $table): Table
