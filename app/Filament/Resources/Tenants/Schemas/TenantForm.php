@@ -16,7 +16,7 @@ class TenantForm
         return $schema
             ->components([
                 DateTimePicker::make('date_time'),
-                TextInput::make('names'),
+                TextInput::make('names')->label('First Name'),
                 TextInput::make('second_name'),
                 TextInput::make('last_name'),
                 TextInput::make('title'),
@@ -31,10 +31,6 @@ class TenantForm
                 TextInput::make('bank_id')->numeric(),
                 TextInput::make('account_name'),
                 TextInput::make('account_number'),
-                TextInput::make('username'),
-                TextInput::make('client_password')->password(),
-                TextInput::make('uid'),
-                TextInput::make('group_id')->numeric(),
                 DatePicker::make('registered_date'),
                 TextInput::make('reference_number'),
                 TextInput::make('created_by')->numeric(),
