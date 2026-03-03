@@ -170,30 +170,27 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ($detailSteps as $step)
                 <div
-                    class="relative rounded-lg p-4 transition-shadow duration-200 hover:shadow-md {{ $borderColorClasses[$step['status']] ?? 'border-t-4 border-gray-200' }}"
+                    class="flex flex-col rounded-lg p-3 transition-shadow duration-200 hover:shadow-md {{ $borderColorClasses[$step['status']] ?? 'border-t-4 border-gray-200' }}"
                     style="background:#fff; border: 1px solid rgba(218,165,32,0.18); {{ $step['status'] === 'active' ? 'box-shadow:0 0 0 2px rgba(26,54,93,0.1);' : '' }}"
                 >
-                    {{-- Step number --}}
-                    <div class="absolute left-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                        style="{{ $step['status'] === 'done' ? 'background:rgba(218,165,32,0.12); color:#92700a;' : 'background:#f3f4f6; color:#6b7280;' }}">
-                        {{ $step['number'] }}
-                    </div>
-
-                    {{-- Status badge --}}
-                    <div class="absolute right-3 top-3">
-                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold
+                    {{-- Top row: step number + status badge --}}
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                            style="{{ $step['status'] === 'done' ? 'background:rgba(218,165,32,0.12); color:#92700a;' : 'background:#f3f4f6; color:#6b7280;' }}">
+                            {{ $step['number'] }}
+                        </div>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap
                             {{ $statusBadgeClasses[$step['status']] ?? 'bg-gray-100 text-gray-500' }}">
                             {{ $statusLabels[$step['status']] ?? $step['status'] }}
                         </span>
                     </div>
 
-                    <div class="pt-5">
-                        <h4 class="font-semibold" style="color:#1a365d; font-size:0.8rem;">{{ $step['title'] }}</h4>
-                        <p class="mt-0.5 text-xs text-gray-500">{{ $step['description'] }}</p>
-                        @if ($step['timestamp'])
-                            <p class="mt-2 text-xs" style="color:#b8960a;">{{ $step['timestamp'] }}</p>
-                        @endif
-                    </div>
+                    {{-- Content --}}
+                    <h4 class="font-semibold leading-snug" style="color:#1a365d; font-size:0.8rem;">{{ $step['title'] }}</h4>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ $step['description'] }}</p>
+                    @if ($step['timestamp'])
+                        <p class="mt-2 text-xs" style="color:#b8960a;">{{ $step['timestamp'] }}</p>
+                    @endif
                 </div>
             @endforeach
         </div>
