@@ -118,16 +118,19 @@
         {{-- Detail cards --}}
         <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px;">
             @foreach ($detailSteps as $step)
-                <div style="border-radius:8px; padding:12px; background:#fff; border:1px solid rgba(218,165,32,0.2); {{ $cardTopBorder[$step['status']] ?? 'border-top:4px solid #e5e7eb;' }}">
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:4px;">
-                        <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:700; flex-shrink:0; {{ $step['status'] === 'done' ? 'background:rgba(218,165,32,0.15); color:#92700a;' : 'background:#f3f4f6; color:#6b7280;' }}">
-                            {{ $step['number'] }}
-                        </span>
-                        <span style="border-radius:9999px; padding:2px 7px; font-size:10px; font-weight:600; {{ $statusBadgeStyle[$step['status']] ?? 'background:#f3f4f6; color:#6b7280;' }}">
-                            {{ $statusLabels[$step['status']] ?? $step['status'] }}
-                        </span>
+                @php
+                    $topColor = ['done'=>'#DAA520','active'=>'#1a365d','pending'=>'#e5e7eb','skipped'=>'#e5e7eb','action_required'=>'#ef4444'][$step['status']] ?? '#e5e7eb';
+                @endphp
+                <div style="border-radius:8px; padding:12px; background:#fff; border-top:4px solid {{ $topColor }}; border-right:1px solid rgba(218,165,32,0.2); border-bottom:1px solid rgba(218,165,32,0.2); border-left:1px solid rgba(218,165,32,0.2);">
+                    {{-- Step number --}}
+                    <div style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:700; margin-bottom:6px; {{ $step['status'] === 'done' ? 'background:rgba(218,165,32,0.15); color:#92700a;' : 'background:#f3f4f6; color:#6b7280;' }}">
+                        {{ $step['number'] }}
                     </div>
-                    <div style="font-size:12px; font-weight:600; color:#1a365d; line-height:1.3;">{{ $step['title'] }}</div>
+                    {{-- Status badge --}}
+                    <span style="display:inline-block; border-radius:9999px; padding:1px 7px; font-size:10px; font-weight:600; margin-left:4px; {{ $statusBadgeStyle[$step['status']] ?? 'background:#f3f4f6; color:#6b7280;' }}">
+                        {{ $statusLabels[$step['status']] ?? $step['status'] }}
+                    </span>
+                    <div style="font-size:12px; font-weight:600; color:#1a365d; line-height:1.3; margin-top:6px;">{{ $step['title'] }}</div>
                     <div style="font-size:11px; color:#6b7280; margin-top:2px;">{{ $step['description'] }}</div>
                     @if ($step['timestamp'])
                         <div style="font-size:10px; color:#b8960a; margin-top:6px;">{{ $step['timestamp'] }}</div>
