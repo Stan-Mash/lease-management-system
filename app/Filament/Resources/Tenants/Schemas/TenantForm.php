@@ -134,7 +134,6 @@ class TenantForm
                 TextInput::make('client_status_id')->numeric()->hidden(),
                 TextInput::make('lead_id')->numeric()->hidden(),
                 TextInput::make('type_id')->numeric()->hidden(),
-                TextInput::make('client_id')->numeric()->hidden(),
                 TextInput::make('prefered_messages_language_id')->numeric()->hidden(),
                 TextInput::make('property_id')->numeric()->hidden(),
                 TextInput::make('sla_id')->numeric()->hidden(),

@@ -140,11 +140,6 @@ class Lease extends Model
         return $this->belongsTo(Landlord::class);
     }
 
-    public function client(): BelongsTo
-    {
-        return $this->belongsTo(Client::class);
-    }
-
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
