@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Leases\Widgets;
 
 use App\Models\Lease;
+use App\Models\LeaseAuditLog;
 use Filament\Widgets\Widget;
 
 class LeaseAuditTimelineWidget extends Widget
@@ -18,22 +19,23 @@ class LeaseAuditTimelineWidget extends Widget
     public function mount(): void
     {
         if ($this->record === null) {
-            $owner = method_exists($this, 'getOwner') ? $this->getOwner() : null;
-            if ($owner !== null && method_exists($owner, 'getRecord')) {
-                $this->record = $owner->getRecord();
-            } else {
-                $id = request()->route('record');
-                if ($id) {
-                    $this->record = Lease::find($id);
-                }
+            $id = request()->route('record');
+            if ($id) {
+                $this->record = Lease::find($id);
             }
         }
     }
 
     public function getViewData(): array
     {
-        return [
-            'leaseId' => $this->record?->id ?? 0,
-        ];
+        $logs = $this->record
+            ? LeaseAuditLog::where('lease_id', $this->record->id)
+                ->with('user:id,name')
+                ->orderByDesc('created_at')
+                ->limit(50)
+                ->get()
+            : collect();
+
+        return ['logs' => $logs];
     }
 }
