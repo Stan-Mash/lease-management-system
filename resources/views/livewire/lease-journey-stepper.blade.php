@@ -48,11 +48,13 @@
 
     <div style="padding:20px;">
 
-        {{-- Header --}}
+        {{-- Header – match journey heading styling --}}
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:10px;">
                 <span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#DAA520;"></span>
-                <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#92700a;">Lease Journey</span>
+                <span style="font-size:9pt; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#b8960a;">
+                    Lease Journey
+                </span>
             </div>
             @php
                 $health = $this->health;

@@ -1,8 +1,10 @@
 <div style="border-radius:12px; background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%); border:1.5px solid rgba(218,165,32,0.35); border-left:5px solid #DAA520; padding:20px;">
 
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
         <span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#DAA520;"></span>
-        <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#92700a;">Activity Timeline</span>
+        <span style="font-size:9pt; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#b8960a;">
+            Activity Timeline
+        </span>
     </div>
 
     @forelse ($logs as $log)
