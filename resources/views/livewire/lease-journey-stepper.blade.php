@@ -139,7 +139,7 @@
         <div style="margin:20px 0; height:1px; background:linear-gradient(to right,rgba(218,165,32,0.4),transparent);"></div>
 
         {{-- Detail cards --}}
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px;">
             @foreach ($detailSteps as $step)
                 <div style="border-radius:8px; padding:12px; background:#fff; border:1px solid rgba(218,165,32,0.18); {{ $cardTopBorderStyle[$step['status']] ?? 'border-top:4px solid #e5e7eb;' }} {{ $step['status'] === 'active' ? 'box-shadow:0 0 0 2px rgba(26,54,93,0.1);' : '' }}">
 
@@ -147,7 +147,7 @@
                         <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:700; flex-shrink:0; {{ $step['status'] === 'done' ? 'background:rgba(218,165,32,0.12); color:#92700a;' : 'background:#f3f4f6; color:#6b7280;' }}">
                             {{ $step['number'] }}
                         </span>
-                        <span style="border-radius:9999px; padding:2px 8px; font-size:10px; font-weight:600; white-space:nowrap; {{ $statusBadgeStyle[$step['status']] ?? 'background:#f3f4f6; color:#6b7280;' }}">
+                        <span style="border-radius:9999px; padding:2px 8px; font-size:10px; font-weight:600; {{ $statusBadgeStyle[$step['status']] ?? 'background:#f3f4f6; color:#6b7280;' }}">
                             {{ $statusLabels[$step['status']] ?? $step['status'] }}
                         </span>
                     </div>
