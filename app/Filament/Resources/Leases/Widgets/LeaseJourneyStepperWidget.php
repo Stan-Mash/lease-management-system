@@ -24,9 +24,15 @@ class LeaseJourneyStepperWidget extends Widget
     public function mount(): void
     {
         if ($this->record === null) {
-            $owner = $this->getOwner();
+            // Filament 4: try owner first, fall back to route parameter
+            $owner = method_exists($this, 'getOwner') ? $this->getOwner() : null;
             if ($owner !== null && method_exists($owner, 'getRecord')) {
                 $this->record = $owner->getRecord();
+            } else {
+                $id = request()->route('record');
+                if ($id) {
+                    $this->record = Lease::find($id);
+                }
             }
         }
     }

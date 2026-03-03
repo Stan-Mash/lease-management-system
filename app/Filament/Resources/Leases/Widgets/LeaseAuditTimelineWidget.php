@@ -18,9 +18,14 @@ class LeaseAuditTimelineWidget extends Widget
     public function mount(): void
     {
         if ($this->record === null) {
-            $owner = $this->getOwner();
+            $owner = method_exists($this, 'getOwner') ? $this->getOwner() : null;
             if ($owner !== null && method_exists($owner, 'getRecord')) {
                 $this->record = $owner->getRecord();
+            } else {
+                $id = request()->route('record');
+                if ($id) {
+                    $this->record = Lease::find($id);
+                }
             }
         }
     }
