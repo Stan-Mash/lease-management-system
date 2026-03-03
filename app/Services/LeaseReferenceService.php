@@ -100,19 +100,25 @@ class LeaseReferenceService
         // Default to current year if not specified
         $year = $year ?? now()->year;
 
+        // Resolve zone code once, outside the transaction (avoids an extra query inside the lock)
+        $zoneCode = $zoneId !== null ? self::zoneCodeForId($zoneId) : null;
+        // lease_sequences.zone is char(1) — first character of zone code; 'X' when zone is unknown
+        $zoneChar = $zoneCode !== null ? strtoupper($zoneCode[0]) : 'X';
+
         // Use database transaction with row locking to prevent race conditions
-        return DB::transaction(function () use ($source, $leaseType, $unitCode, $year) {
-            // Lock the row for this year/lease_type combination
-            // Sequence is shared across all units for a given year + type
+        return DB::transaction(function () use ($source, $leaseType, $unitCode, $year, $zoneCode, $zoneChar) {
+            // Lock the row for this zone/year/lease_type combination
             $sequence = DB::table('lease_sequences')
+                ->where('zone', $zoneChar)
                 ->where('year', $year)
                 ->where('lease_type', $leaseType)
                 ->lockForUpdate()
                 ->first();
 
             if ($sequence === null) {
-                // First lease of this type in this year
+                // First lease of this type/zone/year combination
                 DB::table('lease_sequences')->insert([
+                    'zone' => $zoneChar,
                     'year' => $year,
                     'lease_type' => $leaseType,
                     'last_sequence' => 1,
@@ -138,8 +144,6 @@ class LeaseReferenceService
             $typeCode = self::$typeCodesBySource[$source][$leaseType];
             $sequencePadded = str_pad((string) $nextSequence, 3, '0', STR_PAD_LEFT);
             $base = "{$sourceCode}-{$typeCode}-{$unitCode}-{$year}-{$sequencePadded}";
-
-            $zoneCode = $zoneId !== null ? self::zoneCodeForId($zoneId) : null;
 
             return $zoneCode !== null ? "{$zoneCode}-{$base}" : $base;
         });

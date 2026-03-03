@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Leases\Schemas;
 
+use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -156,7 +158,9 @@ class LeaseForm
                             Forms\Components\DatePicker::make('date_created')
                                 ->label('Date Created')
                                 ->default(now())
-                                ->native(false),
+                                ->native(false)
+                                ->displayFormat('D, j M Y')
+                                ->closeOnDateSelection(),
 
                             Forms\Components\Select::make('source')
                                 ->label('Lease Origin')
@@ -253,18 +257,32 @@ class LeaseForm
                                 $set('unit_id', null);
                                 $set('tenant_id', null);
                                 $set('monthly_rent', null);
+                                $set('deposit_amount', null);
                                 $set('landlord_id', null);
                                 $set('zone_id', null);
+                                $set('zone', null);
                                 $set('assigned_field_officer_id', null);
 
-                                // Auto-fill landlord/zone from property immediately
-                                if ($state) {
-                                    $property = \App\Models\Property::find($state);
-                                    if ($property) {
-                                        $set('landlord_id', $property->landlord_id);
-                                        if ($property->zone_id) {
-                                            $set('zone_id', $property->zone_id);
-                                        }
+                                if (! $state) {
+                                    return;
+                                }
+
+                                // Single raw query joining property + zone — landlord and zone in one hit
+                                $row = DB::table('properties')
+                                    ->leftJoin('zones', 'properties.zone_id', '=', 'zones.id')
+                                    ->select(
+                                        'properties.landlord_id',
+                                        'properties.zone_id',
+                                        'zones.code as zone_code',
+                                    )
+                                    ->where('properties.id', $state)
+                                    ->first();
+
+                                if ($row) {
+                                    $set('landlord_id', $row->landlord_id);
+                                    if ($row->zone_id) {
+                                        $set('zone_id', $row->zone_id);
+                                        $set('zone', $row->zone_code ? strtoupper($row->zone_code[0]) : null);
                                     }
                                 }
                             }),
@@ -295,32 +313,57 @@ class LeaseForm
 
                                 return $count === 0
                                     ? '⚠️ No units found for this property.'
-                                    : "{$count} unit(s) available for this property. ✅ = Vacant, 🔴 = Occupied";
+                                    : "{$count} unit(s) available. ✅ = Vacant, 🔴 = Occupied";
                             })
                             ->disabled(fn ($get) => ! $get('property_id'))
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if (! $state) {
                                     $set('monthly_rent', null);
+                                    $set('deposit_amount', null);
 
                                     return;
                                 }
-                                $unit = \App\Models\Unit::with('property')->find($state);
-                                if ($unit) {
-                                    $set('monthly_rent', $unit->rent_amount ?? 0);
-                                    // Re-confirm property-level fields from unit in case
-                                    // property was pre-selected via property_id field
-                                    if ($unit->property) {
-                                        $set('landlord_id', $unit->property->landlord_id);
-                                        if ($unit->property->zone_id) {
-                                            $set('zone_id', $unit->property->zone_id);
-                                            $fieldOfficer = \App\Models\User::where('zone_id', $unit->property->zone_id)
-                                                ->where('role', 'field_officer')
-                                                ->first();
-                                            if ($fieldOfficer) {
-                                                $set('assigned_field_officer_id', $fieldOfficer->id);
-                                            }
-                                        }
+
+                                // Single raw JOIN query — unit + property + zone in one round-trip.
+                                // Avoids Eloquent hydration and eliminates the old broken
+                                // User::where('role', 'field_officer') query.
+                                $row = DB::table('units')
+                                    ->join('properties', 'units.property_id', '=', 'properties.id')
+                                    ->leftJoin('zones', 'properties.zone_id', '=', 'zones.id')
+                                    ->select(
+                                        'units.rent_amount',
+                                        'units.deposit_required',
+                                        'properties.landlord_id',
+                                        'properties.zone_id',
+                                        'zones.code as zone_code',
+                                    )
+                                    ->where('units.id', $state)
+                                    ->first();
+
+                                if ($row) {
+                                    $set('monthly_rent', $row->rent_amount ?? 0);
+                                    $set('deposit_amount', $row->deposit_required);
+                                    $set('landlord_id', $row->landlord_id);
+                                    if ($row->zone_id) {
+                                        $set('zone_id', $row->zone_id);
+                                        $set('zone', $row->zone_code ? strtoupper($row->zone_code[0]) : null);
                                     }
+                                }
+
+                                // Auto-populate tenant from the most recent active lease on this unit
+                                $occupantTenantId = DB::table('leases')
+                                    ->where('unit_id', $state)
+                                    ->whereIn('workflow_state', [
+                                        'active',
+                                        'pending_tenant_signature',
+                                        'pending_otp',
+                                        'approved',
+                                    ])
+                                    ->orderByDesc('created_at')
+                                    ->value('tenant_id');
+
+                                if ($occupantTenantId) {
+                                    $set('tenant_id', $occupantTenantId);
                                 }
                             }),
 
@@ -343,19 +386,22 @@ class LeaseForm
                                 if (! $propId) {
                                     return 'Tenants linked to the selected property will appear here.';
                                 }
-                                $result = self::tenantOptionsForProperty((int) $propId);
-                                if ($result['is_filtered']) {
-                                    $count = count($result['options']);
+                                // Cheap COUNT query — avoids fetching the full tenant list twice
+                                $linkedCount = DB::table('tenants')
+                                    ->where('property_id', $propId)
+                                    ->whereNull('deleted_at')
+                                    ->count();
 
-                                    return "Showing {$count} tenant(s) linked to this property.";
+                                if ($linkedCount > 0) {
+                                    return "Showing {$linkedCount} tenant(s) linked to this property.";
                                 }
 
-                                return '⚠️ No tenants are linked to this property — showing all tenants. You can still proceed.';
+                                return '⚠️ No tenants linked to this property — showing all tenants. You can still proceed.';
                             }),
 
                         // Hidden auto-filled fields
                         Forms\Components\Hidden::make('landlord_id'),
-                        Forms\Components\Hidden::make('zone')->default('A'),
+                        Forms\Components\Hidden::make('zone'),
                         Forms\Components\Hidden::make('zone_id'),
                         Forms\Components\Hidden::make('assigned_field_officer_id'),
                     ]),
@@ -364,7 +410,7 @@ class LeaseForm
                 // SECTION 3 — Financial Terms
                 // ═══════════════════════════════════════════════════════════
                 Section::make('Financial Terms')
-                    ->description('Monthly rent is auto-filled from the unit rate. Adjust if needed.')
+                    ->description('Monthly rent and deposit are auto-filled from the selected unit. Adjust if needed.')
                     ->icon('heroicon-o-banknotes')
                     ->schema([
                         Grid::make(2)->schema([
@@ -379,19 +425,38 @@ class LeaseForm
                                 ->label('Security Deposit')
                                 ->numeric()
                                 ->prefix('Ksh')
-                                ->required(),
+                                ->required()
+                                ->helperText('Auto-filled from the unit\'s deposit requirement.'),
                         ]),
 
                         Grid::make(2)->schema([
                             Forms\Components\DatePicker::make('start_date')
                                 ->label('Lease Start Date')
                                 ->required()
-                                ->native(false),
+                                ->native(false)
+                                ->displayFormat('D, j M Y')
+                                ->closeOnDateSelection()
+                                ->hintAction(
+                                    Action::make('setStartToday')
+                                        ->label('Today')
+                                        ->link()
+                                        ->icon('heroicon-m-calendar-days')
+                                        ->action(fn (Set $set) => $set('start_date', now()->toDateString()))
+                                ),
 
                             Forms\Components\DatePicker::make('end_date')
                                 ->label('Lease End Date (Optional)')
                                 ->native(false)
-                                ->helperText('Leave blank for a periodic/rolling tenancy.'),
+                                ->displayFormat('D, j M Y')
+                                ->closeOnDateSelection()
+                                ->helperText('Leave blank for a periodic/rolling tenancy.')
+                                ->hintAction(
+                                    Action::make('setEndToday')
+                                        ->label('Today')
+                                        ->link()
+                                        ->icon('heroicon-m-calendar-days')
+                                        ->action(fn (Set $set) => $set('end_date', now()->toDateString()))
+                                ),
                         ]),
                     ]),
 
