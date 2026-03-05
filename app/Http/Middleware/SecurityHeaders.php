@@ -43,9 +43,17 @@ class SecurityHeaders
             "object-src 'none'",
         ]);
 
+        // The landlord document endpoint is intentionally embedded in an iframe on the
+        // approval page (same origin). Allow framing for that specific route only.
+        $isLandlordDocument = $request->routeIs('landlord.public.document');
+
+        if ($isLandlordDocument) {
+            $csp = str_replace("frame-ancestors 'none'", "frame-ancestors 'self'", $csp);
+        }
+
         $response->headers->set('Content-Security-Policy', $csp);
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set('X-Frame-Options', $isLandlordDocument ? 'SAMEORIGIN' : 'DENY');
         $response->headers->set('X-XSS-Protection', '1; mode=block');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), bluetooth=()');
