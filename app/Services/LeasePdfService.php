@@ -87,10 +87,14 @@ class LeasePdfService
         $signatureImagePath = $tenantSigPath;
 
         try {
-            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures when coordinates exist
-            // When source_pdf_path exists, we always prefer it over Blade so output matches the uploaded design
+            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures.
+            // Only used when a coordinate map has been configured; without coordinates the stamping
+            // produces a blank template with no lease data, so we fall through to Strategy 1 instead.
             $template = $lease->leaseTemplate;
-            if ($template && $template->source_pdf_path) {
+            $coordinates = $template?->pdf_coordinate_map ?? [];
+            $hasCoordinates = is_array($coordinates) && count($coordinates) > 0;
+
+            if ($template && $template->source_pdf_path && $hasCoordinates) {
                 $sourcePath = storage_path('app/' . $template->source_pdf_path);
                 if (! file_exists($sourcePath)) {
                     $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
@@ -107,7 +111,6 @@ class LeasePdfService
                         $step3 = $outDir . '/' . $baseName . '-final.pdf';
 
                         $fields = $this->overlayFieldsFromLease($lease);
-                        $coordinates = $template->pdf_coordinate_map ?? [];
                         $textCoordinates = is_array($coordinates)
                             ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
                             : [];
