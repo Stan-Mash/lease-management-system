@@ -123,43 +123,14 @@
             background: #DAA520; color: #1a365d;
             padding: 3px 8px; border-radius: 20px;
         }
-        .doc-scroll {
-            background: #fff;
+        .doc-iframe {
+            display: block;
+            width: 100%;
+            height: 620px;
             border: 1.5px solid #dde3ed;
             border-top: none;
             border-radius: 0 0 12px 12px;
-            max-height: 520px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .doc-scroll::-webkit-scrollbar { width: 6px; }
-        .doc-scroll::-webkit-scrollbar-thumb { background: #c4c9d4; border-radius: 3px; }
-        .doc-inner {
-            padding: 28px 24px;
-            font-size: 13px;
-            line-height: 1.75;
-            color: #1a1a2e;
-        }
-        /* Styles for rendered lease content */
-        .doc-inner h1 { font-size: 17px; font-weight: 800; margin: 0 0 16px; text-align: center; }
-        .doc-inner h2 { font-size: 14px; font-weight: 700; margin: 18px 0 8px; }
-        .doc-inner h3 { font-size: 13px; font-weight: 700; margin: 14px 0 6px; }
-        .doc-inner p  { margin-bottom: 10px; }
-        .doc-inner table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 12px; }
-        .doc-inner table td, .doc-inner table th { border: 1px solid #dde3ed; padding: 7px 10px; vertical-align: top; }
-        .doc-inner table th { background: #f0f4f8; font-weight: 700; }
-        .doc-inner ul, .doc-inner ol { padding-left: 20px; margin-bottom: 10px; }
-        .doc-inner li { margin-bottom: 4px; }
-        .doc-no-template {
-            text-align: center; padding: 40px 20px; color: #9ca3af;
-        }
-        .doc-no-template .icon { font-size: 40px; margin-bottom: 10px; }
-        .doc-no-template p { font-size: 13px; }
-        .doc-scroll-hint {
-            text-align: center; padding: 8px 0;
-            font-size: 11px; color: #9ca3af;
-            background: #f8fafc; border-top: 1px solid #e8ecf2;
-            border-radius: 0 0 10px 10px;
+            background: #f8fafc;
         }
         .read-confirmation {
             display: flex; align-items: flex-start; gap: 10px;
@@ -322,7 +293,7 @@
 
     </div>
 
-    {{-- Full lease document --}}
+    {{-- Full lease document (same PDF as admin sees) --}}
     <div class="doc-section">
         <div class="doc-header">
             <div class="doc-header-title">
@@ -330,19 +301,12 @@
             </div>
             <span class="doc-header-badge">READ CAREFULLY</span>
         </div>
-        <div class="doc-scroll" id="leaseDoc">
-            <div class="doc-inner">
-                @if($leaseHtml)
-                    {!! $leaseHtml !!}
-                @else
-                    <div class="doc-no-template">
-                        <div class="icon">📋</div>
-                        <p>The lease document template is not yet assigned for this lease.<br>The key terms are summarised in the card above.</p>
-                    </div>
-                @endif
-            </div>
-        </div>
-        <div class="doc-scroll-hint" id="scrollHint">↓ Scroll to read the full agreement</div>
+        <iframe
+            class="doc-iframe"
+            src="{{ $documentUrl }}"
+            title="Lease Agreement {{ $approval->lease->reference_number }}"
+            id="leaseDoc"
+        ></iframe>
 
         {{-- Read confirmation checkbox --}}
         <div class="read-confirmation" onclick="document.getElementById('readCheck').click()">
@@ -460,16 +424,6 @@ document.querySelectorAll('.overlay').forEach(el => {
     });
 });
 
-// Hide scroll hint once user has scrolled near the bottom of the document
-const docEl = document.getElementById('leaseDoc');
-const hint   = document.getElementById('scrollHint');
-if (docEl) {
-    docEl.addEventListener('scroll', function() {
-        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 40) {
-            hint.style.display = 'none';
-        }
-    });
-}
 </script>
 </body>
 </html>

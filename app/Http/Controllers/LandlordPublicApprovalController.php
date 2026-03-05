@@ -9,42 +9,106 @@ use App\Models\LeaseApproval;
 use App\Models\LeaseTemplate;
 use App\Services\LandlordApprovalService;
 use App\Services\TemplateRenderService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Public landlord approval portal — no login required.
  *
  * Landlord receives a unique token link via SMS/email.
- * They open it, see the full lease document, and tap Approve, Request Changes, or Reject.
+ * They open it, see the full lease document (same PDF as the admin sees),
+ * and tap Approve, Request Changes, or Reject.
  * Token is single-use and expires after 7 days.
  */
 class LandlordPublicApprovalController extends Controller
 {
     /**
-     * Show the public approval page with the full rendered lease document.
+     * Show the public approval page.
      */
     public function show(string $token): View|\Illuminate\Http\RedirectResponse
     {
-        $approval = LeaseApproval::where('token', $token)
-            ->with(['lease.tenant', 'lease.unit', 'lease.property', 'lease.landlord', 'lease.leaseTemplate', 'landlord'])
-            ->first();
+        $approval = $this->findValidApproval($token);
 
-        if (! $approval) {
+        if ($approval === 'not_found') {
             return view('landlord.public.invalid', ['reason' => 'not_found']);
         }
-
-        if (! $approval->tokenIsValid()) {
+        if ($approval === 'expired') {
             return view('landlord.public.invalid', ['reason' => 'expired']);
         }
-
-        if (! $approval->isPending()) {
+        if ($approval === 'actioned') {
+            $approval = LeaseApproval::where('token', $token)
+                ->with(['lease', 'landlord'])
+                ->first();
             return view('landlord.public.already_actioned', compact('approval'));
         }
 
-        $leaseHtml = $this->renderLease($approval->lease);
+        $documentUrl = route('landlord.public.document', $token);
 
-        return view('landlord.public.approval', compact('approval', 'leaseHtml'));
+        return view('landlord.public.approval', compact('approval', 'documentUrl'));
+    }
+
+    /**
+     * Stream the lease PDF — authenticated by the approval token, no login required.
+     * The landlord sees the exact same PDF the admin generates.
+     */
+    public function document(string $token): SymfonyResponse
+    {
+        $approval = LeaseApproval::where('token', $token)
+            ->with(['lease.tenant', 'lease.unit', 'lease.property', 'lease.landlord', 'lease.leaseTemplate', 'lease.digitalSignatures'])
+            ->first();
+
+        if (! $approval || ! $approval->tokenIsValid()) {
+            abort(403, 'Invalid or expired approval link.');
+        }
+
+        $lease = $approval->lease;
+        $filename = 'Lease-' . $lease->reference_number . '.pdf';
+
+        // Strategy 1: assigned custom template
+        if ($lease->lease_template_id && $lease->leaseTemplate) {
+            try {
+                $html = app(TemplateRenderService::class)->render($lease->leaseTemplate, $lease);
+                return $this->streamPdf($html, $filename);
+            } catch (\Exception) {
+                // fall through
+            }
+        }
+
+        // Strategy 2: default template for this lease type
+        $default = LeaseTemplate::where('template_type', $lease->lease_type)
+            ->where('is_active', true)
+            ->where('is_default', true)
+            ->first();
+
+        if ($default) {
+            try {
+                $html = app(TemplateRenderService::class)->render($default, $lease);
+                return $this->streamPdf($html, $filename);
+            } catch (\Exception) {
+                // fall through
+            }
+        }
+
+        // Strategy 3: hardcoded Blade views
+        $viewName = match ($lease->lease_type) {
+            'residential_major' => 'pdf.residential-major',
+            'residential_micro' => 'pdf.residential-micro',
+            'commercial'        => 'pdf.commercial',
+            default             => 'pdf.residential-major',
+        };
+
+        $pdf = Pdf::loadView($viewName, [
+            'lease'    => $lease,
+            'tenant'   => $lease->tenant,
+            'unit'     => $lease->unit,
+            'landlord' => $lease->landlord,
+            'property' => $lease->property,
+            'today'    => now()->format('d/m/Y'),
+        ]);
+
+        return $this->streamPdf(null, $filename, $pdf);
     }
 
     /**
@@ -66,7 +130,7 @@ class LandlordPublicApprovalController extends Controller
                 ->with('error', 'This lease has already been actioned.');
         }
 
-        $action = $request->input('action'); // 'approve', 'request_changes', or 'reject'
+        $action = $request->input('action');
 
         if ($action === 'approve') {
             LandlordApprovalService::approveLease(
@@ -136,36 +200,47 @@ class LandlordPublicApprovalController extends Controller
     }
 
     /**
-     * Render the lease document HTML using the same 3-strategy fallback as DownloadLeaseController.
-     * Returns null if no template or rendering fails (graceful degradation).
+     * Validate a token and return the approval record, or a string status code.
      */
-    private function renderLease(Lease $lease): ?string
+    private function findValidApproval(string $token): LeaseApproval|string
     {
-        $renderer = app(TemplateRenderService::class);
-
-        // Strategy 1: assigned custom template
-        if ($lease->lease_template_id && $lease->leaseTemplate) {
-            try {
-                return $renderer->render($lease->leaseTemplate, $lease);
-            } catch (\Exception) {
-                // fall through
-            }
-        }
-
-        // Strategy 2: default template for this lease type
-        $default = LeaseTemplate::where('template_type', $lease->lease_type)
-            ->where('is_active', true)
-            ->where('is_default', true)
+        $approval = LeaseApproval::where('token', $token)
+            ->with(['lease.tenant', 'lease.unit', 'lease.property', 'lease.landlord', 'lease.leaseTemplate', 'landlord'])
             ->first();
 
-        if ($default) {
-            try {
-                return $renderer->render($default, $lease);
-            } catch (\Exception) {
-                // fall through
-            }
+        if (! $approval) {
+            return 'not_found';
+        }
+        if (! $approval->tokenIsValid()) {
+            return 'expired';
+        }
+        if (! $approval->isPending()) {
+            return 'actioned';
         }
 
-        return null;
+        return $approval;
+    }
+
+    /**
+     * Build a streaming PDF response from HTML or a pre-built Pdf instance.
+     */
+    private function streamPdf(
+        ?string $html,
+        string $filename,
+        ?\Barryvdh\DomPDF\PDF $pdf = null,
+    ): SymfonyResponse {
+        if ($pdf === null) {
+            $pdf = Pdf::loadHTML($html);
+        }
+
+        $output = $pdf->output();
+
+        return response($output, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Content-Length'      => strlen($output),
+            'Cache-Control'       => 'private, max-age=300',
+            'X-Frame-Options'     => 'SAMEORIGIN',
+        ]);
     }
 }

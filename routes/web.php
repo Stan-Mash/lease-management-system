@@ -52,6 +52,7 @@ Route::prefix('tenant')->name('tenant.')->middleware('throttle:30,1')->group(fun
 // Public landlord approval portal — no login required, secured by one-time token
 Route::prefix('landlord/approve')->name('landlord.public.')->middleware('throttle:20,1')->group(function () {
     Route::get('/{token}', [LandlordPublicApprovalController::class, 'show'])->name('approval');
+    Route::get('/{token}/document', [LandlordPublicApprovalController::class, 'document'])->name('document');
     Route::post('/{token}', [LandlordPublicApprovalController::class, 'action'])->name('action');
 });
 
