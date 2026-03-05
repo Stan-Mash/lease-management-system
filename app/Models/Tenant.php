@@ -19,6 +19,7 @@ class Tenant extends Model
         'date_time',
         'names',
         'address',
+        'po_box',
         'vat_number',
         'pin_number',
         'mobile_number',

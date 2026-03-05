@@ -430,6 +430,26 @@ class LeaseForm
                         ]),
 
                         Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('rent_review_years')
+                                ->label('Rent Review After (years)')
+                                ->numeric()
+                                ->minValue(1)
+                                ->maxValue(10)
+                                ->placeholder('e.g. 1')
+                                ->helperText('How many years before rent is reviewed. Printed on commercial leases.'),
+
+                            Forms\Components\TextInput::make('rent_review_rate')
+                                ->label('Rent Review Rate (%)')
+                                ->numeric()
+                                ->minValue(0)
+                                ->maxValue(100)
+                                ->step(0.5)
+                                ->suffix('%')
+                                ->placeholder('e.g. 5.0')
+                                ->helperText('Guide escalation rate offered at review time.'),
+                        ]),
+
+                        Grid::make(2)->schema([
                             Forms\Components\DatePicker::make('start_date')
                                 ->label('Lease Start Date')
                                 ->required()

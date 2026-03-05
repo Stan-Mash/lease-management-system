@@ -71,6 +71,8 @@ class Lease extends Model
         'assigned_field_officer_id',
         'monthly_rent',
         'deposit_amount',
+        'rent_review_years',
+        'rent_review_rate',
         'deposit_verified',
         'deposit_verified_at',
         'start_date',
@@ -101,6 +103,8 @@ class Lease extends Model
     protected $casts = [
         'monthly_rent' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
+        'rent_review_years' => 'integer',
+        'rent_review_rate' => 'decimal:2',
         'deposit_verified' => 'boolean',
         'deposit_verified_at' => 'datetime',
         'start_date' => 'date',

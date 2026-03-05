@@ -25,6 +25,7 @@ class Landlord extends Model
         'date_time',
         // CHIPS columns
         'address',
+        'po_box',
         'vat_number',
         'bank_id',
         'account_name',

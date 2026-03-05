@@ -85,6 +85,12 @@ class LandlordResource extends Resource
                     ->label('KRA PIN')
                     ->maxLength(50),
 
+                TextInput::make('po_box')
+                    ->label('PO Box (optional)')
+                    ->placeholder('e.g. 1234')
+                    ->maxLength(100)
+                    ->helperText('Leave blank if not applicable — the lease will leave this space empty.'),
+
                 TextInput::make('bank_name')
                     ->label('Bank')
                     ->maxLength(255),

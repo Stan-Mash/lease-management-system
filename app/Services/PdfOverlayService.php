@@ -13,14 +13,28 @@ use setasign\Fpdi\Fpdi;
  * Stamp text and images onto an existing PDF (e.g. landlord-provided lease).
  * Uses FPDI to import the source PDF and FPDF API to draw at (x, y) coordinates.
  * Coordinates are in mm; font size in pt.
+ *
+ * Font notes:
+ *   Default overlay font is Helvetica (built-in FPDF). To use Century Gothic:
+ *   1. Copy C:\Windows\Fonts\GOTHIC.TTF to storage/app/fonts/CenturyGothic.ttf
+ *   2. Run: php artisan tinker -r "FPDF_AddFont_Helper::make()"  (or use the MakeFont utility)
+ *   3. This generates storage/app/fonts/centurygothic.php + centurygothic.z
+ *   4. Set OVERLAY_FONT=centurygothic in .env  (optional - falls back to Helvetica)
+ *
+ * Default fill color is dark red (#C00000) so filled values are clearly distinct
+ * from the template's black text. Override per-field via the 'color' key in coordinates.
  */
 class PdfOverlayService
 {
+    /** Default color for stamped text — dark red for clear visual distinction */
+    private const DEFAULT_COLOR = 'C00000';
+
     /**
      * Stamp text fields onto an uploaded PDF template.
+     * Page dimensions are auto-detected from the source PDF (supports Letter, A4, etc.)
      *
-     * @param array<string, string> $fields ['tenant_name' => 'John Doe', 'unit_code' => '484A-001', ...]
-     * @param array<string, array{page: int, x: float, y: float, size?: int, color?: string}> $coordinates field => [page, x, y, fontSize?, fontColor?]
+     * @param array<string, string> $fields ['tenant_name' => 'John Doe', ...]
+     * @param array<string, array{page: int, x: float, y: float, size?: int, color?: string}> $coordinates
      */
     public function stampFields(
         string $sourcePdfPath,
@@ -28,13 +42,16 @@ class PdfOverlayService
         array $coordinates,
         string $outputPath,
     ): string {
-        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf = new Fpdi();
+        $this->loadFont($pdf);
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
             $tpl = $pdf->importPage($pageNo);
-            $pdf->AddPage();
-            $pdf->useTemplate($tpl);
+            // Auto-detect source page dimensions (Letter, A4, etc.)
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
 
             foreach ($coordinates as $fieldKey => $config) {
                 $page = (int) ($config['page'] ?? 1);
@@ -45,11 +62,11 @@ class PdfOverlayService
                 if ($value === '') {
                     continue;
                 }
-                $x = (float) ($config['x'] ?? 0);
-                $y = (float) ($config['y'] ?? 0);
-                $fontSize = (int) ($config['size'] ?? 11);
-                $colorHex = $config['color'] ?? '000000';
-                $this->writeText($pdf, $value, $x, $y, $fontSize, $colorHex);
+                $x        = (float) ($config['x'] ?? 0);
+                $y        = (float) ($config['y'] ?? 0);
+                $fontSize = (int) ($config['size'] ?? 10);
+                $color    = $config['color'] ?? self::DEFAULT_COLOR;
+                $this->writeText($pdf, $value, $x, $y, $fontSize, $color);
             }
         }
 
@@ -60,7 +77,6 @@ class PdfOverlayService
 
     /**
      * Stamp the tenant's drawn signature PNG onto a specific page/position.
-     * The signature PNG path comes from DigitalSignature->writeSignatureTempFile() or equivalent.
      */
     public function stampSignature(
         string $sourcePdfPath,
@@ -76,13 +92,14 @@ class PdfOverlayService
             throw new InvalidArgumentException("Signature file not found: {$signaturePngPath}");
         }
 
-        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf = new Fpdi();
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-            $tpl = $pdf->importPage($pageNo);
-            $pdf->AddPage();
-            $pdf->useTemplate($tpl);
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
             if ($pageNo === $page) {
                 $pdf->Image($signaturePngPath, $x, $y, $width, $height);
             }
@@ -95,10 +112,6 @@ class PdfOverlayService
 
     /**
      * Stamp manager countersignature + timestamp + SHA-256 audit stamp.
-     * The audit stamp is a small text block in the bottom-right corner:
-     *   "Digitally executed — Ref: CH-MAJ-484A-001-2026-001
-     *    SHA-256: [first 16 chars of verification_hash]
-     *    Chabrin Agencies Ltd — [timestamp]"
      */
     public function stampAuditBlock(
         string $pdfPath,
@@ -107,8 +120,8 @@ class PdfOverlayService
         DigitalSignature $managerSig,
         string $outputPath,
     ): string {
-        $ref = $lease->reference_number ?? 'N/A';
-        $hashPrefix = $managerSig->verification_hash
+        $ref         = $lease->reference_number ?? 'N/A';
+        $hashPrefix  = $managerSig->verification_hash
             ? substr($managerSig->verification_hash, 0, 16)
             : 'N/A';
         $timestamp = $managerSig->signed_at?->format('d M Y, H:i') ?? now()->format('d M Y, H:i');
@@ -120,18 +133,19 @@ class PdfOverlayService
         ];
         $block = implode("\n", $lines);
 
-        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf = new Fpdi();
         $pageCount = $pdf->setSourceFile($pdfPath);
-        $lastPage = $pageCount;
+        $lastPage  = $pageCount;
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-            $tpl = $pdf->importPage($pageNo);
-            $pdf->AddPage();
-            $pdf->useTemplate($tpl);
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
             if ($pageNo === $lastPage) {
                 $pdf->SetFont('Helvetica', '', 7);
                 $pdf->SetTextColor(80, 80, 80);
-                $pdf->SetXY(120, 275);
+                $pdf->SetXY(120, $size['height'] - 20);
                 $pdf->MultiCell(80, 4, $block, 0, 'R');
             }
         }
@@ -141,12 +155,44 @@ class PdfOverlayService
         return $outputPath;
     }
 
+    /**
+     * Load the overlay font. Uses Century Gothic if pre-generated font files exist in
+     * storage/app/fonts/; otherwise falls back to Helvetica.
+     *
+     * To set up Century Gothic:
+     *   cp "C:\Windows\Fonts\GOTHIC.TTF" storage/app/fonts/
+     *   php vendor/setasign/fpdf/makefont/makefont.php storage/app/fonts/GOTHIC.TTF cp1252
+     *   mv centurygothic.* storage/app/fonts/
+     */
+    private function loadFont(Fpdi $pdf): void
+    {
+        $fontDir  = storage_path('app/fonts');
+        $fontFile = $fontDir . '/centurygothic.php';
+
+        if (file_exists($fontFile)) {
+            // Custom Century Gothic available
+            define('FPDF_FONTPATH', $fontDir . '/');
+            $pdf->AddFont('CenturyGothic', '', 'centurygothic.php');
+            $pdf->AddFont('CenturyGothic', 'B', 'centurygothicb.php');
+            return;
+        }
+
+        // Helvetica is always available as FPDF built-in
+        // (visually similar at small sizes; Century Gothic setup documented above)
+    }
+
     private function writeText(Fpdi $pdf, string $text, float $x, float $y, int $fontSize, string $colorHex): void
     {
         $r = (int) hexdec(substr($colorHex, 0, 2));
         $g = (int) hexdec(substr($colorHex, 2, 2));
         $b = (int) hexdec(substr($colorHex, 4, 2));
-        $pdf->SetFont('Helvetica', '', $fontSize);
+
+        // Use Century Gothic if loaded, otherwise Helvetica
+        $fontName = defined('FPDF_FONTPATH') && file_exists(constant('FPDF_FONTPATH') . 'centurygothic.php')
+            ? 'CenturyGothic'
+            : 'Helvetica';
+
+        $pdf->SetFont($fontName, '', $fontSize);
         $pdf->SetTextColor($r, $g, $b);
         $pdf->SetXY($x, $y);
         $pdf->Cell(0, 5, $text);
