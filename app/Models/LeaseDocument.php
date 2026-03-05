@@ -514,6 +514,7 @@ class LeaseDocument extends Model
     {
         return [
             'original_signed' => 'Original Signed Lease',
+            'lawyer_stamped' => 'Lawyer Stamped / Returned from Advocate',
             'amendment' => 'Amendment',
             'addendum' => 'Addendum',
             'notice' => 'Notice',

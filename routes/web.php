@@ -4,6 +4,7 @@ use App\Http\Controllers\DownloadLeaseController;
 use App\Http\Controllers\FieldOfficerController;
 use App\Http\Controllers\LandlordApprovalController;
 use App\Http\Controllers\LandlordPublicApprovalController;
+use App\Http\Controllers\LawyerPortalController;
 use App\Http\Controllers\LeaseDocumentController;
 use App\Http\Controllers\LeaseVerificationController;
 use App\Http\Controllers\TemplatePreviewController;
@@ -47,6 +48,13 @@ Route::prefix('tenant')->name('tenant.')->middleware('throttle:30,1')->group(fun
     Route::post('/sign/{lease}/upload-id', [TenantSigningController::class, 'uploadIdCopy'])
         ->middleware('throttle:5,1')
         ->name('upload-id');
+});
+
+// Lawyer portal — no login required, secured by token (download lease PDF + upload stamped PDF)
+Route::prefix('lawyer/lease')->name('lawyer.portal')->middleware('throttle:30,1')->group(function () {
+    Route::get('/{token}', [LawyerPortalController::class, 'show'])->name('');
+    Route::get('/{token}/download', [LawyerPortalController::class, 'download'])->name('.download');
+    Route::post('/{token}/upload', [LawyerPortalController::class, 'upload'])->name('.upload');
 });
 
 // Public landlord approval portal — no login required, secured by one-time token

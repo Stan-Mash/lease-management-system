@@ -25,11 +25,16 @@ class LeaseLawyerTracking extends Model
         'returned_notes',
         'turnaround_days',
         'status',
+        'lawyer_link_token',
+        'lawyer_link_expires_at',
+        'sent_via_portal_link',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
         'returned_at' => 'datetime',
+        'lawyer_link_expires_at' => 'datetime',
+        'sent_via_portal_link' => 'boolean',
     ];
 
     public function lease(): BelongsTo
@@ -83,7 +88,7 @@ class LeaseLawyerTracking extends Model
         ]);
     }
 
-    public function markAsReturned(string $method, int $userId, ?string $notes = null): void
+    public function markAsReturned(string $method, ?int $userId, ?string $notes = null): void
     {
         $sentAt = $this->sent_at;
         $returnedAt = now();
@@ -116,5 +121,35 @@ class LeaseLawyerTracking extends Model
         }
 
         return $this->sent_at->addDays($expectedDays)->isPast();
+    }
+
+    /**
+     * Generate a unique token for the lawyer portal link.
+     */
+    public static function generateToken(): string
+    {
+        do {
+            $token = bin2hex(random_bytes(32));
+        } while (self::where('lawyer_link_token', $token)->exists());
+
+        return $token;
+    }
+
+    /**
+     * Find tracking by lawyer portal token (valid and not expired).
+     */
+    public static function findByToken(string $token): ?self
+    {
+        $tracking = self::where('lawyer_link_token', $token)->first();
+
+        if (! $tracking || $tracking->lawyer_link_expires_at?->isPast()) {
+            return null;
+        }
+
+        if ($tracking->status === 'returned') {
+            return null; // Already returned; link no longer valid for upload
+        }
+
+        return $tracking;
     }
 }

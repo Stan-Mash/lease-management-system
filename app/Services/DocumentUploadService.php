@@ -23,7 +23,9 @@ class DocumentUploadService
         string $title,
         ?string $description = null,
         ?string $documentDate = null,
+        ?int $uploadedBy = null,
     ): LeaseDocument {
+        $uploadedBy = $uploadedBy ?? auth()->id();
         $originalFilename = $file->getClientOriginalName();
         $mimeType = $file->getMimeType();
         $originalSize = $file->getSize();
@@ -57,7 +59,7 @@ class DocumentUploadService
             'compressed_size' => $isCompressed ? $compressedSize : null,
             'file_hash' => $fileHash,
             'is_compressed' => $isCompressed,
-            'uploaded_by' => auth()->id(),
+            'uploaded_by' => $uploadedBy,
             'document_date' => $documentDate,
         ]);
     }

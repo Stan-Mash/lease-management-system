@@ -8,6 +8,9 @@ use App\Services\DigitalSigningService;
 use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
 use App\Models\DigitalSignature;
+use App\Models\Lawyer;
+use App\Models\LeaseLawyerTracking;
+use App\Notifications\LeaseSentToLawyerNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
 use Exception;
@@ -339,6 +342,170 @@ class ViewLease extends ViewRecord
                             ->body('Error: ' . $e->getMessage())
                             ->send();
                     }
+                }),
+
+            // ── SEND TO LAWYER (tenant_signed → with_lawyer) ─────────────────
+            Action::make('sendToLawyer')
+                ->label('Send to Lawyer')
+                ->icon('heroicon-o-scale')
+                ->color('gray')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'tenant_signed'
+                        && auth()->user()?->can('send_to_lawyer'),
+                )
+                ->modalHeading('Send Lease to Lawyer')
+                ->modalDescription('Select the advocate and how to send the lease. They can receive the PDF by email or a secure link to download and upload the stamped copy.')
+                ->modalSubmitActionLabel('Send')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('lawyer_id')
+                        ->label('Lawyer / Advocate')
+                        ->options(fn () => Lawyer::active()->orderBy('name')->pluck('name', 'id'))
+                        ->searchable()
+                        ->required(),
+                    Select::make('send_method')
+                        ->label('Send via')
+                        ->options([
+                            'email_pdf' => 'Email with PDF attached',
+                            'email_link' => 'Email with portal link (lawyer downloads & uploads stamped PDF)',
+                            'physical' => 'Physical (hand delivery / courier)',
+                        ])
+                        ->default('email_link')
+                        ->required(),
+                    Textarea::make('sent_notes')
+                        ->label('Notes (optional)')
+                        ->placeholder('Instructions or reference for the advocate...')
+                        ->rows(2)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    $lawyer = Lawyer::find($data['lawyer_id']);
+                    if (! $lawyer) {
+                        Notification::make()->danger()->title('Invalid lawyer')->send();
+                        return;
+                    }
+                    $sendMethod = $data['send_method'] ?? 'email_link';
+                    $notes = $data['sent_notes'] ?? null;
+
+                    $tracking = LeaseLawyerTracking::create([
+                        'lease_id' => $this->record->id,
+                        'lawyer_id' => $lawyer->id,
+                        'sent_method' => $sendMethod === 'physical' ? 'physical' : 'email',
+                        'sent_by' => auth()->id(),
+                        'sent_notes' => $notes,
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                    ]);
+
+                    if ($sendMethod === 'email_link') {
+                        $token = LeaseLawyerTracking::generateToken();
+                        $tracking->update([
+                            'lawyer_link_token' => $token,
+                            'lawyer_link_expires_at' => now()->addDays(14),
+                            'sent_via_portal_link' => true,
+                        ]);
+                    }
+
+                    if ($sendMethod === 'email_pdf' || $sendMethod === 'email_link') {
+                        try {
+                            \Illuminate\Support\Facades\Notification::route('mail', $lawyer->email)
+                                ->notify(new LeaseSentToLawyerNotification(
+                                    $this->record,
+                                    $lawyer,
+                                    $tracking->fresh(),
+                                    $sendMethod === 'email_pdf',
+                                ));
+                        } catch (Exception $e) {
+                            report($e);
+                            Notification::make()->warning()
+                                ->title('Sent to lawyer')
+                                ->body('Tracking recorded, but email could not be sent: ' . $e->getMessage())
+                                ->send();
+                        }
+                    }
+
+                    $this->record->transitionTo(LeaseWorkflowState::WITH_LAWYER);
+
+                    Notification::make()->success()
+                        ->title('Sent to Lawyer')
+                        ->body('Lease sent to ' . $lawyer->name . ($lawyer->firm ? " ({$lawyer->firm})" : '') . '.')
+                        ->send();
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                }),
+
+            // ── MARK RETURNED FROM LAWYER (with_lawyer → pending_upload) ─────
+            Action::make('markReturnedFromLawyer')
+                ->label('Mark Returned from Lawyer')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('success')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'with_lawyer'
+                        && $this->record->lawyerTrackings()->where('status', 'sent')->exists()
+                        && auth()->user()?->can('receive_from_lawyer'),
+                )
+                ->modalHeading('Mark Returned from Lawyer')
+                ->modalDescription('Record that the advocate has returned the lease. Optionally upload the stamped PDF if you received it by email or physical.')
+                ->modalSubmitActionLabel('Mark Returned')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('returned_method')
+                        ->label('Returned via')
+                        ->options(['email' => 'Email', 'physical' => 'Physical'])
+                        ->required(),
+                    FileUpload::make('stamped_pdf')
+                        ->label('Stamped PDF (optional)')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(20480)
+                        ->disk('local')
+                        ->directory('temp-lawyer-returns'),
+                    Textarea::make('returned_notes')
+                        ->label('Notes (optional)')
+                        ->rows(2)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    $tracking = $this->record->lawyerTrackings()->where('status', 'sent')->latest()->first();
+                    if (! $tracking) {
+                        Notification::make()->danger()->title('No tracking found')->send();
+                        return;
+                    }
+
+                    $notes = $data['returned_notes'] ?? null;
+                    if (! empty($data['stamped_pdf'])) {
+                        $fullPath = storage_path('app/' . $data['stamped_pdf']);
+                        if (file_exists($fullPath)) {
+                            $uploadService = new DocumentUploadService();
+                            $file = new \Illuminate\Http\UploadedFile(
+                                $fullPath,
+                                basename($fullPath),
+                                mime_content_type($fullPath),
+                                null,
+                                true,
+                            );
+                            $doc = $uploadService->upload(
+                                $file,
+                                $this->record->id,
+                                'lawyer_stamped',
+                                'Stamped lease from advocate – ' . ($this->record->reference_number ?? ''),
+                                $notes,
+                                now()->format('Y-m-d'),
+                                auth()->id(),
+                            );
+                            if ($this->record->unit_code) {
+                                $doc->update(['unit_code' => $this->record->unit_code]);
+                            }
+                            @unlink($fullPath);
+                        }
+                    }
+
+                    $tracking->markAsReturned($data['returned_method'], auth()->id(), $notes);
+                    $this->record->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
+
+                    Notification::make()->success()
+                        ->title('Marked Returned')
+                        ->body('Lease marked as returned from lawyer. Status set to Pending Upload.')
+                        ->send();
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                 }),
 
             // ── COUNTERSIGN & ACTIVATE (after tenant has signed digitally) ───
