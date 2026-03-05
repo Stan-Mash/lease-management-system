@@ -86,7 +86,7 @@ class ViewLease extends ViewRecord
                 )
                 ->modalSubmitActionLabel('Yes, Send for Approval')
                 ->action(function () {
-                    $result = LandlordApprovalService::requestApproval($this->record, 'email');
+                    $result = LandlordApprovalService::requestApproval($this->record, 'both');
                     if ($result['success']) {
                         Notification::make()->success()
                             ->title('Approval Request Sent')

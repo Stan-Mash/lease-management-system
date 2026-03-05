@@ -6,10 +6,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Notifications\Notifiable;
 
 class Landlord extends Model
 {
-    use HasFactory;
+    use HasFactory, Notifiable;
+
+    /**
+     * Route email notifications to the landlord's email_address column.
+     */
+    public function routeNotificationForMail(): ?string
+    {
+        return $this->email_address ?: null;
+    }
+
+    /**
+     * Route SMS notifications to the landlord's mobile_number column.
+     */
+    public function routeNotificationForAfricasTalking(): ?string
+    {
+        return $this->mobile_number ?: null;
+    }
 
     protected $fillable = [
         'lan_id',
