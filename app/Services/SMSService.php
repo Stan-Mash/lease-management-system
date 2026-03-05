@@ -30,6 +30,12 @@ class SMSService
      */
     public static function send(string $phone, string $message, array $context = []): bool
     {
+        // Redirect all SMS to a single number during test periods.
+        // Set SMS_REDIRECT_TO=0722123103 in .env to enable; remove to disable.
+        if ($redirectTo = config('services.sms_redirect_to')) {
+            $phone = $redirectTo;
+        }
+
         $apiKey = config('services.africas_talking.api_key');
         $username = config('services.africas_talking.username');
 

@@ -41,4 +41,7 @@ return [
         'shortcode' => env('AFRICAS_TALKING_SHORTCODE', 'CHABRIN'),
     ],
 
+    // Test-period SMS redirect — set SMS_REDIRECT_TO=0722123103 to route all SMS to one number.
+    'sms_redirect_to' => env('SMS_REDIRECT_TO'),
+
 ];
