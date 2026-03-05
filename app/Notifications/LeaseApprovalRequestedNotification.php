@@ -3,14 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class LeaseApprovalRequestedNotification extends Notification implements ShouldQueue
+/**
+ * Sent synchronously (not queued) so delivery can be confirmed immediately.
+ * Landlord approval emails must not silently fail in a queue worker.
+ */
+class LeaseApprovalRequestedNotification extends Notification
 {
-    use Queueable;
 
     public Lease $lease;
     public string $approvalUrl;
@@ -39,20 +40,23 @@ class LeaseApprovalRequestedNotification extends Notification implements ShouldQ
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $landlordName = $notifiable->names ?? $notifiable->name ?? 'Landlord';
+        $tenantName   = $this->lease->tenant->names ?? $this->lease->tenant->name ?? 'Unknown';
+        $rent         = 'KES ' . number_format((float) $this->lease->monthly_rent);
+        $period       = $this->lease->start_date->format('d M Y') . ' to ' . $this->lease->end_date->format('d M Y');
+        $actionUrl    = $this->approvalUrl ?: url('/admin/leases/' . $this->lease->id);
+
         return (new MailMessage)
-            ->subject('New Lease Awaiting Your Approval - ' . $this->lease->reference_number)
-            ->greeting('Hello ' . ($notifiable->names ?? $notifiable->name ?? 'Landlord') . ',')
-            ->line('A new lease agreement has been prepared and is awaiting your approval.')
-            ->line('**Lease Details:**')
-            ->line('Reference: **' . $this->lease->reference_number . '**')
-            ->line('Tenant: **' . ($this->lease->tenant->names ?? $this->lease->tenant->name ?? 'Unknown') . '**')
-            ->line('Property Type: **' . ucfirst($this->lease->lease_type) . '**')
-            ->line('Monthly Rent: **' . number_format($this->lease->monthly_rent, 2) . ' ' . ($this->lease->currency ?? 'KES') . '**')
-            ->line('Lease Period: **' . $this->lease->start_date->format('d M Y') . ' - ' . $this->lease->end_date->format('d M Y') . '**')
-            ->action('Review & Approve Lease (No Login Required)', $this->approvalUrl ?: url('/admin/leases/' . $this->lease->id))
-            ->line('Tap the button above to open a secure page where you can approve or reject this lease — **no login or password needed**.')
-            ->line('The link expires in 7 days.')
-            ->line('Thank you for your prompt attention.');
+            ->subject('[Action Required] Lease ' . $this->lease->reference_number . ' needs your approval')
+            ->greeting('Dear ' . $landlordName . ',')
+            ->line('Chabrin Agencies has prepared a new lease agreement for your property and it requires your approval before proceeding.')
+            ->line('**Lease Reference:** ' . $this->lease->reference_number)
+            ->line('**Tenant:** ' . $tenantName)
+            ->line('**Monthly Rent:** ' . $rent)
+            ->line('**Lease Period:** ' . $period)
+            ->action('Approve or Reject This Lease', $actionUrl)
+            ->line('The link above opens a secure page — **no login or password needed**. You can approve or reject directly from your phone or computer.')
+            ->line('This link expires in 7 days. If you have questions, contact us at ' . config('mail.from.address') . '.');
     }
 
     /**
