@@ -542,45 +542,45 @@ HTML
                             }
 
                             $saveToProfile = (bool) ($data['save_signature_to_profile'] ?? false);
-                            // Inline draw-path so it works even if server lacks stampManagerSignatureFromPng
-                            $pngBytes = base64_decode($padPng, true);
-                            if ($pngBytes === false || $pngBytes === '') {
-                                Notification::make()->danger()
-                                    ->title('Invalid signature')
-                                    ->body('The drawn signature could not be read. Please try again.')
-                                    ->send();
-                                return;
+                            if (method_exists(DigitalSigningService::class, 'stampManagerSignatureFromPng')) {
+                                DigitalSigningService::stampManagerSignatureFromPng($this->record, $user, $padPng, $saveToProfile);
+                            } else {
+                                $pngBytes = base64_decode($padPng, true);
+                                if ($pngBytes === false || $pngBytes === '') {
+                                    Notification::make()->danger()->title('Invalid signature')->body('The drawn signature could not be read. Please try again.')->send();
+                                    return;
+                                }
+                                if ($saveToProfile && $user) {
+                                    $user->setSignatureImageAttribute($pngBytes);
+                                    $user->save();
+                                }
+                                $verificationHash = hash('sha256', (string) $this->record->id . (string) $user->id . now()->timestamp . $pngBytes);
+                                $dataUri = 'data:image/png;base64,' . base64_encode($pngBytes);
+                                DigitalSignature::create([
+                                    'lease_id' => $this->record->id,
+                                    'tenant_id' => null,
+                                    'signer_type' => 'manager',
+                                    'signed_by_user_id' => $user->id,
+                                    'signed_by_name' => $user->name ?? 'Property Manager',
+                                    'signature_data' => $dataUri,
+                                    'signature_type' => 'canvas',
+                                    'ip_address' => request()->ip(),
+                                    'user_agent' => request()->userAgent(),
+                                    'signed_at' => now(),
+                                    'is_verified' => true,
+                                    'verification_hash' => $verificationHash,
+                                ]);
+                                $this->record->auditLogs()->create([
+                                    'action' => 'manager_countersigned',
+                                    'old_state' => $this->record->workflow_state,
+                                    'new_state' => 'active',
+                                    'user_id' => $user->id,
+                                    'user_role_at_time' => $user->role ?? 'manager',
+                                    'ip_address' => request()->ip(),
+                                    'additional_data' => ['verification_hash_prefix' => substr($verificationHash, 0, 16)],
+                                    'description' => $saveToProfile ? 'Manager countersigned with drawn signature (saved to profile)' : 'Manager countersigned with drawn signature',
+                                ]);
                             }
-                            if ($saveToProfile && $user) {
-                                $user->setSignatureImageAttribute($pngBytes);
-                                $user->save();
-                            }
-                            $verificationHash = hash('sha256', (string) $this->record->id . (string) $user->id . now()->timestamp . $pngBytes);
-                            $dataUri = 'data:image/png;base64,' . base64_encode($pngBytes);
-                            DigitalSignature::create([
-                                'lease_id' => $this->record->id,
-                                'tenant_id' => null,
-                                'signer_type' => 'manager',
-                                'signed_by_user_id' => $user->id,
-                                'signed_by_name' => $user->name ?? 'Property Manager',
-                                'signature_data' => $dataUri,
-                                'signature_type' => 'canvas',
-                                'ip_address' => request()->ip(),
-                                'user_agent' => request()->userAgent(),
-                                'signed_at' => now(),
-                                'is_verified' => true,
-                                'verification_hash' => $verificationHash,
-                            ]);
-                            $this->record->auditLogs()->create([
-                                'action' => 'manager_countersigned',
-                                'old_state' => $this->record->workflow_state,
-                                'new_state' => 'active',
-                                'user_id' => $user->id,
-                                'user_role_at_time' => $user->role ?? 'manager',
-                                'ip_address' => request()->ip(),
-                                'additional_data' => ['verification_hash_prefix' => substr($verificationHash, 0, 16)],
-                                'description' => $saveToProfile ? 'Manager countersigned with drawn signature (saved to profile)' : 'Manager countersigned with drawn signature',
-                            ]);
                         }
 
                         // Reset the canvas state after a successful countersign
