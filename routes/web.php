@@ -3,6 +3,7 @@
 use App\Http\Controllers\DownloadLeaseController;
 use App\Http\Controllers\FieldOfficerController;
 use App\Http\Controllers\LandlordApprovalController;
+use App\Http\Controllers\LandlordPublicApprovalController;
 use App\Http\Controllers\LeaseDocumentController;
 use App\Http\Controllers\LeaseVerificationController;
 use App\Http\Controllers\TemplatePreviewController;
@@ -46,6 +47,12 @@ Route::prefix('tenant')->name('tenant.')->middleware('throttle:30,1')->group(fun
     Route::post('/sign/{lease}/upload-id', [TenantSigningController::class, 'uploadIdCopy'])
         ->middleware('throttle:5,1')
         ->name('upload-id');
+});
+
+// Public landlord approval portal — no login required, secured by one-time token
+Route::prefix('landlord/approve')->name('landlord.public.')->middleware('throttle:20,1')->group(function () {
+    Route::get('/{token}', [LandlordPublicApprovalController::class, 'show'])->name('approval');
+    Route::post('/{token}', [LandlordPublicApprovalController::class, 'action'])->name('action');
 });
 
 // Landlord approval portal routes (for landlord app integration)
