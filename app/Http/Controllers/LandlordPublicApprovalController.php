@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\Lease;
 use App\Models\LeaseApproval;
-use App\Models\LeaseTemplate;
 use App\Services\LandlordApprovalService;
-use App\Services\TemplateRenderService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\LeasePdfService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
@@ -66,49 +64,26 @@ class LandlordPublicApprovalController extends Controller
         $lease = $approval->lease;
         $filename = 'Lease-' . $lease->reference_number . '.pdf';
 
-        // Strategy 1: assigned custom template
-        if ($lease->lease_template_id && $lease->leaseTemplate) {
-            try {
-                $html = app(TemplateRenderService::class)->render($lease->leaseTemplate, $lease);
-                return $this->streamPdf($html, $filename);
-            } catch (\Exception) {
-                // fall through
-            }
+        try {
+            // Use LeasePdfService which includes Strategy 0 (uploaded PDF overlay) —
+            // the same document the admin sees via the template preview-pdf route.
+            $binary = app(LeasePdfService::class)->generate($lease);
+
+            return response($binary, 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Content-Length'      => strlen($binary),
+                'Cache-Control'       => 'private, max-age=300',
+                'X-Frame-Options'     => 'SAMEORIGIN',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Landlord portal: failed to generate lease PDF', [
+                'lease_id' => $lease->id,
+                'token'    => substr($token, 0, 8) . '...',
+                'error'    => $e->getMessage(),
+            ]);
+            abort(500, 'Unable to generate lease document. Please contact Chabrin Agencies.');
         }
-
-        // Strategy 2: default template for this lease type
-        $default = LeaseTemplate::where('template_type', $lease->lease_type)
-            ->where('is_active', true)
-            ->where('is_default', true)
-            ->first();
-
-        if ($default) {
-            try {
-                $html = app(TemplateRenderService::class)->render($default, $lease);
-                return $this->streamPdf($html, $filename);
-            } catch (\Exception) {
-                // fall through
-            }
-        }
-
-        // Strategy 3: hardcoded Blade views
-        $viewName = match ($lease->lease_type) {
-            'residential_major' => 'pdf.residential-major',
-            'residential_micro' => 'pdf.residential-micro',
-            'commercial'        => 'pdf.commercial',
-            default             => 'pdf.residential-major',
-        };
-
-        $pdf = Pdf::loadView($viewName, [
-            'lease'    => $lease,
-            'tenant'   => $lease->tenant,
-            'unit'     => $lease->unit,
-            'landlord' => $lease->landlord,
-            'property' => $lease->property,
-            'today'    => now()->format('d/m/Y'),
-        ]);
-
-        return $this->streamPdf(null, $filename, $pdf);
     }
 
     /**
@@ -221,26 +196,5 @@ class LandlordPublicApprovalController extends Controller
         return $approval;
     }
 
-    /**
-     * Build a streaming PDF response from HTML or a pre-built Pdf instance.
-     */
-    private function streamPdf(
-        ?string $html,
-        string $filename,
-        ?\Barryvdh\DomPDF\PDF $pdf = null,
-    ): SymfonyResponse {
-        if ($pdf === null) {
-            $pdf = Pdf::loadHTML($html);
-        }
-
-        $output = $pdf->output();
-
-        return response($output, 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $filename . '"',
-            'Content-Length'      => strlen($output),
-            'Cache-Control'       => 'private, max-age=300',
-            'X-Frame-Options'     => 'SAMEORIGIN',
-        ]);
-    }
 }
+
