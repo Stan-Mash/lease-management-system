@@ -218,10 +218,8 @@ class LeaseForm
 
                                 return $query->orderBy('name')->pluck('name', 'id');
                             })
-                            ->searchable()
                             ->placeholder('Leave blank to use system default')
                             ->helperText('Optional — the system will use the default template for the selected lease type.')
-                            ->live()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $template = \App\Models\LeaseTemplate::find($state);
@@ -295,7 +293,6 @@ class LeaseForm
 
                                 return self::unitOptionsForProperty($propertyId ?: null);
                             })
-                            ->searchable()
                             ->required()
                             ->live()
                             ->placeholder(fn ($get) => $get('property_id')
