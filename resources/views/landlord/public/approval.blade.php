@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Lease Approval — {{ $approval->lease->reference_number }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f0e8;
+            min-height: 100vh;
+            color: #1a365d;
+        }
+
+        /* ── Top bar ── */
+        .topbar {
+            background: #1a365d;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .topbar-logo {
+            width: 36px; height: 36px;
+            background: #DAA520;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 900; color: #1a365d;
+            flex-shrink: 0;
+        }
+        .topbar-name { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: .03em; }
+        .topbar-sub  { color: rgba(255,255,255,.55); font-size: 12px; margin-top: 1px; }
+
+        /* ── Card ── */
+        .page { max-width: 560px; margin: 0 auto; padding: 28px 16px 60px; }
+
+        .hero {
+            background: linear-gradient(135deg,#1a365d 0%,#2a4a7f 100%);
+            border-radius: 16px 16px 0 0;
+            padding: 28px 28px 20px;
+            color: #fff;
+        }
+        .hero-label {
+            font-size: 10px; font-weight: 700; letter-spacing: .15em;
+            text-transform: uppercase; color: #DAA520; margin-bottom: 6px;
+        }
+        .hero-ref { font-size: 22px; font-weight: 800; line-height: 1.2; }
+        .hero-sub  { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 6px; }
+
+        .card {
+            background: #fff;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 4px 24px rgba(26,54,93,.12);
+            overflow: hidden;
+        }
+
+        /* ── Alert flash ── */
+        .alert {
+            padding: 14px 20px;
+            font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .alert-success { background: #f0fdf4; color: #166534; border-left: 4px solid #22c55e; }
+        .alert-error   { background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444; }
+
+        /* ── Sections ── */
+        .section { padding: 22px 24px; border-bottom: 1px solid #f0ece0; }
+        .section:last-child { border-bottom: none; }
+        .section-title {
+            font-size: 10px; font-weight: 700; letter-spacing: .12em;
+            text-transform: uppercase; color: #DAA520; margin-bottom: 14px;
+        }
+
+        .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+        .row:last-child { margin-bottom: 0; }
+        .row-label { font-size: 12px; color: #6b7280; }
+        .row-value { font-size: 13px; font-weight: 600; color: #1a365d; text-align: right; max-width: 60%; }
+
+        .rent-highlight {
+            background: linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%);
+            border: 1.5px solid rgba(218,165,32,.35);
+            border-left: 4px solid #DAA520;
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 4px;
+        }
+        .rent-highlight .label { font-size: 12px; color: #92700a; font-weight: 600; }
+        .rent-highlight .amount { font-size: 22px; font-weight: 800; color: #1a365d; }
+        .rent-highlight .currency { font-size: 13px; color: #92700a; font-weight: 700; margin-right: 4px; }
+
+        /* ── Expires notice ── */
+        .expires {
+            background: #fef3c7;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 11px; color: #92400e;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* ── Action buttons ── */
+        .actions { padding: 20px 24px 28px; }
+        .btn {
+            display: block; width: 100%;
+            padding: 16px;
+            border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 700;
+            cursor: pointer; text-align: center;
+            transition: opacity .15s, transform .1s;
+            letter-spacing: .02em;
+        }
+        .btn:active { transform: scale(.98); }
+        .btn-approve {
+            background: #DAA520; color: #1a365d;
+            margin-bottom: 12px;
+        }
+        .btn-reject { background: #f3f4f6; color: #374151; }
+
+        /* ── Modals ── */
+        .overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.55); z-index: 100;
+            align-items: flex-end; justify-content: center;
+        }
+        .overlay.active { display: flex; }
+        .sheet {
+            background: #fff; width: 100%; max-width: 560px;
+            border-radius: 20px 20px 0 0;
+            padding: 28px 24px 40px;
+            animation: slideUp .25s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .sheet-title { font-size: 18px; font-weight: 800; color: #1a365d; margin-bottom: 6px; }
+        .sheet-sub   { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+        textarea, input[type=text] {
+            width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px;
+            padding: 12px 14px; font-size: 14px; font-family: inherit;
+            color: #1a365d; resize: vertical; outline: none;
+        }
+        textarea:focus, input[type=text]:focus { border-color: #DAA520; }
+        .field-label { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; display: block; }
+        .field-hint  { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+        .sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .sheet-actions .btn { flex: 1; margin-bottom: 0; }
+        .btn-confirm-approve { background: #DAA520; color: #1a365d; }
+        .btn-confirm-reject  { background: #ef4444; color: #fff; }
+        .btn-cancel { background: #f3f4f6; color: #374151; }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center; padding: 20px 0 0;
+            font-size: 11px; color: #9ca3af; line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-logo">C</div>
+    <div>
+        <div class="topbar-name">Chabrin Agencies</div>
+        <div class="topbar-sub">Lease Approval Portal</div>
+    </div>
+</div>
+
+<div class="page">
+
+    {{-- Flash messages --}}
+    @if (session('error'))
+        <div class="alert alert-error" style="border-radius:10px; margin-bottom:16px;">
+            ⚠️ {{ session('error') }}
+        </div>
+    @endif
+
+    {{-- Hero --}}
+    <div class="hero">
+        <div class="hero-label">Lease Approval Request</div>
+        <div class="hero-ref">{{ $approval->lease->reference_number }}</div>
+        <div class="hero-sub">
+            Hello {{ $approval->landlord->names }} — please review this lease and approve or reject it below.
+        </div>
+    </div>
+
+    <div class="card">
+
+        {{-- Rent highlight --}}
+        <div class="section">
+            <div class="section-title">Monthly Rent</div>
+            <div class="rent-highlight">
+                <div class="label">Agreed Rent</div>
+                <div class="amount">
+                    <span class="currency">KES</span>{{ number_format((float)$approval->lease->monthly_rent) }}
+                </div>
+            </div>
+        </div>
+
+        {{-- Lease details --}}
+        <div class="section">
+            <div class="section-title">Lease Details</div>
+            <div class="row">
+                <span class="row-label">Property</span>
+                <span class="row-value">{{ $approval->lease->property?->property_name ?? '—' }}</span>
+            </div>
+            <div class="row">
+                <span class="row-label">Unit</span>
+                <span class="row-value">{{ $approval->lease->unit?->unit_number ?? '—' }}</span>
+            </div>
+            <div class="row">
+                <span class="row-label">Lease Type</span>
+                <span class="row-value">{{ ucwords(str_replace('_', ' ', $approval->lease->lease_type ?? '—')) }}</span>
+            </div>
+            <div class="row">
+                <span class="row-label">Start Date</span>
+                <span class="row-value">{{ $approval->lease->start_date?->format('d M Y') ?? '—' }}</span>
+            </div>
+            <div class="row">
+                <span class="row-label">End Date</span>
+                <span class="row-value">{{ $approval->lease->end_date?->format('d M Y') ?? '—' }}</span>
+            </div>
+            <div class="row">
+                <span class="row-label">Deposit Required</span>
+                <span class="row-value">KES {{ number_format((float)($approval->lease->deposit_amount ?? 0)) }}</span>
+            </div>
+        </div>
+
+        {{-- Tenant details --}}
+        <div class="section">
+            <div class="section-title">Tenant</div>
+            <div class="row">
+                <span class="row-label">Name</span>
+                <span class="row-value">{{ $approval->lease->tenant?->names ?? '—' }}</span>
+            </div>
+            <div class="row">
+                <span class="row-label">Phone</span>
+                <span class="row-value">{{ $approval->lease->tenant?->mobile_number ?? '—' }}</span>
+            </div>
+            @if($approval->lease->tenant?->email_address)
+            <div class="row">
+                <span class="row-label">Email</span>
+                <span class="row-value">{{ $approval->lease->tenant->email_address }}</span>
+            </div>
+            @endif
+        </div>
+
+        {{-- Expiry notice --}}
+        <div class="section">
+            <div class="expires">
+                ⏰ This approval link expires on <strong style="margin-left:4px;">{{ $approval->token_expires_at->format('d M Y, g:i A') }}</strong>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- Action buttons --}}
+    <div class="actions">
+        <button class="btn btn-approve" onclick="openSheet('approve')">
+            ✅ Approve This Lease
+        </button>
+        <button class="btn btn-reject" onclick="openSheet('reject')">
+            ❌ Reject This Lease
+        </button>
+    </div>
+
+    <div class="footer">
+        Sent by Chabrin Agencies · {{ config('app.name') }}<br>
+        If you did not expect this message, please ignore it.
+    </div>
+
+</div>
+
+{{-- Approve confirmation sheet --}}
+<div class="overlay" id="approveSheet">
+    <div class="sheet">
+        <div class="sheet-title">✅ Approve Lease</div>
+        <div class="sheet-sub">You are approving lease {{ $approval->lease->reference_number }} for {{ $approval->lease->tenant?->names }}. This action cannot be undone.</div>
+        <form method="POST" action="{{ route('landlord.public.action', $approval->token) }}">
+            @csrf
+            <input type="hidden" name="action" value="approve">
+            <label class="field-label">Comments (optional)</label>
+            <textarea name="comments" rows="3" placeholder="Add any notes or conditions..."></textarea>
+            <div class="field-hint">e.g. "Approved — please ensure deposit is paid before key handover."</div>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-cancel" onclick="closeSheet('approve')">Cancel</button>
+                <button type="submit" class="btn btn-confirm-approve">Confirm Approval</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Reject confirmation sheet --}}
+<div class="overlay" id="rejectSheet">
+    <div class="sheet">
+        <div class="sheet-title">❌ Reject Lease</div>
+        <div class="sheet-sub">Please tell us why you are rejecting this lease. The Chabrin team will be notified.</div>
+        <form method="POST" action="{{ route('landlord.public.action', $approval->token) }}">
+            @csrf
+            <input type="hidden" name="action" value="reject">
+            <label class="field-label">Reason for Rejection <span style="color:#ef4444;">*</span></label>
+            <textarea name="rejection_reason" rows="3" placeholder="e.g. Rent amount is incorrect, wrong tenant details..." required></textarea>
+            <div class="field-hint" style="margin-bottom:14px;">Required — the team needs to know what to fix.</div>
+            <label class="field-label">Additional Comments (optional)</label>
+            <textarea name="comments" rows="2" placeholder="Any extra notes..."></textarea>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-cancel" onclick="closeSheet('reject')">Cancel</button>
+                <button type="submit" class="btn btn-confirm-reject">Confirm Rejection</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openSheet(type) {
+    document.getElementById(type + 'Sheet').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeSheet(type) {
+    document.getElementById(type + 'Sheet').classList.remove('active');
+    document.body.style.overflow = '';
+}
+// Close on overlay click
+document.querySelectorAll('.overlay').forEach(el => {
+    el.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
+});
+</script>
+</body>
+</html>

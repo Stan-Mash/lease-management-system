@@ -13,13 +13,15 @@ class LeaseApprovalRequestedNotification extends Notification implements ShouldQ
     use Queueable;
 
     public Lease $lease;
+    public string $approvalUrl;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(Lease $lease)
+    public function __construct(Lease $lease, string $approvalUrl = '')
     {
-        $this->lease = $lease;
+        $this->lease       = $lease;
+        $this->approvalUrl = $approvalUrl;
     }
 
     /**
@@ -47,8 +49,9 @@ class LeaseApprovalRequestedNotification extends Notification implements ShouldQ
             ->line('Property Type: **' . ucfirst($this->lease->lease_type) . '**')
             ->line('Monthly Rent: **' . number_format($this->lease->monthly_rent, 2) . ' ' . ($this->lease->currency ?? 'KES') . '**')
             ->line('Lease Period: **' . $this->lease->start_date->format('d M Y') . ' - ' . $this->lease->end_date->format('d M Y') . '**')
-            ->action('Review & Approve Lease', url('/admin/leases/' . $this->lease->id))
-            ->line('Please review the lease details and take appropriate action.')
+            ->action('Review & Approve Lease (No Login Required)', $this->approvalUrl ?: url('/admin/leases/' . $this->lease->id))
+            ->line('Tap the button above to open a secure page where you can approve or reject this lease — **no login or password needed**.')
+            ->line('The link expires in 7 days.')
             ->line('Thank you for your prompt attention.');
     }
 

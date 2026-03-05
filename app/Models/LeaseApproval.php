@@ -20,14 +20,48 @@ class LeaseApproval extends Model
         'user_agent',
         'previous_data',
         'metadata',
+        'token',
+        'token_expires_at',
     ];
 
     protected $casts = [
-        'reviewed_at' => 'datetime',
-        'notified_at' => 'datetime',
-        'previous_data' => 'array',
-        'metadata' => 'array',
+        'reviewed_at'      => 'datetime',
+        'notified_at'      => 'datetime',
+        'token_expires_at' => 'datetime',
+        'previous_data'    => 'array',
+        'metadata'         => 'array',
     ];
+
+    /**
+     * Generate a secure one-time token for this approval and persist it.
+     * Token is valid for 7 days. Safe to call multiple times (replaces existing token).
+     */
+    public function generateToken(): static
+    {
+        $this->token            = bin2hex(random_bytes(32)); // 64-char hex string
+        $this->token_expires_at = now()->addDays(7);
+        $this->save();
+
+        return $this;
+    }
+
+    /**
+     * Return the public approval URL the landlord opens (no login required).
+     */
+    public function publicUrl(): string
+    {
+        return route('landlord.public.approval', ['token' => $this->token]);
+    }
+
+    /**
+     * True if token is set and has not expired.
+     */
+    public function tokenIsValid(): bool
+    {
+        return $this->token !== null
+            && $this->token_expires_at !== null
+            && $this->token_expires_at->isFuture();
+    }
 
     /**
      * Get the lease that was approved/rejected.

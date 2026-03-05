@@ -28,11 +28,12 @@ class LandlordApprovalService
         }
 
         try {
-            // Create approval request
+            // Create approval request and generate a public one-time token
             $approval = $lease->requestApproval();
+            $approval->generateToken();
 
             // Send notification to landlord
-            $sent = self::sendApprovalRequest($lease, $method);
+            $sent = self::sendApprovalRequest($lease, $method, $approval);
 
             Log::info('Landlord approval requested', [
                 'lease_id' => $lease->id,
@@ -183,7 +184,7 @@ class LandlordApprovalService
     /**
      * Send approval request notification to landlord.
      */
-    private static function sendApprovalRequest(Lease $lease, string $method): bool
+    private static function sendApprovalRequest(Lease $lease, string $method, \App\Models\LeaseApproval $approval): bool
     {
         if (! $lease->landlord) {
             Log::warning('Cannot send approval request - no landlord associated', [
@@ -193,20 +194,21 @@ class LandlordApprovalService
             return false;
         }
 
+        $approvalUrl = $approval->publicUrl();
+
         try {
-            // Send email notification to landlord
+            // Send email notification to landlord (includes the approval link)
             if (in_array($method, ['email', 'both']) && $lease->landlord->email_address) {
-                $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease));
+                $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease, $approvalUrl));
             }
 
-            // Send SMS to landlord
+            // Send SMS to landlord with short approval link
             if (in_array($method, ['sms', 'both']) && $lease->landlord->mobile_number) {
-                SMSService::sendApprovalRequest(
-                    $lease->landlord->mobile_number,
-                    $lease->reference_number,
-                    $lease->tenant->names ?? 'Unknown',
-                    (float) $lease->monthly_rent,
-                );
+                $message = "Chabrin Agencies: New lease {$lease->reference_number} for {$lease->tenant->names} awaits your approval. Rent: KES " . number_format((float) $lease->monthly_rent) . ". Approve or reject here: {$approvalUrl}";
+                SMSService::sendQueued($lease->landlord->mobile_number, $message, [
+                    'type'      => 'approval_request',
+                    'reference' => $lease->reference_number,
+                ]);
             }
 
             return true;
