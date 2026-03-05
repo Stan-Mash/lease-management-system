@@ -24,7 +24,16 @@ class LeaseInfolist
                     Grid::make(1)->schema([
                         TextEntry::make('_journey_heading')
                             ->label('')
-                            ->state(fn ($record) => self::journeyHeading($record))
+                            ->state(function ($record) {
+                                try {
+                                    return self::journeyHeading($record);
+                                } catch (\Throwable $e) {
+                                    report($e);
+                                    $ref = $record?->reference_number ?? 'Lease';
+                                    return '<div style="padding:12px; color:#92400e; background:#fef3c7; border-radius:8px;">'
+                                        . '<strong>Unable to load journey status.</strong> Reference: ' . e($ref) . '. Please try again or check logs.</div>';
+                                }
+                            })
                             ->html()
                             ->columnSpanFull(),
                     ]),
@@ -40,7 +49,16 @@ class LeaseInfolist
                     Grid::make(1)->schema([
                         TextEntry::make('_stepper')
                             ->label('')
-                            ->state(fn ($record) => self::buildStepperHtml($record))
+                            ->state(function ($record) {
+                                try {
+                                    return self::buildStepperHtml($record);
+                                } catch (\Throwable $e) {
+                                    report($e);
+                                    $ref = $record?->reference_number ?? 'Lease';
+                                    return '<div style="padding:12px; color:#92400e; background:#fef3c7; border-radius:8px;">'
+                                        . '<strong>Unable to load lease journey stepper.</strong> Reference: ' . e($ref) . '. Please try again or check logs.</div>';
+                                }
+                            })
                             ->html()
                             ->columnSpanFull(),
                     ]),
@@ -814,16 +832,24 @@ class LeaseInfolist
 
     private static function buildStepperHtml($record): string
     {
-        $macroSteps = self::buildMacroSteps($record);
-        $detailSteps = self::buildDetailSteps($record);
-        $progress = self::buildProgress($record);
-        $currentStateLabel = self::stateLabel($record->workflow_state ?? 'draft');
-        $currentStateColor = self::stateColor($record->workflow_state ?? 'draft');
-
         try {
-            $health = LeaseHealthService::score($record);
-        } catch (\Throwable) {
+            $macroSteps = self::buildMacroSteps($record);
+            $detailSteps = self::buildDetailSteps($record);
+            $progress = self::buildProgress($record);
+            $currentStateLabel = self::stateLabel($record->workflow_state ?? 'draft');
+            $currentStateColor = self::stateColor($record->workflow_state ?? 'draft');
+
             $health = ['score' => 0, 'grade' => 'F', 'flags' => []];
+            try {
+                $health = LeaseHealthService::score($record);
+            } catch (\Throwable) {
+                // keep default health
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $ref = $record?->reference_number ?? 'Lease';
+            return '<div style="padding:12px; color:#92400e; background:#fef3c7; border-radius:8px;">'
+                . '<strong>Unable to load lease journey stepper.</strong> Reference: ' . e($ref) . '. Please try again or check logs.</div>';
         }
 
         $score = $health['score'];

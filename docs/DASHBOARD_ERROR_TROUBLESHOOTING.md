@@ -25,6 +25,16 @@ Search for lines like:
 
 The log line will include the exception message so you can fix the root cause (e.g. missing table, wrong column name).
 
+## Lease view page / Countersign modal
+
+If you see "Error while loading page" when opening a **lease view** (e.g. `/admin/leases/27781`) or when opening the **Countersign & Activate** modal:
+
+1. **Journey and stepper** — The lease view now catches exceptions in the journey heading and journey stepper. If those sections fail, you will see "Unable to load journey status" or "Unable to load lease journey stepper" instead of a full page error, and the exception will be reported to the Laravel log. Check the log for the real cause.
+
+2. **Check the log** — Run `tail -100 storage/logs/laravel.log` and look for the most recent exception (e.g. missing column, decryption error, or invalid workflow state).
+
+3. **After fixing** — Deploy the fix, then run `php artisan optimize:clear` on the server.
+
 ## Common causes after deploy
 
 1. **Missing `jobs` or `failed_jobs` table**  
