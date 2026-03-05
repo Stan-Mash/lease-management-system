@@ -17,6 +17,12 @@ return [
     'default' => env('MAIL_MAILER', 'log'),
 
     /*
+    | Test-period mail redirect — set MAIL_REDIRECT_TO=email@example.com to
+    | route all outgoing mail to a single address. Remove to disable.
+    */
+    'redirect_to' => env('MAIL_REDIRECT_TO'),
+
+    /*
     |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------

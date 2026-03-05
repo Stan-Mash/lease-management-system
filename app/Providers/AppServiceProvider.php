@@ -11,6 +11,7 @@ use App\Observers\RoleObserver;
 use App\Observers\TenantObserver;
 use App\Observers\UnitObserver;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Pulse\Facades\Pulse;
 
@@ -29,6 +30,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Redirect all outgoing mail to a single address during test periods.
+        // To enable: set MAIL_REDIRECT_TO=someone@example.com in .env
+        // To disable: remove the variable (or leave it empty)
+        if ($redirect = config('mail.redirect_to')) {
+            Mail::alwaysTo($redirect);
+        }
+
         // Register observers
         Lease::observe(LeaseObserver::class);
         Role::observe(RoleObserver::class);
