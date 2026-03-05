@@ -165,6 +165,8 @@ class LeasePdfService
                         }
 
                         if ($binary !== false) {
+                            Log::info('LeasePdfService: Strategy 0 (uploaded PDF) succeeded', ['lease_id' => $lease->id]);
+
                             return $binary;
                         }
                     } catch (Exception $e) {

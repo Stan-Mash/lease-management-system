@@ -56,7 +56,7 @@ class DownloadLeaseController extends Controller
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => $disposition . '; filename="' . $filename . '"',
             'Content-Length'      => strlen($binary),
-            'Cache-Control'       => 'private, max-age=300',
+            'Cache-Control'       => $disposition === 'inline' ? 'no-store' : 'private, max-age=300',
         ]);
     }
 
