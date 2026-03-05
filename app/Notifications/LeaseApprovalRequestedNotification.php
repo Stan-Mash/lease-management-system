@@ -29,7 +29,7 @@ class LeaseApprovalRequestedNotification extends Notification implements ShouldQ
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail'];
     }
 
     /**
@@ -39,11 +39,11 @@ class LeaseApprovalRequestedNotification extends Notification implements ShouldQ
     {
         return (new MailMessage)
             ->subject('New Lease Awaiting Your Approval - ' . $this->lease->reference_number)
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello ' . ($notifiable->names ?? $notifiable->name ?? 'Landlord') . ',')
             ->line('A new lease agreement has been prepared and is awaiting your approval.')
             ->line('**Lease Details:**')
             ->line('Reference: **' . $this->lease->reference_number . '**')
-            ->line('Tenant: **' . $this->lease->tenant->name . '**')
+            ->line('Tenant: **' . ($this->lease->tenant->names ?? $this->lease->tenant->name ?? 'Unknown') . '**')
             ->line('Property Type: **' . ucfirst($this->lease->lease_type) . '**')
             ->line('Monthly Rent: **' . number_format($this->lease->monthly_rent, 2) . ' ' . ($this->lease->currency ?? 'KES') . '**')
             ->line('Lease Period: **' . $this->lease->start_date->format('d M Y') . ' - ' . $this->lease->end_date->format('d M Y') . '**')
@@ -62,7 +62,7 @@ class LeaseApprovalRequestedNotification extends Notification implements ShouldQ
         return [
             'lease_id' => $this->lease->id,
             'reference_number' => $this->lease->reference_number,
-            'tenant_name' => $this->lease->tenant->name,
+            'tenant_name' => $this->lease->tenant->names ?? $this->lease->tenant->name ?? 'Unknown',
             'monthly_rent' => $this->lease->monthly_rent,
             'action' => 'approval_requested',
         ];

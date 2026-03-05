@@ -194,17 +194,17 @@ class LandlordApprovalService
         }
 
         try {
-            // Send email
-            if (in_array($method, ['email', 'both']) && $lease->landlord->email) {
+            // Send email notification to landlord
+            if (in_array($method, ['email', 'both']) && $lease->landlord->email_address) {
                 $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease));
             }
 
-            // Send SMS if method includes 'sms'
-            if (in_array($method, ['sms', 'both']) && $lease->landlord->phone) {
+            // Send SMS to landlord
+            if (in_array($method, ['sms', 'both']) && $lease->landlord->mobile_number) {
                 SMSService::sendApprovalRequest(
-                    $lease->landlord->phone,
+                    $lease->landlord->mobile_number,
                     $lease->reference_number,
-                    $lease->tenant->name ?? 'Unknown',
+                    $lease->tenant->names ?? 'Unknown',
                     (float) $lease->monthly_rent,
                 );
             }
