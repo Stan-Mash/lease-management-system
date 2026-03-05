@@ -126,7 +126,8 @@
         .doc-iframe {
             display: block;
             width: 100%;
-            height: 620px;
+            height: 80vh;
+            min-height: 600px;
             border: 1.5px solid #dde3ed;
             border-top: none;
             border-radius: 0 0 12px 12px;
@@ -299,11 +300,17 @@
             <div class="doc-header-title">
                 📄 Full Lease Agreement
             </div>
-            <span class="doc-header-badge">READ CAREFULLY</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span class="doc-header-badge">READ CAREFULLY</span>
+                <a href="{{ $documentUrl }}" target="_blank" rel="noopener"
+                   style="font-size:11px;color:rgba(255,255,255,.75);text-decoration:none;white-space:nowrap;">
+                    ↗ Open in new tab
+                </a>
+            </div>
         </div>
         <iframe
             class="doc-iframe"
-            src="{{ $documentUrl }}"
+            src="{{ $documentUrl }}#toolbar=0&navpanes=0&scrollbar=1"
             title="Lease Agreement {{ $approval->lease->reference_number }}"
             id="leaseDoc"
         ></iframe>
