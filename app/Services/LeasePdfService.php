@@ -437,33 +437,104 @@ class LeasePdfService
         $property = $sampleData['property'];
         $unit = $sampleData['unit'];
 
+        $startDate = $lease->start_date ?? null;
+        $endDate   = $lease->end_date ?? null;
+        $rent      = $lease->monthly_rent ? (float) $lease->monthly_rent : null;
+        $deposit   = $lease->deposit_amount ? (float) $lease->deposit_amount : null;
+
         return [
-            'tenant_name' => $tenant->names ?? $tenant->full_name ?? '',
-            'unit_code' => $unit->unit_code ?? $unit->unit_number ?? '',
-            'property_name' => $property->property_name ?? $property->name ?? '',
-            'monthly_rent' => $lease->monthly_rent ? number_format((float) $lease->monthly_rent, 2) : '',
-            'start_date' => isset($lease->start_date) ? (method_exists($lease->start_date, 'format') ? $lease->start_date->format('d/m/Y') : (string) $lease->start_date) : '',
-            'end_date' => isset($lease->end_date) ? (method_exists($lease->end_date, 'format') ? $lease->end_date->format('d/m/Y') : (string) $lease->end_date) : '',
-            'landlord_name' => $landlord->names ?? $landlord->name ?? '',
-            'reference_number' => $lease->reference_number ?? '',
+            'lease_date_day'   => $startDate ? (is_string($startDate) ? date('j', strtotime($startDate)) : $startDate->format('j')) : '5',
+            'lease_date_month' => $startDate ? (is_string($startDate) ? date('F', strtotime($startDate)) : $startDate->format('F')) : 'March',
+            'lease_date_year'  => $startDate ? (is_string($startDate) ? date('Y', strtotime($startDate)) : $startDate->format('Y')) : date('Y'),
+            'landlord_name'   => $landlord->names ?? $landlord->name ?? 'Creek View Limited',
+            'landlord_po_box' => $landlord->po_box ?? '',
+            'tenant_name'     => $tenant->names ?? $tenant->full_name ?? 'John Doe',
+            'tenant_id_number' => $tenant->national_id ?? $tenant->id_number ?? '12345678',
+            'tenant_po_box'   => $tenant->po_box ?? '',
+            'property_name'      => $property->property_name ?? $property->name ?? 'Sample Building',
+            'property_lr_number' => $property->lr_number ?? 'LR/12345/678',
+            'unit_code'          => $unit->unit_code ?? $unit->unit_number ?? 'A-101',
+            'start_date'            => $startDate ? (is_string($startDate) ? $startDate : $startDate->format('d/m/Y')) : '01/01/2026',
+            'end_date'              => $endDate ? (is_string($endDate) ? $endDate : $endDate->format('d/m/Y')) : '31/03/2031',
+            'lease_duration_months' => '5 year(s) 3 month(s)',
+            'monthly_rent'   => $rent ? number_format($rent, 2) : '50,000.00',
+            'deposit_amount' => $deposit ? number_format($deposit, 2) : '100,000.00',
+            'vat_amount'     => $rent ? number_format($rent * 0.16, 2) : '8,000.00',
+            'rent_review_years' => '1',
+            'rent_review_rate'  => '5.0',
+            'reference_number' => $lease->reference_number ?? 'CH-COM-SAMPLE-2026',
         ];
     }
 
     /**
      * Build merge fields for PDF overlay (Strategy 0).
+     * All blank strings are skipped by PdfOverlayService (template blanks stay visible).
      *
      * @return array<string, string>
      */
     private function overlayFieldsFromLease(Lease $lease): array
     {
+        $startDate  = $lease->start_date;
+        $endDate    = $lease->end_date;
+        $rent       = $lease->monthly_rent ? (float) $lease->monthly_rent : null;
+        $deposit    = $lease->deposit_amount ? (float) $lease->deposit_amount : null;
+        $termMonths = $lease->lease_term_months;
+
+        // Auto-compute end date from start + term if end_date not set
+        if ($startDate && ! $endDate && $termMonths) {
+            $endDate = $startDate->copy()->addMonths((int) $termMonths);
+        }
+
+        // VAT at 16% (Kenya statutory rate)
+        $vatAmount = $rent ? round($rent * 0.16, 2) : null;
+
+        // Lease duration label
+        $durationLabel = '';
+        if ($termMonths) {
+            $years  = intdiv((int) $termMonths, 12);
+            $months = (int) $termMonths % 12;
+            if ($years && $months) {
+                $durationLabel = "{$years} year(s) {$months} month(s)";
+            } elseif ($years) {
+                $durationLabel = "{$years} year(s)";
+            } else {
+                $durationLabel = "{$months} month(s)";
+            }
+        }
+
         return [
-            'tenant_name' => $lease->tenant?->names ?? '',
-            'unit_code' => $lease->unit_code ?? $lease->unit?->unit_code ?? '',
-            'property_name' => $lease->property?->property_name ?? '',
-            'monthly_rent' => $lease->monthly_rent ? number_format((float) $lease->monthly_rent, 2) : '',
-            'start_date' => $lease->start_date?->format('d/m/Y') ?? '',
-            'end_date' => $lease->end_date?->format('d/m/Y') ?? '',
-            'landlord_name' => $lease->landlord?->names ?? '',
+            // Date fields (split for precise placement on date line)
+            'lease_date_day'   => $startDate ? $startDate->format('j') : '',
+            'lease_date_month' => $startDate ? $startDate->format('F') : '',
+            'lease_date_year'  => $startDate ? $startDate->format('Y') : '',
+
+            // Parties
+            'landlord_name'   => $lease->landlord?->names ?? '',
+            'landlord_po_box' => $lease->landlord?->po_box ?? '',
+            'tenant_name'     => $lease->tenant?->names ?? '',
+            'tenant_id_number' => $lease->tenant?->national_id ?? $lease->tenant?->passport_number ?? '',
+            'tenant_po_box'   => $lease->tenant?->po_box ?? '',
+
+            // Property
+            'property_name'      => $lease->property?->property_name ?? '',
+            'property_lr_number' => $lease->property?->lr_number ?? '',
+            'unit_code'          => $lease->unit_code ?? $lease->unit?->unit_code ?? '',
+
+            // Term
+            'start_date'            => $startDate?->format('d/m/Y') ?? '',
+            'end_date'              => $endDate?->format('d/m/Y') ?? '',
+            'lease_duration_months' => $durationLabel,
+
+            // Financials
+            'monthly_rent'     => $rent ? number_format($rent, 2) : '',
+            'deposit_amount'   => $deposit ? number_format($deposit, 2) : '',
+            'vat_amount'       => $vatAmount ? number_format($vatAmount, 2) : '',
+
+            // Rent review (optional — set on lease when creating)
+            'rent_review_years' => $lease->rent_review_years ? (string) $lease->rent_review_years : '',
+            'rent_review_rate'  => $lease->rent_review_rate ? number_format((float) $lease->rent_review_rate, 1) : '',
+
+            // Reference (for any reference fields in template)
             'reference_number' => $lease->reference_number ?? '',
         ];
     }

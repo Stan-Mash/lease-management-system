@@ -62,6 +62,12 @@ class TenantForm
                     ->label('Address line 3')
                     ->maxLength(255),
 
+                TextInput::make('po_box')
+                    ->label('PO Box (optional)')
+                    ->placeholder('e.g. 1234')
+                    ->maxLength(100)
+                    ->helperText('Leave blank if not applicable — the lease will leave this space empty.'),
+
                 TextInput::make('national_id')
                     ->label('National ID')
                     ->maxLength(50),
