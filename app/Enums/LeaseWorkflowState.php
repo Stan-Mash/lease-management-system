@@ -33,6 +33,7 @@ enum LeaseWorkflowState: string
     case CANCELLED = 'cancelled';
     case DISPUTED = 'disputed';
     case ARCHIVED = 'archived';
+    case CHANGES_REQUESTED = 'changes_requested';
 
     /**
      * Get valid transitions from this state.
@@ -44,7 +45,8 @@ enum LeaseWorkflowState: string
         return match ($this) {
             self::DRAFT => [self::PENDING_LANDLORD_APPROVAL, self::APPROVED, self::CANCELLED],
             self::RECEIVED => [self::PENDING_LANDLORD_APPROVAL, self::APPROVED, self::CANCELLED],
-            self::PENDING_LANDLORD_APPROVAL => [self::APPROVED, self::CANCELLED, self::DRAFT],
+            self::PENDING_LANDLORD_APPROVAL => [self::APPROVED, self::CHANGES_REQUESTED, self::CANCELLED, self::DRAFT],
+            self::CHANGES_REQUESTED => [self::PENDING_LANDLORD_APPROVAL, self::DRAFT, self::CANCELLED],
             self::APPROVED => [self::PRINTED, self::SENT_DIGITAL, self::CANCELLED],
             self::PRINTED => [self::CHECKED_OUT, self::CANCELLED],
             self::CHECKED_OUT => [self::PENDING_TENANT_SIGNATURE, self::RETURNED_UNSIGNED],
@@ -105,6 +107,7 @@ enum LeaseWorkflowState: string
             self::CANCELLED => 'Cancelled',
             self::DISPUTED => 'Disputed',
             self::ARCHIVED => 'Archived',
+            self::CHANGES_REQUESTED => 'Changes Requested',
         };
     }
 
@@ -128,6 +131,7 @@ enum LeaseWorkflowState: string
             self::DISPUTED => 'danger',
             self::EXPIRED, self::TERMINATED, self::CANCELLED => 'danger',
             self::ARCHIVED => 'gray',
+            self::CHANGES_REQUESTED => 'warning',
         };
     }
 
@@ -160,6 +164,7 @@ enum LeaseWorkflowState: string
             self::CANCELLED => 'heroicon-o-trash',
             self::DISPUTED => 'heroicon-o-exclamation-triangle',
             self::ARCHIVED => 'heroicon-o-archive-box',
+            self::CHANGES_REQUESTED => 'heroicon-o-chat-bubble-left-ellipsis',
         };
     }
 
@@ -216,6 +221,7 @@ enum LeaseWorkflowState: string
         return in_array($this, [
             self::DISPUTED,
             self::RETURNED_UNSIGNED,
+            self::CHANGES_REQUESTED,
         ], true);
     }
 

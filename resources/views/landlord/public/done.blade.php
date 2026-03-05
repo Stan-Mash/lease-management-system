@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $action === 'approved' ? 'Lease Approved' : 'Lease Rejected' }} — Chabrin Agencies</title>
+    <title>{{ $action === 'approved' ? 'Lease Approved' : ($action === 'changes_requested' ? 'Changes Submitted' : 'Lease Rejected') }} — Chabrin Agencies</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f0e8; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
@@ -37,6 +37,14 @@
             <div class="body">
                 Thank you. You have successfully approved the lease for <strong>{{ $tenant }}</strong>.
                 The Chabrin team has been notified and will proceed with the next steps immediately.
+            </div>
+        @elseif($action === 'changes_requested')
+            <div class="icon">✍️</div>
+            <div class="title">Changes Submitted</div>
+            <div class="body">
+                Thank you. Your requested changes for the lease of <strong>{{ $tenant }}</strong> have been
+                recorded. The Chabrin team will review your comments, update the lease, and send you a new
+                approval link once ready.
             </div>
         @else
             <div class="icon">👍</div>

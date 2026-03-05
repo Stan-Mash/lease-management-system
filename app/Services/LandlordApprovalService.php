@@ -163,6 +163,44 @@ class LandlordApprovalService
     }
 
     /**
+     * Record a landlord's request for changes on a lease.
+     * The lease moves to 'changes_requested' state so an agent can edit and re-send.
+     *
+     * @param string $comments What the landlord wants changed
+     * @param string $method Notification method
+     */
+    public static function requestChanges(Lease $lease, string $comments, string $method = 'both'): array
+    {
+        try {
+            $approval = $lease->requestChanges($comments);
+
+            Log::info('Landlord requested lease changes', [
+                'lease_id'   => $lease->id,
+                'approval_id' => $approval->id,
+                'comments'   => $comments,
+            ]);
+
+            self::invalidateFieldOfficerDashboardCache();
+
+            return [
+                'success'  => true,
+                'approval' => $approval,
+                'message'  => 'Changes request recorded. The Chabrin team has been notified.',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to record changes request', [
+                'lease_id' => $lease->id,
+                'error'    => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to record changes request: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Get approval status for a lease.
      */
     public static function getApprovalStatus(Lease $lease): array

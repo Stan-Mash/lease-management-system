@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Actions\Lease\ApproveLease;
 use App\Actions\Lease\RejectLease;
 use App\Actions\Lease\RequestLeaseApproval;
+use App\Actions\Lease\RequestLeaseChanges;
 use App\Models\LeaseApproval;
 
 /**
@@ -39,6 +40,16 @@ trait HasApprovalWorkflow
     public function reject(string $reason, ?string $comments = null): LeaseApproval
     {
         return app(RejectLease::class)->execute($this, $reason, $comments);
+    }
+
+    /**
+     * Record a landlord's request for changes before approval.
+     *
+     * @param string $comments What the landlord wants changed
+     */
+    public function requestChanges(string $comments): LeaseApproval
+    {
+        return app(RequestLeaseChanges::class)->execute($this, $comments);
     }
 
     /**
