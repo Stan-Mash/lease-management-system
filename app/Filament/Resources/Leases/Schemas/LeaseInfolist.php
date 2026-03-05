@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Leases\Schemas;
 
+use App\Models\LeaseAuditLog;
+use App\Services\LeaseHealthService;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
@@ -30,6 +32,21 @@ class LeaseInfolist
                 ->extraAttributes([
                     'class' => 'lease-journey-panel',
                     'style' => 'background: linear-gradient(135deg, #faf8f4 0%, #fff9e8 100%); border: 1.5px solid rgba(218,165,32,0.35); border-left: 5px solid #DAA520; border-radius: 12px;',
+                ]),
+
+            // ── 1b. LEASE JOURNEY STEPPER ───────────────────────────────────────
+            Section::make()
+                ->schema([
+                    Grid::make(1)->schema([
+                        TextEntry::make('_stepper')
+                            ->label('')
+                            ->state(fn ($record) => self::buildStepperHtml($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+                ])
+                ->extraAttributes([
+                    'style' => 'padding:0; border:none; box-shadow:none; background:transparent;',
                 ]),
 
             // ── 2. CORE LEASE DETAILS ────────────────────────────────────────────
@@ -572,6 +589,21 @@ class LeaseInfolist
                 ->visible(fn ($record) => filled($record->notes))
                 ->collapsible()
                 ->collapsed(),
+
+            // ── 10. ACTIVITY TIMELINE ─────────────────────────────────────────────
+            Section::make()
+                ->schema([
+                    Grid::make(1)->schema([
+                        TextEntry::make('_timeline')
+                            ->label('')
+                            ->state(fn ($record) => self::buildTimelineHtml($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+                ])
+                ->extraAttributes([
+                    'style' => 'padding:0; border:none; box-shadow:none; background:transparent;',
+                ]),
         ]);
     }
 
@@ -776,5 +808,350 @@ class LeaseInfolist
             'expired', 'terminated', 'cancelled', 'archived' => 'danger',
             default => 'gray',
         };
+    }
+
+    // ── Stepper HTML ─────────────────────────────────────────────────────────
+
+    private static function buildStepperHtml($record): string
+    {
+        $macroSteps = self::buildMacroSteps($record);
+        $detailSteps = self::buildDetailSteps($record);
+        $progress = self::buildProgress($record);
+        $currentStateLabel = self::stateLabel($record->workflow_state ?? 'draft');
+        $currentStateColor = self::stateColor($record->workflow_state ?? 'draft');
+
+        try {
+            $health = LeaseHealthService::score($record);
+        } catch (\Throwable) {
+            $health = ['score' => 0, 'grade' => 'F', 'flags' => []];
+        }
+
+        $score = $health['score'];
+        $grade = $health['grade'];
+        $ring  = $grade === 'A' ? '#DAA520' : ($grade === 'B' ? '#f59e0b' : '#ef4444');
+
+        $statePillStyle = [
+            'gray'    => 'background:#f3f4f6; color:#374151;',
+            'warning' => 'background:#fef3c7; color:#92400e;',
+            'info'    => 'background:#dbeafe; color:#1e40af;',
+            'success' => 'background:#dcfce7; color:#166534;',
+            'danger'  => 'background:#fee2e2; color:#991b1b;',
+            'primary' => 'background:#e0e7ff; color:#3730a3;',
+        ];
+        $pillStyle = $statePillStyle[$currentStateColor] ?? 'background:#f3f4f6; color:#374151;';
+
+        // Progress bar
+        $progressBar = '<div style="height:4px; width:100%; background:rgba(218,165,32,0.15);">'
+            . '<div style="height:100%; width:' . $progress . '%; background:linear-gradient(to right,#DAA520,#92700a);"></div>'
+            . '</div>';
+
+        // Health ring SVG
+        $healthRing = '<div style="display:flex; align-items:center; gap:8px;" title="Health: ' . $score . '/100 (' . $grade . ')">'
+            . '<div style="position:relative; width:40px; height:40px;">'
+            . '<svg width="40" height="40" viewBox="0 0 36 36" style="transform:rotate(-90deg);">'
+            . '<path stroke="rgba(218,165,32,0.2)" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>'
+            . '<path stroke="' . $ring . '" stroke-width="3" stroke-dasharray="' . $score . ',100" stroke-linecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>'
+            . '</svg>'
+            . '<span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:' . $ring . ';">' . $grade . '</span>'
+            . '</div>'
+            . '<span style="font-size:11px; color:#92700a;">' . $score . '/100</span>'
+            . '</div>';
+
+        // Phase track
+        $phaseHtml = '<div style="display:flex; align-items:center; gap:4px; overflow-x:auto; padding-bottom:4px;">';
+        foreach ($macroSteps as $index => $step) {
+            if ($step['disputed']) {
+                $dot = '<div style="width:32px; height:32px; border-radius:50%; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center;">'
+                    . '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd"/></svg>'
+                    . '</div>';
+            } elseif ($step['completed']) {
+                $dot = '<div style="width:32px; height:32px; border-radius:50%; background:#DAA520; color:#fff; display:flex; align-items:center; justify-content:center;">'
+                    . '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clip-rule="evenodd"/></svg>'
+                    . '</div>';
+            } elseif ($step['current']) {
+                $dot = '<div style="width:32px; height:32px; border-radius:50%; background:#1a365d; color:#fff; display:flex; align-items:center; justify-content:center;">'
+                    . '<span style="width:8px; height:8px; border-radius:50%; background:#DAA520;"></span>'
+                    . '</div>';
+            } else {
+                $dot = '<div style="width:32px; height:32px; border-radius:50%; border:2px dashed rgba(218,165,32,0.4); background:#fff;"></div>';
+            }
+
+            $labelColor = $step['current'] ? '#1a365d' : ($step['completed'] ? '#92700a' : '#9ca3af');
+            $labelWeight = $step['current'] ? '700' : '500';
+            $ts = $step['timestamp'] ? '<div style="font-size:9px; color:#b8960a; margin-top:1px;">' . $step['timestamp'] . '</div>' : '';
+
+            $phaseHtml .= '<div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0;">'
+                . $dot
+                . '<span style="margin-top:4px; font-size:10px; font-weight:' . $labelWeight . '; color:' . $labelColor . '; text-align:center; max-width:64px;">' . htmlspecialchars($step['label']) . '</span>'
+                . $ts
+                . '</div>';
+
+            if ($index < count($macroSteps) - 1) {
+                $next = $macroSteps[$index + 1] ?? null;
+                if ($step['completed'] && $next && $next['completed']) {
+                    $lineStyle = 'background:#DAA520;';
+                } elseif ($step['completed'] && $next && $next['current']) {
+                    $lineStyle = 'background:linear-gradient(to right,#DAA520,#1a365d);';
+                } else {
+                    $lineStyle = 'border-top:2px dashed rgba(218,165,32,0.3);';
+                }
+                $phaseHtml .= '<div style="flex:1; min-width:12px; height:2px; ' . $lineStyle . '"></div>';
+            }
+        }
+        $phaseHtml .= '<div style="margin-left:8px; flex-shrink:0;">'
+            . '<span style="display:inline-flex; border-radius:9999px; padding:3px 12px; font-size:11px; font-weight:600; ' . $pillStyle . '">' . htmlspecialchars($currentStateLabel) . '</span>'
+            . '</div>';
+        $phaseHtml .= '</div>';
+
+        // Detail cards
+        $statusLabels = [
+            'done' => 'Done', 'active' => 'Active', 'pending' => 'Pending',
+            'skipped' => 'Skipped', 'action_required' => 'Action Required',
+        ];
+        $badgeStyles = [
+            'done'            => 'background:rgba(218,165,32,0.15); color:#92700a;',
+            'active'          => 'background:#1a365d; color:#fff;',
+            'pending'         => 'background:#f3f4f6; color:#6b7280;',
+            'skipped'         => 'background:#fff7ed; color:#c2410c;',
+            'action_required' => 'background:#fef2f2; color:#b91c1c;',
+        ];
+        $topColors = [
+            'done' => '#DAA520', 'active' => '#1a365d', 'pending' => '#e5e7eb',
+            'skipped' => '#e5e7eb', 'action_required' => '#ef4444',
+        ];
+
+        $cardsHtml = '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px;">';
+        foreach ($detailSteps as $step) {
+            $topColor = $topColors[$step['status']] ?? '#e5e7eb';
+            $badgeStyle = $badgeStyles[$step['status']] ?? 'background:#f3f4f6; color:#6b7280;';
+            $numStyle = $step['status'] === 'done' ? 'background:rgba(218,165,32,0.15); color:#92700a;' : 'background:#f3f4f6; color:#6b7280;';
+            $badgeLabel = $statusLabels[$step['status']] ?? $step['status'];
+            $ts = $step['timestamp'] ? '<div style="font-size:10px; color:#b8960a; margin-top:6px;">' . $step['timestamp'] . '</div>' : '';
+
+            $cardsHtml .= '<div style="border-radius:8px; padding:12px; background:#fff;'
+                . ' border-top:4px solid ' . $topColor . ';'
+                . ' border-right:1px solid rgba(218,165,32,0.2);'
+                . ' border-bottom:1px solid rgba(218,165,32,0.2);'
+                . ' border-left:1px solid rgba(218,165,32,0.2);">'
+                . '<div style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:700; margin-bottom:4px; ' . $numStyle . '">' . $step['number'] . '</div>'
+                . '<span style="display:inline-block; border-radius:9999px; padding:1px 7px; font-size:10px; font-weight:600; margin-left:4px; ' . $badgeStyle . '">' . $badgeLabel . '</span>'
+                . '<div style="font-size:12px; font-weight:600; color:#1a365d; line-height:1.3; margin-top:6px;">' . htmlspecialchars($step['title']) . '</div>'
+                . '<div style="font-size:11px; color:#6b7280; margin-top:2px;">' . htmlspecialchars($step['description']) . '</div>'
+                . $ts
+                . '</div>';
+        }
+        $cardsHtml .= '</div>';
+
+        // Assemble full stepper
+        return '<div style="overflow:hidden; border-radius:12px; background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%); border-top:1.5px solid rgba(218,165,32,0.35); border-right:1.5px solid rgba(218,165,32,0.35); border-bottom:1.5px solid rgba(218,165,32,0.35); border-left:5px solid #DAA520;">'
+            . $progressBar
+            . '<div style="padding:20px;">'
+            . '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">'
+            . '<div style="display:flex; align-items:center; gap:8px;">'
+            . '<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#DAA520;"></span>'
+            . '<span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#92700a;">Lease Journey</span>'
+            . '</div>'
+            . $healthRing
+            . '</div>'
+            . $phaseHtml
+            . '<div style="margin:20px 0; height:1px; background:linear-gradient(to right,rgba(218,165,32,0.5),transparent);"></div>'
+            . $cardsHtml
+            . '</div>'
+            . '</div>';
+    }
+
+    private static function buildMacroSteps($record): array
+    {
+        $labels = [1 => 'Draft', 2 => 'Landlord Approved', 3 => 'Sent to Tenant', 4 => 'Tenant Signed', 5 => 'Countersigned', 6 => 'Active', 7 => 'Closed'];
+        $phaseMap = [
+            'draft' => 1, 'received' => 1,
+            'pending_landlord_approval' => 2, 'approved' => 2,
+            'printed' => 3, 'checked_out' => 3, 'sent_digital' => 3,
+            'pending_otp' => 3, 'pending_tenant_signature' => 3, 'returned_unsigned' => 3,
+            'tenant_signed' => 4, 'with_lawyer' => 4, 'pending_upload' => 4,
+            'pending_deposit' => 5,
+            'active' => 6, 'renewal_offered' => 6, 'renewal_accepted' => 6,
+            'expired' => 7, 'terminated' => 7, 'cancelled' => 7, 'renewal_declined' => 7, 'archived' => 7,
+        ];
+
+        if (! $record) {
+            return array_map(fn ($phase, $label) => ['phase' => $phase, 'label' => $label, 'completed' => false, 'current' => $phase === 1, 'disputed' => false, 'timestamp' => null], array_keys($labels), $labels);
+        }
+
+        $workflowState = $record->workflow_state ?? 'draft';
+        $currentPhase = $phaseMap[$workflowState] ?? 1;
+        $isDisputed   = $workflowState === 'disputed';
+
+        // Build timestamps from audit log
+        $timestamps = [];
+        foreach (LeaseAuditLog::where('lease_id', $record->id)->whereNotNull('new_state')->orderBy('created_at')->get() as $log) {
+            $phase = $phaseMap[$log->new_state] ?? null;
+            if ($phase && ! isset($timestamps[$phase])) {
+                $timestamps[$phase] = $log->created_at->format('j M Y, g:i A');
+            }
+        }
+
+        $steps = [];
+        for ($phase = 1; $phase <= 7; $phase++) {
+            $steps[] = [
+                'phase'     => $phase,
+                'label'     => $labels[$phase],
+                'completed' => ! $isDisputed && $currentPhase > $phase,
+                'current'   => ! $isDisputed && $currentPhase === $phase,
+                'disputed'  => $isDisputed && $phase === 3,
+                'timestamp' => $timestamps[$phase] ?? null,
+            ];
+        }
+
+        return $steps;
+    }
+
+    private static function buildDetailSteps($record): array
+    {
+        $defs = [
+            ['title' => 'Create Lease',           'description' => 'Draft created',                    'states' => ['draft', 'received']],
+            ['title' => 'Register & Assign Zone',  'description' => 'Zone and field officer assigned',  'states' => ['pending_landlord_approval']],
+            ['title' => 'Landlord Approval',       'description' => 'Landlord has approved',            'states' => ['approved']],
+            ['title' => 'Send Signing Link',       'description' => 'Link sent to tenant',              'states' => ['sent_digital']],
+            ['title' => 'OTP Verification',        'description' => 'Tenant verifies with OTP',         'states' => ['pending_otp']],
+            ['title' => 'Tenant Reviews Lease',    'description' => 'Tenant reviews document',          'states' => ['pending_tenant_signature']],
+            ['title' => 'Tenant Signs',            'description' => 'Tenant has signed',                'states' => ['tenant_signed']],
+            ['title' => 'Manager Countersigns',    'description' => 'Manager countersigns',             'states' => ['pending_deposit']],
+            ['title' => 'Deposit & Activation',    'description' => 'Lease active',                     'states' => ['active', 'renewal_offered', 'renewal_accepted']],
+            ['title' => 'Closed',                  'description' => 'Lease ended or archived',          'states' => ['expired', 'terminated', 'cancelled', 'renewal_declined', 'archived']],
+        ];
+
+        $workflowState = $record?->workflow_state ?? 'draft';
+
+        // Build a simple ordering map
+        $allStates = ['draft', 'received', 'pending_landlord_approval', 'approved', 'printed', 'checked_out',
+            'sent_digital', 'pending_otp', 'pending_tenant_signature', 'returned_unsigned',
+            'tenant_signed', 'with_lawyer', 'pending_upload', 'pending_deposit',
+            'active', 'renewal_offered', 'renewal_accepted', 'expired', 'terminated', 'cancelled', 'renewal_declined', 'archived'];
+        $stateOrder    = array_flip($allStates);
+        $currentOrder  = $stateOrder[$workflowState] ?? 999;
+
+        $timestamps = $record
+            ? LeaseAuditLog::where('lease_id', $record->id)->whereNotNull('new_state')->orderBy('created_at')->get()
+                ->unique('new_state')
+                ->mapWithKeys(fn ($l) => [$l->new_state => $l->created_at->format('j M Y, g:i A')])
+                ->all()
+            : [];
+
+        $steps = [];
+        foreach ($defs as $i => $def) {
+            $done = $active = $actionRequired = false;
+            foreach ($def['states'] as $s) {
+                if ($s === $workflowState) { $active = true; break; }
+                if (($stateOrder[$s] ?? 999) < $currentOrder) { $done = true; }
+            }
+            if ($workflowState === 'disputed') {
+                $active = in_array('pending_otp', $def['states']) || in_array('pending_tenant_signature', $def['states']);
+                $actionRequired = $active;
+            }
+            if ($workflowState === 'returned_unsigned') {
+                $actionRequired = in_array('pending_tenant_signature', $def['states']);
+            }
+            $ts = null;
+            foreach ($def['states'] as $s) {
+                if (isset($timestamps[$s])) { $ts = $timestamps[$s]; break; }
+            }
+            $steps[] = [
+                'number'      => $i + 1,
+                'title'       => $def['title'],
+                'description' => $def['description'],
+                'status'      => $actionRequired ? 'action_required' : ($active ? 'active' : ($done ? 'done' : 'pending')),
+                'timestamp'   => $ts,
+            ];
+        }
+
+        return $steps;
+    }
+
+    private static function buildProgress($record): int
+    {
+        if (! $record) return 0;
+        $phaseMap = [
+            'draft' => 1, 'received' => 1,
+            'pending_landlord_approval' => 2, 'approved' => 2,
+            'printed' => 3, 'checked_out' => 3, 'sent_digital' => 3,
+            'pending_otp' => 3, 'pending_tenant_signature' => 3, 'returned_unsigned' => 3,
+            'tenant_signed' => 4, 'with_lawyer' => 4, 'pending_upload' => 4,
+            'pending_deposit' => 5,
+            'active' => 6, 'renewal_offered' => 6, 'renewal_accepted' => 6,
+            'expired' => 7, 'terminated' => 7, 'cancelled' => 7, 'renewal_declined' => 7, 'archived' => 7,
+        ];
+        $phase = $phaseMap[$record->workflow_state] ?? 1;
+        return (int) round(($phase / 7) * 100);
+    }
+
+    // ── Timeline HTML ─────────────────────────────────────────────────────────
+
+    private static function buildTimelineHtml($record): string
+    {
+        if (! $record) return '';
+
+        $logs = LeaseAuditLog::where('lease_id', $record->id)
+            ->with('user:id,name')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        if ($logs->isEmpty()) {
+            return '<div style="overflow:hidden; border-radius:12px; background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%); border-top:1.5px solid rgba(218,165,32,0.35); border-right:1.5px solid rgba(218,165,32,0.35); border-bottom:1.5px solid rgba(218,165,32,0.35); border-left:5px solid #DAA520; padding:20px;">'
+                . '<div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">'
+                . '<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#DAA520;"></span>'
+                . '<span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#92700a;">Activity Timeline</span>'
+                . '</div>'
+                . '<p style="font-size:12px; color:#6b7280; margin:0;">No activity recorded yet.</p>'
+                . '</div>';
+        }
+
+        $iconMap = [
+            'created'           => ['📝', '#DAA520'],
+            'state_changed'     => ['🔄', '#1a365d'],
+            'approved'          => ['✅', '#059669'],
+            'rejected'          => ['❌', '#dc2626'],
+            'signed'            => ['✍️', '#7c3aed'],
+            'sent'              => ['📱', '#2563eb'],
+            'document_uploaded' => ['📎', '#92700a'],
+            'note_added'        => ['💬', '#6b7280'],
+            'disputed'          => ['⚠️', '#dc2626'],
+            'activated'         => ['🎉', '#059669'],
+            'expired'           => ['⏰', '#6b7280'],
+        ];
+
+        $html = '<div style="overflow:hidden; border-radius:12px; background:linear-gradient(135deg,#faf8f4 0%,#fff9e8 100%); border-top:1.5px solid rgba(218,165,32,0.35); border-right:1.5px solid rgba(218,165,32,0.35); border-bottom:1.5px solid rgba(218,165,32,0.35); border-left:5px solid #DAA520;">'
+            . '<div style="padding:20px;">'
+            . '<div style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">'
+            . '<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#DAA520;"></span>'
+            . '<span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#92700a;">Activity Timeline</span>'
+            . '<span style="margin-left:auto; font-size:10px; color:#9ca3af;">Last ' . $logs->count() . ' events</span>'
+            . '</div>'
+            . '<div style="position:relative;">'
+            . '<div style="position:absolute; left:15px; top:0; bottom:0; width:2px; background:linear-gradient(to bottom,#DAA520,rgba(218,165,32,0.1));"></div>'
+            . '<div style="display:flex; flex-direction:column; gap:0;">';
+
+        foreach ($logs as $log) {
+            $action = $log->action ?? 'state_changed';
+            [$icon, $iconColor] = $iconMap[$action] ?? ['🔹', '#DAA520'];
+            $user = $log->user?->name ?? 'System';
+            $time = $log->created_at->format('j M Y, g:i A');
+            $desc = $log->description ?? ($log->new_state ? 'Status changed to: ' . ucwords(str_replace('_', ' ', $log->new_state)) : 'Action recorded');
+
+            $html .= '<div style="display:flex; gap:12px; padding:12px 0; border-bottom:1px solid rgba(218,165,32,0.1);">'
+                . '<div style="flex-shrink:0; width:30px; height:30px; border-radius:50%; background:#fff; border:2px solid rgba(218,165,32,0.4); display:flex; align-items:center; justify-content:center; font-size:13px; z-index:1;">' . $icon . '</div>'
+                . '<div style="flex:1; min-width:0;">'
+                . '<div style="display:flex; align-items:center; gap:8px; margin-bottom:3px;">'
+                . '<span style="font-size:12px; font-weight:600; color:#1a365d;">' . htmlspecialchars($user) . '</span>'
+                . '<span style="font-size:10px; color:#9ca3af;">' . $time . '</span>'
+                . '</div>'
+                . '<p style="font-size:11px; color:#374151; margin:0; line-height:1.5;">' . htmlspecialchars($desc) . '</p>'
+                . '</div>'
+                . '</div>';
+        }
+
+        $html .= '</div></div></div></div>';
+        return $html;
     }
 }

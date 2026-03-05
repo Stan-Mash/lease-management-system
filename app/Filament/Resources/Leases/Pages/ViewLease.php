@@ -7,8 +7,6 @@ use App\Filament\Resources\Leases\Actions\CancelDisputedLeaseAction;
 use App\Services\DigitalSigningService;
 use App\Filament\Resources\Leases\Actions\ResolveDisputeAction;
 use App\Filament\Resources\Leases\LeaseResource;
-use App\Filament\Resources\Leases\Widgets\LeaseAuditTimelineWidget;
-use App\Filament\Resources\Leases\Widgets\LeaseJourneyStepperWidget;
 use App\Models\DigitalSignature;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
@@ -55,30 +53,6 @@ class ViewLease extends ViewRecord
             LeaseResource::getUrl() => 'Leases',
             '' => $this->record->reference_number ?? 'View',
         ];
-    }
-
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            LeaseJourneyStepperWidget::class,
-        ];
-    }
-
-    public function getHeaderWidgetsColumns(): int|array
-    {
-        return 1;
-    }
-
-    protected function getFooterWidgets(): array
-    {
-        return [
-            LeaseAuditTimelineWidget::class,
-        ];
-    }
-
-    public function getFooterWidgetsColumns(): int|array
-    {
-        return 1;
     }
 
     protected function getHeaderActions(): array
