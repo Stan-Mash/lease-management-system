@@ -29,6 +29,14 @@ class CreateLease extends CreateRecord
         $data['workflow_state'] = 'draft';
         $data['document_version'] = 1;
 
+        if (! empty($data['start_date']) && ! empty($data['end_date'])) {
+            $start = \Carbon\Carbon::parse($data['start_date']);
+            $end = \Carbon\Carbon::parse($data['end_date']);
+            $data['lease_term_months'] = max(1, (int) $start->diffInMonths($end, false));
+        } elseif (($data['lease_type'] ?? '') === 'commercial' && ! empty($data['start_date'])) {
+            $data['lease_term_months'] = 63;
+        }
+
         // Set created by
         $data['created_by'] = auth()->id();
 

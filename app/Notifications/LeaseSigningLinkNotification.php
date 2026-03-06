@@ -50,7 +50,7 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
             ->line('2. Verify the OTP and review the full lease')
             ->line('3. Draw your digital signature')
             ->line('')
-            ->line('If you did not request this or have any questions, please contact Chabrin Agencies immediately.')
+            ->line('If you did not request this or have questions: info@chabrinagencies.co.ke | +254720854389, +254745912688.')
             ->salutation('Regards, Chabrin Agencies');
     }
 

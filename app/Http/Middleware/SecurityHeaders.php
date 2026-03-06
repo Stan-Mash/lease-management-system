@@ -37,7 +37,7 @@ class SecurityHeaders
             "img-src 'self' data: blob: https:",
             "font-src 'self' data: https://fonts.gstatic.com https://fonts.bunny.net",
             "connect-src 'self'" . ($isProduction ? '' : ' ws://localhost:* http://localhost:*'),
-            "frame-ancestors 'none'",
+            "frame-ancestors 'self'",
             "form-action 'self'",
             "base-uri 'self'",
             "object-src 'none'",

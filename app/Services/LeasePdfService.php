@@ -41,8 +41,9 @@ class LeasePdfService
         if ($sourcePath && file_exists($sourcePath)) {
                 $fields = $this->overlayFieldsFromSample($sampleData);
                 $coordinates = $template->pdf_coordinate_map ?? [];
+                $sigKeys = ['tenant_signature', 'manager_signature', 'witness_signature', 'advocate_signature', 'guarantor_signature'];
                 $textCoordinates = is_array($coordinates)
-                    ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
+                    ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, $sigKeys, true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
                     : [];
 
                 $outDir = storage_path('app/lease-pdf-overlay');
@@ -70,7 +71,7 @@ class LeasePdfService
      */
     public function generate(Lease $lease): string
     {
-        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses']);
+        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses', 'guarantors']);
         $needsDraft = $this->needsDraftWatermark($lease);
 
         // Tenant signature — the drawn canvas signature from the signing portal
@@ -78,9 +79,24 @@ class LeasePdfService
             ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: any signature (legacy rows have no signer_type)
         $tenantSigPath = $tenantSignature ? $this->writeSignatureTempFile($tenantSignature) : null;
 
-        // Manager countersignature — drawn by the property manager on countersign
+        // Manager/Lessor countersignature — drawn by the property manager on countersign
         $managerSignature = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
         $managerSigPath = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
+
+        // Witness & Advocate — from DigitalSignature when signer_type is set
+        $witnessSignature = $lease->digitalSignatures->where('signer_type', 'witness')->sortByDesc('created_at')->first();
+        $witnessSigPath = $witnessSignature ? $this->writeSignatureTempFile($witnessSignature) : null;
+        $advocateSignature = $lease->digitalSignatures->where('signer_type', 'advocate')->sortByDesc('created_at')->first();
+        $advocateSigPath = $advocateSignature ? $this->writeSignatureTempFile($advocateSignature) : null;
+
+        // Guarantor(s) — from Guarantor model signature_path (storage path)
+        $guarantorSigPaths = [];
+        foreach ($lease->guarantors->whereNotNull('signature_path') as $guarantor) {
+            $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($guarantor->signature_path);
+            if (file_exists($fullPath)) {
+                $guarantorSigPaths[] = $fullPath;
+            }
+        }
 
         // Legacy alias — keeps Strategy 3 Blade views working without change
         $digitalSignature = $tenantSignature;
@@ -111,8 +127,10 @@ class LeasePdfService
                         $step3 = $outDir . '/' . $baseName . '-final.pdf';
 
                         $fields = $this->overlayFieldsFromLease($lease);
+                        $coordinates = $template->pdf_coordinate_map ?? [];
+                        $sigKeys = ['tenant_signature', 'manager_signature', 'witness_signature', 'advocate_signature', 'guarantor_signature'];
                         $textCoordinates = is_array($coordinates)
-                            ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, ['tenant_signature', 'manager_signature'], true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
+                            ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, $sigKeys, true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
                             : [];
 
                         $this->pdfOverlay->stampFields($sourcePath, $fields, $textCoordinates, $step1);
@@ -145,8 +163,67 @@ class LeasePdfService
                                 (float) ($coord['width'] ?? 50),
                                 (float) ($coord['height'] ?? 20),
                                 $next,
+                                (string) ($coord['anchor'] ?? 'above'),
                             );
                             if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+                        $step4 = $outDir . '/' . $baseName . '-sig4.pdf';
+                        if ($advocateSigPath && file_exists($advocateSigPath) && is_array($coordinates) && isset($coordinates['advocate_signature'])) {
+                            $coord = $coordinates['advocate_signature'];
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $advocateSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 160),
+                                (float) ($coord['y'] ?? 250),
+                                (float) ($coord['width'] ?? 45),
+                                (float) ($coord['height'] ?? 18),
+                                $step4,
+                                (string) ($coord['anchor'] ?? 'beside'),
+                            );
+                            if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $step4;
+                        }
+                        if ($witnessSigPath && file_exists($witnessSigPath) && is_array($coordinates) && isset($coordinates['witness_signature'])) {
+                            $coord = $coordinates['witness_signature'];
+                            $next = $outDir . '/' . $baseName . '-witness.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $witnessSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 235),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                'default',
+                            );
+                            if ($current !== $step1 && $current !== $step2 && $current !== $step3 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+                        $guarantorSigPath = $guarantorSigPaths[0] ?? null;
+                        if ($guarantorSigPath && file_exists($guarantorSigPath) && is_array($coordinates) && isset($coordinates['guarantor_signature'])) {
+                            $coord = $coordinates['guarantor_signature'];
+                            $next = $outDir . '/' . $baseName . '-guarantor.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $guarantorSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 220),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                'default',
+                            );
+                            if ($current !== $step1 && $current !== $step2 && $current !== $step3 && file_exists($current)) {
                                 @unlink($current);
                             }
                             $current = $next;
@@ -161,7 +238,7 @@ class LeasePdfService
                         }
 
                         $binary = file_get_contents($current);
-                        foreach ([$step1, $step2, $step3, $auditPath] as $f) {
+                        foreach (glob($outDir . '/' . $baseName . '*.pdf') ?: [] as $f) {
                             if (file_exists($f)) {
                                 @unlink($f);
                             }
@@ -254,12 +331,10 @@ class LeasePdfService
 
             return $pdf->output();
         } finally {
-            // Always clean up both temp signature files
-            if ($tenantSigPath && file_exists($tenantSigPath)) {
-                @unlink($tenantSigPath);
-            }
-            if ($managerSigPath && file_exists($managerSigPath)) {
-                @unlink($managerSigPath);
+            foreach (array_filter([$tenantSigPath, $managerSigPath, $witnessSigPath ?? null, $advocateSigPath ?? null]) as $p) {
+                if ($p && file_exists($p)) {
+                    @unlink($p);
+                }
             }
         }
     }
@@ -413,7 +488,7 @@ class LeasePdfService
         $dompdf = $pdf->getDomPDF();
         $dompdf->addInfo('Title', 'Lease Agreement - ' . ($lease->reference_number ?? 'Draft'));
         $dompdf->addInfo('Author', 'Chabrin Agencies Ltd');
-        $dompdf->addInfo('Creator', 'Chabrin Lease Management System');
+        $dompdf->addInfo('Creator', 'Chabrin Agencies');
         $dompdf->addInfo('Producer', 'Chabrin Agencies Ltd - DomPDF');
         $dompdf->addInfo('Subject', sprintf(
             '%s Lease - %s - %s',

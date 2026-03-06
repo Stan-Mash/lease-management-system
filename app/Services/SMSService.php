@@ -441,6 +441,7 @@ class SMSService
 
         // Fallback to English
         $message = self::translateWithLocale('en', 'sms.signing_link', [
+            'name' => 'Tenant',
             'reference' => $reference,
             'link' => $link,
             'hours' => 72,

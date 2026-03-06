@@ -48,6 +48,7 @@ class LeaseForm
         return DB::table('units')
             ->select('id', 'unit_number', 'unit_code', 'rent_amount', 'status_legacy')
             ->where('property_id', $propertyId)
+            ->where('status_legacy', 'VACANT')
             ->whereNull('deleted_at')
             ->orderBy('unit_number')
             ->get()
@@ -194,7 +195,12 @@ class LeaseForm
                                 })
                                 ->default('residential_major')
                                 ->required()
-                                ->live(),
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set, $get) {
+                                    if ($state === 'commercial' && $get('start_date')) {
+                                        $set('end_date', \Carbon\Carbon::parse($get('start_date'))->addYears(5)->addMonths(3)->toDateString());
+                                    }
+                                }),
 
                             Forms\Components\Select::make('signing_mode')
                                 ->label('Signing Method')
@@ -305,12 +311,13 @@ class LeaseForm
                                 }
                                 $count = DB::table('units')
                                     ->where('property_id', $propId)
+                                    ->where('status_legacy', 'VACANT')
                                     ->whereNull('deleted_at')
                                     ->count();
 
                                 return $count === 0
-                                    ? '⚠️ No units found for this property.'
-                                    : "{$count} unit(s) available. ✅ = Vacant, 🔴 = Occupied";
+                                    ? '⚠️ No vacant units for this property.'
+                                    : "{$count} vacant unit(s) available.";
                             })
                             ->disabled(fn ($get) => ! $get('property_id'))
                             ->afterStateUpdated(function ($state, callable $set) {
@@ -449,10 +456,17 @@ class LeaseForm
                         Grid::make(2)->schema([
                             Forms\Components\DatePicker::make('start_date')
                                 ->label('Lease Start Date')
+                                ->default(now()->toDateString())
                                 ->required()
                                 ->native(false)
                                 ->displayFormat('D, j M Y')
                                 ->closeOnDateSelection()
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set, $get) {
+                                    if ($get('lease_type') === 'commercial' && $state) {
+                                        $set('end_date', \Carbon\Carbon::parse($state)->addYears(5)->addMonths(3)->toDateString());
+                                    }
+                                })
                                 ->hintAction(
                                     Action::make('setStartToday')
                                         ->label('Today')
@@ -466,7 +480,10 @@ class LeaseForm
                                 ->native(false)
                                 ->displayFormat('D, j M Y')
                                 ->closeOnDateSelection()
-                                ->helperText('Leave blank for a periodic/rolling tenancy.')
+                                ->default(fn ($get) => $get('lease_type') === 'commercial' && $get('start_date')
+                                    ? \Carbon\Carbon::parse($get('start_date'))->addYears(5)->addMonths(3)->toDateString()
+                                    : null)
+                                ->helperText('Commercial: auto 5 years 3 months. Leave blank for periodic tenancy.')
                                 ->hintAction(
                                     Action::make('setEndToday')
                                         ->label('Today')

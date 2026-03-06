@@ -33,7 +33,10 @@ class PickLeaseTemplateCoordinates extends Page
 
     public array $signatureFields = [
         'tenant_signature' => 'Tenant signature (include width, height)',
-        'manager_signature' => 'Manager signature (include width, height)',
+        'manager_signature' => 'Manager/Lessor (include width, height; anchor: above)',
+        'witness_signature' => 'Witness signature (include width, height)',
+        'advocate_signature' => 'Advocate signature (include width, height; anchor: beside)',
+        'guarantor_signature' => 'Guarantor signature (include width, height)',
     ];
 
     public function mount(LeaseTemplate | int | string $record): void

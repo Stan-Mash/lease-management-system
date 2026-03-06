@@ -242,7 +242,9 @@ class LandlordApprovalService
 
             // Send SMS to landlord with short approval link
             if (in_array($method, ['sms', 'both']) && $lease->landlord->mobile_number) {
-                $message = "Chabrin Agencies: New lease {$lease->reference_number} for {$lease->tenant->names} awaits your approval. Rent: KES " . number_format((float) $lease->monthly_rent) . ". Approve or reject here: {$approvalUrl}";
+                $name = $lease->landlord->names ?? 'Landlord';
+                $rent = number_format((float) $lease->monthly_rent);
+                $message = "Dear {$name}, commercial lease {$lease->reference_number} awaits approval. Rent: KES {$rent}. Sign here: {$approvalUrl} - Chabrin Agencies";
                 SMSService::sendQueued($lease->landlord->mobile_number, $message, [
                     'type'      => 'approval_request',
                     'reference' => $lease->reference_number,

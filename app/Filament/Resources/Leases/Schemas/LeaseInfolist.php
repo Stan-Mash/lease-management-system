@@ -16,9 +16,22 @@ class LeaseInfolist
     {
         return $schema->components([
 
-            // ── 1. JOURNEY STATUS PANEL ─────────────────────────────────────────
-            // This is the most important section — shows exactly where the lease
-            // is, what just happened, and what the admin needs to do next.
+            // ── 1. LEASE JOURNEY STEPPER (top, horizontal, full width) ─────────
+            Section::make()
+                ->schema([
+                    Grid::make(1)->schema([
+                        TextEntry::make('_stepper')
+                            ->label('')
+                            ->state(fn ($record) => self::buildStepperHtml($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+                ])
+                ->extraAttributes([
+                    'style' => 'padding:0; border:none; box-shadow:none; background:transparent;',
+                ]),
+
+            // ── 1b. JOURNEY HEADING (directly underneath stepper) ───────────────
             Section::make()
                 ->schema([
                     Grid::make(1)->schema([

@@ -4,7 +4,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | DomPDF Configuration - Chabrin Lease System
+    | DomPDF Configuration - Chabrin Agencies
     |--------------------------------------------------------------------------
     |
     | Configuration for barryvdh/laravel-dompdf v3.x used to generate

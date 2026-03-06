@@ -281,7 +281,7 @@
 
     <h3 class="section">2.&nbsp;&nbsp;Grant of Lease</h3>
     <p class="body">The Lessor leases to the Lessee for a period of
-        <span class="uline" style="min-width:110px;">{{ $lease->lease_term_months ? $lease->lease_term_months.' months' : '' }}</span>
+        <span class="uline" style="min-width:110px;">{{ $lease->computed_duration_for_display ?? ($lease->lease_term_months ? $lease->lease_term_months.' months' : '') }}</span>
         from the date of this Agreement all rights, easements, privileges, restrictions, covenants and stipulations of whatever nature affecting the Premises and subject to the payment to the Lessor of:</p>
     <ol class="alpha">
         <li>The rent, which shall be paid on a monthly basis, that is, in advance.</li>

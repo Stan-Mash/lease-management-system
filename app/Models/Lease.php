@@ -249,6 +249,43 @@ class Lease extends Model
         return $this->belongsTo(User::class, 'assigned_field_officer_id');
     }
 
+    /**
+     * Duration in months for PDF/view (Grant of Lease). Uses lease_term_months or computes from start_date/end_date.
+     */
+    public function getDurationMonthsAttribute(): ?int
+    {
+        if (isset($this->attributes['lease_term_months']) && (int) $this->attributes['lease_term_months'] > 0) {
+            return (int) $this->attributes['lease_term_months'];
+        }
+        $start = $this->start_date;
+        $end = $this->end_date;
+        if ($start && $end && $end->gte($start)) {
+            return (int) $start->diffInMonths($end, false) ?: 1;
+        }
+        return null;
+    }
+
+    /**
+     * Human-readable duration for "Grant of Lease" (e.g. "63 months" or "5 years and 3 months").
+     */
+    public function getComputedDurationForDisplayAttribute(): string
+    {
+        $months = $this->duration_months;
+        if ($months === null || $months < 1) {
+            return 'as agreed';
+        }
+        if ($months >= 12) {
+            $years = (int) floor($months / 12);
+            $remainder = $months % 12;
+            $parts = [$years . ' year' . ($years !== 1 ? 's' : '')];
+            if ($remainder > 0) {
+                $parts[] = $remainder . ' month' . ($remainder !== 1 ? 's' : '');
+            }
+            return implode(' and ', $parts);
+        }
+        return $months . ' month' . ($months !== 1 ? 's' : '');
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Business Methods

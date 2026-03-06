@@ -76,7 +76,8 @@ class PdfOverlayService
     }
 
     /**
-     * Stamp the tenant's drawn signature PNG onto a specific page/position.
+     * Stamp a signature PNG onto a specific page/position.
+     * anchor: 'above' = place image so its bottom is at y (Lessor/Agent above text line); 'beside' = use x,y as-is (Advocate beside text); default = top-left at (x,y).
      */
     public function stampSignature(
         string $sourcePdfPath,
@@ -87,12 +88,17 @@ class PdfOverlayService
         float $width,
         float $height,
         string $outputPath,
+        string $anchor = 'default',
     ): string {
         if (! file_exists($signaturePngPath)) {
             throw new InvalidArgumentException("Signature file not found: {$signaturePngPath}");
         }
 
-        $pdf = new Fpdi();
+        if ($anchor === 'above') {
+            $y = $y - $height;
+        }
+
+        $pdf = new Fpdi('P', 'mm', 'A4');
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {

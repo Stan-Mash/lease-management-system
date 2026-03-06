@@ -23,6 +23,9 @@ class Guarantor extends Model
         'signed',
         'signed_at',
         'notes',
+        'otp_token',
+        'otp_expires_at',
+        'signature_path',
     ];
 
     /**
@@ -34,6 +37,7 @@ class Guarantor extends Model
         'guarantee_amount' => 'decimal:2',
         'signed' => 'boolean',
         'signed_at' => 'datetime',
+        'otp_expires_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

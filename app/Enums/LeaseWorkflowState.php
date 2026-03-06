@@ -21,6 +21,9 @@ enum LeaseWorkflowState: string
     case PENDING_TENANT_SIGNATURE = 'pending_tenant_signature';
     case RETURNED_UNSIGNED = 'returned_unsigned';
     case TENANT_SIGNED = 'tenant_signed';
+    case PENDING_WITNESS = 'pending_witness';
+    case PENDING_ADVOCATE = 'pending_advocate';
+    case PENDING_LANDLORD_PM = 'pending_landlord_pm';
     case WITH_LAWYER = 'with_lawyer';
     case PENDING_UPLOAD = 'pending_upload';
     case PENDING_DEPOSIT = 'pending_deposit';
@@ -51,10 +54,13 @@ enum LeaseWorkflowState: string
             self::PRINTED => [self::CHECKED_OUT, self::CANCELLED],
             self::CHECKED_OUT => [self::PENDING_TENANT_SIGNATURE, self::RETURNED_UNSIGNED],
             self::SENT_DIGITAL => [self::PENDING_OTP, self::DISPUTED, self::CANCELLED],
-            self::PENDING_OTP => [self::TENANT_SIGNED, self::DISPUTED, self::SENT_DIGITAL],
+            self::PENDING_OTP => [self::TENANT_SIGNED, self::PENDING_ADVOCATE, self::PENDING_WITNESS, self::PENDING_DEPOSIT, self::DISPUTED, self::SENT_DIGITAL],
             self::PENDING_TENANT_SIGNATURE => [self::TENANT_SIGNED, self::DISPUTED, self::RETURNED_UNSIGNED],
             self::RETURNED_UNSIGNED => [self::CHECKED_OUT, self::CANCELLED],
-            self::TENANT_SIGNED => [self::WITH_LAWYER, self::PENDING_UPLOAD, self::PENDING_DEPOSIT, self::ACTIVE],
+            self::TENANT_SIGNED => [self::PENDING_ADVOCATE, self::PENDING_WITNESS, self::PENDING_DEPOSIT, self::WITH_LAWYER, self::PENDING_UPLOAD, self::ACTIVE],
+            self::PENDING_WITNESS => [self::PENDING_ADVOCATE],
+            self::PENDING_ADVOCATE => [self::PENDING_LANDLORD_PM, self::PENDING_DEPOSIT, self::ACTIVE],
+            self::PENDING_LANDLORD_PM => [self::PENDING_ADVOCATE, self::PENDING_DEPOSIT, self::ACTIVE],
             self::WITH_LAWYER => [self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
             self::PENDING_UPLOAD => [self::PENDING_DEPOSIT],
             self::PENDING_DEPOSIT => [self::ACTIVE],
@@ -95,6 +101,9 @@ enum LeaseWorkflowState: string
             self::PENDING_TENANT_SIGNATURE => 'Pending Tenant Signature',
             self::RETURNED_UNSIGNED => 'Returned Unsigned',
             self::TENANT_SIGNED => 'Tenant Signed',
+            self::PENDING_WITNESS => 'Pending Witness',
+            self::PENDING_ADVOCATE => 'Pending Advocate',
+            self::PENDING_LANDLORD_PM => 'Pending Landlord/PM',
             self::WITH_LAWYER => 'With Lawyer',
             self::PENDING_UPLOAD => 'Pending Upload',
             self::PENDING_DEPOSIT => 'Pending Deposit',
@@ -120,7 +129,8 @@ enum LeaseWorkflowState: string
             self::DRAFT, self::RECEIVED => 'gray',
             self::PENDING_LANDLORD_APPROVAL, self::PENDING_OTP,
             self::PENDING_TENANT_SIGNATURE, self::PENDING_UPLOAD,
-            self::PENDING_DEPOSIT => 'warning',
+            self::PENDING_DEPOSIT, self::PENDING_WITNESS,
+            self::PENDING_ADVOCATE, self::PENDING_LANDLORD_PM => 'warning',
             self::APPROVED, self::PRINTED, self::CHECKED_OUT,
             self::SENT_DIGITAL, self::TENANT_SIGNED, self::WITH_LAWYER => 'info',
             self::ACTIVE => 'success',
@@ -152,6 +162,9 @@ enum LeaseWorkflowState: string
             self::PENDING_TENANT_SIGNATURE => 'heroicon-o-pencil-square',
             self::RETURNED_UNSIGNED => 'heroicon-o-arrow-uturn-left',
             self::TENANT_SIGNED => 'heroicon-o-check-badge',
+            self::PENDING_WITNESS => 'heroicon-o-user',
+            self::PENDING_ADVOCATE => 'heroicon-o-scale',
+            self::PENDING_LANDLORD_PM => 'heroicon-o-building-office',
             self::WITH_LAWYER => 'heroicon-o-scale',
             self::PENDING_UPLOAD => 'heroicon-o-cloud-arrow-up',
             self::PENDING_DEPOSIT => 'heroicon-o-banknotes',
@@ -231,6 +244,24 @@ enum LeaseWorkflowState: string
     public function isDisputed(): bool
     {
         return $this === self::DISPUTED;
+    }
+
+    /**
+     * Sequential signing flow per lease type (order of signers).
+     * Commercial: Tenant -> Advocate -> Landlord/PM -> Advocate
+     * Residential Micro: Tenant -> PM
+     * Residential Macro: Tenant -> Witness -> Advocate -> Landlord/PM -> Advocate
+     *
+     * @return array<string, array<string>>
+     */
+    public static function signingSequenceByLeaseType(): array
+    {
+        return [
+            'commercial' => ['tenant', 'advocate', 'landlord_pm', 'advocate'],
+            'residential_micro' => ['tenant', 'pm'],
+            'residential_major' => ['tenant', 'witness', 'advocate', 'landlord_pm', 'advocate'],
+            'residential' => ['tenant', 'witness', 'advocate', 'landlord_pm', 'advocate'],
+        ];
     }
 
     /**

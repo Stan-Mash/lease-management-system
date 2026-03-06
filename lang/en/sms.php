@@ -42,7 +42,7 @@ return [
     | Signing & Document Messages
     |--------------------------------------------------------------------------
     */
-    'signing_link' => 'Sign your lease :reference here: :link. Link expires in :hours hours. - Chabrin Agencies',
+    'signing_link' => 'Dear :name, your lease is ready. Sign here: :link (Valid 72h). - Chabrin Agencies',
 
     'signing_reminder' => 'Reminder: Please sign lease :reference. Link: :link. Expires in :hours hours. - Chabrin',
 
@@ -53,7 +53,7 @@ return [
     | Landlord Messages
     |--------------------------------------------------------------------------
     */
-    'approval_request' => 'New lease :reference awaits approval. Tenant: :tenant_name. Rent: Ksh :rent/month. Login to approve.',
+    'approval_request' => 'Lease :reference awaits approval. Tenant: :tenant_name. Rent: KES :rent. - Chabrin Agencies',
 
     'landlord_signed' => 'Landlord has signed lease :reference. Awaiting tenant signature. - Chabrin',
 

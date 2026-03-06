@@ -643,7 +643,7 @@ class ViewLease extends ViewRecord
                 ->icon('heroicon-o-check-badge')
                 ->color('success')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'tenant_signed'
+                    fn () => in_array($this->record->workflow_state, ['tenant_signed', 'pending_deposit', 'pending_landlord_pm'], true)
                         && auth()->user()?->canManageLeases(),
                 )
                 ->modalHeading('Countersign & Activate Lease')
@@ -888,15 +888,22 @@ HTML
                             'countersign_notes' => $data['countersign_notes'] ?? null,
                         ]);
 
-                        $this->record->transitionTo(LeaseWorkflowState::ACTIVE);
+                        $signerRole = $this->record->workflow_state === 'pending_landlord_pm'
+                            ? \App\Services\SigningWorkflowService::SIGNER_LANDLORD_PM
+                            : \App\Services\SigningWorkflowService::SIGNER_PM;
+                        \App\Services\SigningWorkflowService::advanceAfterSignature($this->record, $signerRole);
 
+                        $state = $this->record->fresh()->workflow_state;
+                        $isActive = $state === 'active';
                         Notification::make()
                             ->success()
-                            ->title('Lease Activated ✅')
+                            ->title($isActive ? 'Lease Activated ✅' : 'Countersigned')
                             ->body(
-                                'Lease ' . ($this->record->reference_number ?? '') . ' is now ACTIVE. '
-                                . ($this->record->tenant?->names ?? 'The tenant')
-                                . ' will receive their copy by email shortly.'
+                                $isActive
+                                    ? 'Lease ' . ($this->record->reference_number ?? '') . ' is now ACTIVE. '
+                                        . ($this->record->tenant?->names ?? 'The tenant')
+                                        . ' will receive their copy by email shortly.'
+                                    : 'Lease advanced to ' . str_replace('_', ' ', $state) . '. Next party will be notified.'
                             )
                             ->duration(10000)
                             ->send();
@@ -1229,10 +1236,10 @@ HTML
                         if (class_exists(\App\Services\TenantEventService::class)) {
                             \App\Services\TenantEventService::log(
                                 tenant: $tenant,
-                                type: 'email_sent',
+                                type: \App\Enums\TenantEventType::EMAIL,
                                 title: 'Lease emailed',
-                                description: 'Lease ' . ($this->record->reference_number ?? '') . ' sent via email by ' . auth()->user()->name,
-                                performedBy: auth()->user(),
+                                body: ['description' => 'Lease ' . ($this->record->reference_number ?? '') . ' sent via email by ' . auth()->user()->name],
+                                options: ['performed_by' => auth()->id()],
                             );
                         }
                         Notification::make()->success()

@@ -329,7 +329,7 @@
     <div class="section-number">2. GRANT OF LEASE</div>
 
     <div class="clause-content">
-        The Lessor leases to the Lessee for a period of <strong>{{ $lease->duration_months }} months</strong> from the date of this
+        The Lessor leases to the Lessee for a period of <strong>{{ $lease->computed_duration_for_display ?? ($lease->duration_months ? $lease->duration_months . ' months' : 'as agreed') }}</strong> from the date of this
         Agreement all rights, easements, privileges, restrictions, covenants and stipulations of
         whatever nature affecting the Premises and subject to the payment to the Lessor of:
     </div>

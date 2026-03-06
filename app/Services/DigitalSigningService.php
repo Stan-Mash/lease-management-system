@@ -112,8 +112,8 @@ class DigitalSigningService
         // Create signature with automatic hash generation
         $signature = DigitalSignature::createFromData($data);
 
-        // Update lease workflow state
-        $lease->transitionTo(LeaseWorkflowState::TENANT_SIGNED);
+        // Advance workflow by lease-type sequence (tenant -> next party state + notify)
+        SigningWorkflowService::advanceAfterSignature($lease, SigningWorkflowService::SIGNER_TENANT);
 
         Log::info('Digital signature captured', [
             'lease_id'     => $lease->id,

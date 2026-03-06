@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DownloadLeaseController;
 use App\Http\Controllers\FieldOfficerController;
+use App\Http\Controllers\GuarantorPortalController;
 use App\Http\Controllers\LandlordApprovalController;
 use App\Http\Controllers\LandlordPublicApprovalController;
 use App\Http\Controllers\LawyerPortalController;
@@ -55,6 +56,23 @@ Route::prefix('lawyer/lease')->name('lawyer.portal')->middleware('throttle:30,1'
     Route::get('/{token}', [LawyerPortalController::class, 'show'])->name('');
     Route::get('/{token}/download', [LawyerPortalController::class, 'download'])->name('.download');
     Route::post('/{token}/upload', [LawyerPortalController::class, 'upload'])->name('.upload');
+});
+
+// Guarantor signing portal (OTP-gated, isolated; no dashboard access)
+Route::prefix('guarantor')->name('guarantor.portal.')->middleware('throttle:30,1')->group(function () {
+    Route::get('/sign/{lease}/{guarantor}', [GuarantorPortalController::class, 'show'])
+        ->name('sign');
+    Route::post('/sign/{lease}/{guarantor}/request-otp', [GuarantorPortalController::class, 'requestOTP'])
+        ->middleware('throttle:5,1')
+        ->name('request-otp');
+    Route::post('/sign/{lease}/{guarantor}/verify-otp', [GuarantorPortalController::class, 'verifyOTP'])
+        ->middleware('throttle:10,1')
+        ->name('verify-otp');
+    Route::post('/sign/{lease}/{guarantor}/submit-signature', [GuarantorPortalController::class, 'submitSignature'])
+        ->middleware('throttle:3,1')
+        ->name('submit-signature');
+    Route::get('/sign/{lease}/{guarantor}/view', [GuarantorPortalController::class, 'viewLease'])
+        ->name('view-lease');
 });
 
 // Public landlord approval portal — no login required, secured by one-time token

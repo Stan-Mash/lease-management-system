@@ -432,7 +432,10 @@
             const agreeBox  = document.getElementById('agree-terms');
             const proceedBtn = document.getElementById('proceed-to-sign-btn');
             if (agreeBox && proceedBtn) {
-                agreeBox.addEventListener('change', () => { proceedBtn.disabled = !agreeBox.checked; });
+                function updateProceedButton() { proceedBtn.disabled = !agreeBox.checked; }
+                agreeBox.addEventListener('change', updateProceedButton);
+                agreeBox.addEventListener('input', updateProceedButton);
+                agreeBox.addEventListener('click', updateProceedButton);
                 proceedBtn.addEventListener('click', () => goToStep(3));
             }
         }
