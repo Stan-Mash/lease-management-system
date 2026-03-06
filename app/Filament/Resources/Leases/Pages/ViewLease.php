@@ -803,6 +803,247 @@ HTML
                 ->modalSubmitActionLabel('Print Now')
                 ->action(fn () => $this->record->markAsPrinted()),
 
+            // ── SEND TO LAWYER ────────────────────────────────────────────────
+            // Visible when tenant has signed AND requires_lawyer is true,
+            // OR when tenant has signed and user opts to involve a lawyer anyway.
+            Action::make('sendToLawyer')
+                ->label('Send to Lawyer')
+                ->icon('heroicon-o-scale')
+                ->color('indigo')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'tenant_signed'
+                        && auth()->user()?->canManageLeases()
+                        && Lawyer::active()->exists(),
+                )
+                ->modalHeading('Send Lease to Lawyer for Review')
+                ->modalDescription(
+                    fn () => 'Send lease '
+                        . ($this->record->reference_number ?? '')
+                        . ' to a lawyer for legal review and stamping. '
+                        . 'Turnaround time will be tracked. You will be alerted if the lawyer exceeds the expected '
+                        . config('lease.lawyer.expected_turnaround_days', 7) . '-day turnaround.',
+                )
+                ->modalWidth('lg')
+                ->modalSubmitActionLabel('Send to Lawyer')
+                ->modalSubmitAction(
+                    fn ($action) => $action->color('indigo')->icon('heroicon-o-scale'),
+                )
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('lawyer_id')
+                        ->label('Assign Lawyer')
+                        ->options(
+                            fn () => Lawyer::active()
+                                ->orderBy('firm')
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn ($l) => [
+                                    $l->id => ($l->firm ? "[{$l->firm}] " : '') . $l->name
+                                        . ($l->specialization ? " — {$l->specialization}" : ''),
+                                ])
+                        )
+                        ->required()
+                        ->searchable()
+                        ->helperText('Only active lawyers are shown. Add lawyers under Settings → Lawyers.'),
+
+                    Select::make('sent_method')
+                        ->label('How are you sending this to the lawyer?')
+                        ->options([
+                            'email'    => '✉️ Email — send PDF by email',
+                            'physical' => '🏢 Physical — hand over or courier physical document',
+                        ])
+                        ->required()
+                        ->default('email')
+                        ->helperText('Select the method you will use to send the lease document.'),
+
+                    Textarea::make('sent_notes')
+                        ->label('Notes (Optional)')
+                        ->placeholder('e.g. Sent to john@lawfirm.com, email ref #2026-03-001...')
+                        ->rows(2)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    try {
+                        $lawyer = Lawyer::findOrFail($data['lawyer_id']);
+                        $user   = auth()->user();
+
+                        // Create tracking record
+                        $tracking = LeaseLawyerTracking::create([
+                            'lease_id'    => $this->record->id,
+                            'lawyer_id'   => $lawyer->id,
+                            'sent_method' => $data['sent_method'],
+                            'sent_at'     => now(),
+                            'sent_by'     => $user->id,
+                            'sent_notes'  => $data['sent_notes'] ?? null,
+                            'status'      => 'sent',
+                        ]);
+
+                        // Transition lease to WITH_LAWYER state
+                        $this->record->transitionTo(LeaseWorkflowState::WITH_LAWYER);
+
+                        // Audit log
+                        $this->record->auditLogs()->create([
+                            'action'            => 'sent_to_lawyer',
+                            'old_state'         => 'tenant_signed',
+                            'new_state'         => 'with_lawyer',
+                            'user_id'           => $user->id,
+                            'user_role_at_time' => $user->getRoleNames()->first() ?? 'manager',
+                            'ip_address'        => request()->ip(),
+                            'additional_data'   => [
+                                'lawyer_id'     => $lawyer->id,
+                                'lawyer_name'   => $lawyer->display_name,
+                                'sent_method'   => $data['sent_method'],
+                                'tracking_id'   => $tracking->id,
+                            ],
+                            'description' => "Sent to {$lawyer->display_name} via {$data['sent_method']}",
+                        ]);
+
+                        $sentVia = $data['sent_method'] === 'email' ? 'email' : 'physical handover';
+
+                        Notification::make()
+                            ->success()
+                            ->title('Lease Sent to Lawyer ⚖️')
+                            ->body(
+                                "Sent to {$lawyer->name}"
+                                . ($lawyer->firm ? " ({$lawyer->firm})" : '')
+                                . " via {$sentVia}. "
+                                . 'Turnaround tracking is now active. Expected return within '
+                                . config('lease.lawyer.expected_turnaround_days', 7) . ' working days.'
+                            )
+                            ->duration(8000)
+                            ->send();
+
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                    } catch (Exception $e) {
+                        Notification::make()->danger()
+                            ->title('Failed to Send to Lawyer')
+                            ->body('Error: ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
+
+            // ── MARK RETURNED FROM LAWYER ─────────────────────────────────────
+            Action::make('markReturnedFromLawyer')
+                ->label('Mark as Returned from Lawyer')
+                ->icon('heroicon-o-arrow-uturn-left')
+                ->color('success')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'with_lawyer'
+                        && auth()->user()?->canManageLeases(),
+                )
+                ->modalHeading('Confirm Lease Returned from Lawyer')
+                ->modalDescription(
+                    fn () => 'Record the receipt of lease '
+                        . ($this->record->reference_number ?? '')
+                        . ' back from the lawyer. The system will calculate the turnaround time '
+                        . 'and advance the lease to the next step.',
+                )
+                ->modalWidth('lg')
+                ->modalSubmitActionLabel('Confirm Return')
+                ->modalSubmitAction(
+                    fn ($action) => $action->color('success')->icon('heroicon-o-check'),
+                )
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('return_method')
+                        ->label('How did the lawyer return it?')
+                        ->options([
+                            'email'    => '✉️ Email — lawyer emailed the stamped PDF',
+                            'physical' => '🏢 Physical — lawyer returned physical document',
+                        ])
+                        ->required()
+                        ->default('email')
+                        ->helperText(
+                            'If returned physically, you will need to scan and upload the document in the next step.',
+                        ),
+
+                    Select::make('next_state')
+                        ->label('Next Step After Receipt')
+                        ->options([
+                            'pending_upload'  => '📤 Pending Upload — need to scan & upload physical document',
+                            'pending_deposit' => '💰 Pending Deposit — document ready, awaiting deposit confirmation',
+                        ])
+                        ->required()
+                        ->default('pending_deposit')
+                        ->helperText(
+                            'Choose "Pending Upload" if the lawyer returned a physical document that needs scanning. '
+                            . 'Choose "Pending Deposit" if the document is already in the system.',
+                        ),
+
+                    Textarea::make('returned_notes')
+                        ->label('Notes (Optional)')
+                        ->placeholder('e.g. Received signed and stamped copy, all clauses intact...')
+                        ->rows(2)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    try {
+                        $user = auth()->user();
+
+                        // Find the most recent open tracking record for this lease
+                        $tracking = LeaseLawyerTracking::where('lease_id', $this->record->id)
+                            ->whereIn('status', ['pending', 'sent'])
+                            ->latest()
+                            ->first();
+
+                        if ($tracking) {
+                            $tracking->markAsReturned(
+                                $data['return_method'],
+                                $user->id,
+                                $data['returned_notes'] ?? null,
+                            );
+                        }
+
+                        $newState = $data['next_state'] === 'pending_upload'
+                            ? LeaseWorkflowState::PENDING_UPLOAD
+                            : LeaseWorkflowState::PENDING_DEPOSIT;
+
+                        $this->record->transitionTo($newState);
+
+                        // Audit log
+                        $this->record->auditLogs()->create([
+                            'action'            => 'received_from_lawyer',
+                            'old_state'         => 'with_lawyer',
+                            'new_state'         => $newState->value,
+                            'user_id'           => $user->id,
+                            'user_role_at_time' => $user->getRoleNames()->first() ?? 'manager',
+                            'ip_address'        => request()->ip(),
+                            'additional_data'   => [
+                                'return_method'    => $data['return_method'],
+                                'next_state'       => $newState->value,
+                                'tracking_id'      => $tracking?->id,
+                                'turnaround_days'  => $tracking?->turnaround_days,
+                            ],
+                            'description' => 'Received from lawyer via ' . $data['return_method'],
+                        ]);
+
+                        $turnaroundMsg = $tracking?->turnaround_days !== null
+                            ? " Turnaround: {$tracking->turnaround_days} day(s)."
+                            : '';
+
+                        Notification::make()
+                            ->success()
+                            ->title('Received from Lawyer ✅')
+                            ->body(
+                                'Lease marked as returned from lawyer.'
+                                . $turnaroundMsg
+                                . ' Next step: '
+                                . ($newState === LeaseWorkflowState::PENDING_UPLOAD
+                                    ? 'Upload the scanned document.'
+                                    : 'Confirm security deposit.')
+                            )
+                            ->duration(8000)
+                            ->send();
+
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                    } catch (Exception $e) {
+                        Notification::make()->danger()
+                            ->title('Failed to Record Return')
+                            ->body('Error: ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
+
             // ── MORE ACTIONS DROPDOWN (secondary/utility actions) ────────────
             ActionGroup::make([
 

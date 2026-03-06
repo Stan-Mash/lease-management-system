@@ -465,7 +465,24 @@ class LeaseInfolist
                 ->collapsible()
                 ->collapsed(false),
 
-            // ── 6. FINANCIAL SUMMARY ──────────────────────────────────────────────
+            // ── 6. LAWYER REVIEW TRACKING ─────────────────────────────────────────
+            Section::make('Lawyer Review')
+                ->icon('heroicon-o-scale')
+                ->description('Legal review tracking — shows which lawyer handled this lease and turnaround time.')
+                ->schema([
+                    Grid::make(1)->schema([
+                        TextEntry::make('_lawyer_tracking_panel')
+                            ->label('')
+                            ->state(fn ($record) => self::buildLawyerTrackingPanel($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+                ])
+                ->visible(fn ($record) => $record->lawyerTrackings()->exists())
+                ->collapsible()
+                ->collapsed(fn ($record) => ! in_array($record->workflow_state, ['with_lawyer'])),
+
+            // ── 7. FINANCIAL SUMMARY ──────────────────────────────────────────────
             Section::make('Financial Summary')
                 ->icon('heroicon-o-banknotes')
                 ->schema([
@@ -627,6 +644,109 @@ class LeaseInfolist
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /**
+     * Build the HTML lawyer tracking panel shown in the "Lawyer Review" section.
+     * Shows all tracking records (sent/returned history) for this lease.
+     */
+    private static function buildLawyerTrackingPanel($record): string
+    {
+        $trackings = $record->lawyerTrackings()->with(['lawyer', 'sentByUser', 'receivedByUser'])->latest('sent_at')->get();
+        $expected  = config('lease.lawyer.expected_turnaround_days', 7);
+
+        if ($trackings->isEmpty()) {
+            return '<p style="color:#6b7280; font-size:10pt; margin:0;">No lawyer tracking records found.</p>';
+        }
+
+        $rows = '';
+        foreach ($trackings as $tracking) {
+            $lawyer     = $tracking->lawyer;
+            $name       = $lawyer ? ($lawyer->name . ($lawyer->firm ? " — {$lawyer->firm}" : '')) : '—';
+            $sentVia    = ucfirst($tracking->sent_method ?? '—');
+            $sentDate   = $tracking->sent_at?->format('d M Y, H:i') ?? '—';
+            $sentBy     = $tracking->sentByUser?->name ?? '—';
+            $returnedDate = $tracking->returned_at?->format('d M Y, H:i') ?? null;
+            $receivedBy   = $tracking->receivedByUser?->name ?? null;
+            $returnVia    = ucfirst($tracking->returned_method ?? '—');
+            $days         = $tracking->turnaround_days;
+
+            // Status badge styling
+            [$statusLabel, $statusBg, $statusColor] = match ($tracking->status) {
+                'sent'      => ['⏳ With Lawyer', '#fef3c7', '#92400e'],
+                'returned'  => ['✅ Returned', '#d1fae5', '#065f46'],
+                'cancelled' => ['❌ Cancelled', '#fee2e2', '#991b1b'],
+                default     => ['⬜ Pending', '#f3f4f6', '#374151'],
+            };
+
+            // Turnaround info
+            if ($days !== null) {
+                $turnaroundColor = $days <= $expected ? '#059669' : '#dc2626';
+                $turnaroundLabel = "{$days} day" . ($days !== 1 ? 's' : '');
+                if ($days > $expected) {
+                    $turnaroundLabel .= " (+" . ($days - $expected) . " over target)";
+                }
+            } elseif ($tracking->status === 'sent' && $tracking->sent_at) {
+                $elapsed = (int) $tracking->sent_at->diffInDays(now());
+                $turnaroundColor = $elapsed > $expected ? '#dc2626' : '#f59e0b';
+                $turnaroundLabel = "{$elapsed} day" . ($elapsed !== 1 ? 's' : '') . ' (ongoing)';
+                if ($elapsed > $expected) {
+                    $turnaroundLabel .= " ⚠️ OVERDUE";
+                }
+            } else {
+                $turnaroundColor = '#9ca3af';
+                $turnaroundLabel = '—';
+            }
+
+            $returnSection = $returnedDate
+                ? <<<HTML
+                    <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #e5e7eb;">
+                        <div style="font-size:9pt; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#059669; margin-bottom:6px;">Return Details</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:9.5pt;">
+                            <div><span style="color:#6b7280;">Returned:</span> {$returnedDate}</div>
+                            <div><span style="color:#6b7280;">Via:</span> {$returnVia}</div>
+                            <div><span style="color:#6b7280;">Received by:</span> {$receivedBy}</div>
+                        </div>
+                    </div>
+                HTML
+                : '';
+
+            $specializationHtml = ($lawyer && $lawyer->specialization)
+                ? "<div style=\"font-size:9pt; color:#6366f1; margin-top:2px;\">{$lawyer->specialization}</div>"
+                : '';
+            $phoneHtml = ($lawyer && $lawyer->phone)
+                ? "<div style=\"font-size:9pt; color:#6b7280; margin-top:2px;\">📞 {$lawyer->phone}</div>"
+                : '';
+
+            $rows .= <<<HTML
+            <div style="background:white; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:11pt; font-weight:700; color:#1a365d;">⚖️ {$name}</div>
+                        {$specializationHtml}
+                        {$phoneHtml}
+                    </div>
+                    <span style="background:{$statusBg}; color:{$statusColor}; font-size:9pt; font-weight:700; padding:3px 10px; border-radius:999px;">{$statusLabel}</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; font-size:9.5pt;">
+                    <div><span style="color:#6b7280;">Sent:</span> {$sentDate}</div>
+                    <div><span style="color:#6b7280;">Via:</span> {$sentVia}</div>
+                    <div><span style="color:#6b7280;">Sent by:</span> {$sentBy}</div>
+                    <div><span style="color:{$turnaroundColor}; font-weight:700;">⏱ {$turnaroundLabel}</span></div>
+                </div>
+                {$returnSection}
+            </div>
+            HTML;
+        }
+
+        $targetNote = "Chabrin target: {$expected} working days turnaround.";
+
+        return <<<HTML
+        <div>
+            <p style="font-size:9pt; color:#6b7280; margin:0 0 12px 0;">{$targetNote}</p>
+            {$rows}
+        </div>
+        HTML;
+    }
+
     private static function journeyHeading($record): string
     {
         $state = $record->workflow_state;
@@ -705,18 +825,67 @@ class LeaseInfolist
                 "{$tenant} has verified their OTP and is now on the signature page. They can see the full lease and are about to sign.",
                 'Wait for the tenant to draw or upload their signature and click Submit.',
             ],
-            'tenant_signed' => [
-                '🎉', '#059669',
-                'Tenant Has Signed!',
-                "{$tenant} has digitally signed this lease. The signature has been captured with IP address and timestamp. The lease now needs to go through lawyer review or be uploaded.",
-                'Proceed to assign to a lawyer (if required) or advance to "Pending Upload" then confirm deposit.',
-            ],
-            'with_lawyer' => [
-                '⚖️', '#6366f1',
-                'With Lawyer for Review',
-                'This lease has been sent to a lawyer for legal review. Turnaround time is being tracked.',
-                'Wait for lawyer to complete review. Follow up if turnaround time is exceeded.',
-            ],
+            'tenant_signed' => (function () use ($record, $tenant): array {
+                $requiresLawyer = (bool) $record->requires_lawyer;
+                $body = "{$tenant} has digitally signed this lease. The signature has been captured with timestamp and IP address. ";
+                $next = $requiresLawyer
+                    ? 'This lease requires lawyer review — click "Send to Lawyer" to assign it to a lawyer and start turnaround tracking.'
+                    : 'Click "Countersign & Activate" to countersign directly, or use "Send to Lawyer" if legal review is needed first.';
+                $body .= $requiresLawyer
+                    ? 'Lawyer review is required before this lease can be activated.'
+                    : 'Lawyer review is optional — you may countersign directly or send to a lawyer.';
+
+                return ['🎉', '#059669', 'Tenant Has Signed!', $body, $next];
+            })(),
+            'with_lawyer' => (function () use ($record): array {
+                $tracking  = $record->lawyerTrackings()
+                    ->with('lawyer')
+                    ->whereIn('status', ['sent', 'pending'])
+                    ->latest('sent_at')
+                    ->first();
+
+                $expected    = config('lease.lawyer.expected_turnaround_days', 7);
+                $daysElapsed = $tracking?->sent_at ? (int) $tracking->sent_at->diffInDays(now()) : null;
+                $isOverdue   = $daysElapsed !== null && $daysElapsed > $expected;
+
+                if ($tracking && $tracking->lawyer) {
+                    $lawyer      = $tracking->lawyer;
+                    $lawyerName  = $lawyer->name . ($lawyer->firm ? " ({$lawyer->firm})" : '');
+                    $sentVia     = ucfirst($tracking->sent_method ?? 'unknown');
+                    $sentDate    = $tracking->sent_at?->format('d M Y') ?? '—';
+                    $daysMsg     = $daysElapsed !== null ? " — {$daysElapsed} day(s) elapsed" : '';
+                    $overdueMsg  = $isOverdue
+                        ? " ⚠️ OVERDUE by " . ($daysElapsed - $expected) . " day(s). Please follow up."
+                        : " (target: {$expected} days)";
+
+                    $body = "Sent to {$lawyerName} via {$sentVia} on {$sentDate}{$daysMsg}.{$overdueMsg}";
+
+                    $contact = [];
+                    if ($lawyer->phone) {
+                        $contact[] = "📞 {$lawyer->phone}";
+                    }
+                    if ($lawyer->email) {
+                        $contact[] = "✉️ {$lawyer->email}";
+                    }
+                    if ($contact) {
+                        $body .= ' Contact: ' . implode('  |  ', $contact);
+                    }
+
+                    $next = $isOverdue
+                        ? "⚠️ Follow up urgently with {$lawyer->name} — lease is overdue by " . ($daysElapsed - $expected) . " day(s). Once returned, click \"Mark as Returned from Lawyer\"."
+                        : "Wait for {$lawyer->name} to return the stamped lease. Once received, click \"Mark as Returned from Lawyer\".";
+
+                    return ['⚖️', $isOverdue ? '#ef4444' : '#6366f1', 'With Lawyer for Review', $body, $next];
+                }
+
+                // Fallback if no tracking record found
+                return [
+                    '⚖️', '#6366f1',
+                    'With Lawyer for Review',
+                    'This lease has been sent to a lawyer for legal review. Turnaround time is being tracked.',
+                    'Once the lawyer returns the document, click "Mark as Returned from Lawyer".',
+                ];
+            })(),
             'pending_upload' => [
                 '📤', '#f59e0b',
                 'Waiting for Signed Copy Upload',
