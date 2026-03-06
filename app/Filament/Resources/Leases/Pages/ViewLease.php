@@ -10,6 +10,7 @@ use App\Filament\Resources\Leases\LeaseResource;
 use App\Models\DigitalSignature;
 use App\Models\Lawyer;
 use App\Models\LeaseLawyerTracking;
+use App\Models\LeaseWitness;
 use App\Notifications\LeaseSentToLawyerNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
@@ -444,7 +445,7 @@ class ViewLease extends ViewRecord
                         && auth()->user()?->can('receive_from_lawyer'),
                 )
                 ->modalHeading('Mark Returned from Lawyer')
-                ->modalDescription('Record that the advocate has returned the lease. Optionally upload the stamped PDF if you received it by email or physical.')
+                ->modalDescription('Record that the advocate has returned the lease, along with their certification details for the legal record.')
                 ->modalSubmitActionLabel('Mark Returned')
                 /** @phpstan-ignore-next-line */
                 ->schema([
@@ -452,12 +453,39 @@ class ViewLease extends ViewRecord
                         ->label('Returned via')
                         ->options(['email' => 'Email', 'physical' => 'Physical'])
                         ->required(),
+
+                    // ── Advocate Certification (Track 2) ──────────────────────
+                    Select::make('certification_type')
+                        ->label('What did the advocate do?')
+                        ->options([
+                            'review'       => 'Review Only — advised on content, no signature',
+                            'witness'      => 'Witness — signed as a witness on the document',
+                            'attestation'  => 'Attestation — formally attested / certified the document',
+                            'registration' => 'Registration — prepared and submitted for Lands Registry',
+                        ])
+                        ->required()
+                        ->helperText('This is your legal certification record (Track 2).'),
+
+                    TextInput::make('advocate_lsk_number')
+                        ->label('Advocate LSK Number')
+                        ->placeholder('e.g. LSK/2024/01234')
+                        ->helperText('LSK practising certificate number — required for attestation or registration')
+                        ->maxLength(50),
+
+                    \Filament\Forms\Components\DatePicker::make('certified_at')
+                        ->label('Date of Certification')
+                        ->default(now()->format('Y-m-d'))
+                        ->maxDate(now())
+                        ->helperText('Date the advocate signed or certified the document'),
+
                     FileUpload::make('stamped_pdf')
-                        ->label('Stamped PDF (optional)')
+                        ->label('Attested / Stamped PDF (optional)')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(20480)
                         ->disk('local')
-                        ->directory('temp-lawyer-returns'),
+                        ->directory('temp-lawyer-returns')
+                        ->helperText('Upload the scanned physical copy with advocate signature if available'),
+
                     Textarea::make('returned_notes')
                         ->label('Notes (optional)')
                         ->rows(2)
@@ -471,6 +499,8 @@ class ViewLease extends ViewRecord
                     }
 
                     $notes = $data['returned_notes'] ?? null;
+                    $physicalDocId = null;
+
                     if (! empty($data['stamped_pdf'])) {
                         $fullPath = storage_path('app/' . $data['stamped_pdf']);
                         if (file_exists($fullPath)) {
@@ -486,7 +516,7 @@ class ViewLease extends ViewRecord
                                 $file,
                                 $this->record->id,
                                 'lawyer_stamped',
-                                'Stamped lease from advocate – ' . ($this->record->reference_number ?? ''),
+                                'Attested lease from advocate – ' . ($this->record->reference_number ?? ''),
                                 $notes,
                                 now()->format('Y-m-d'),
                                 auth()->id(),
@@ -494,16 +524,115 @@ class ViewLease extends ViewRecord
                             if ($this->record->unit_code) {
                                 $doc->update(['unit_code' => $this->record->unit_code]);
                             }
+                            $physicalDocId = $doc->id;
                             @unlink($fullPath);
                         }
                     }
 
                     $tracking->markAsReturned($data['returned_method'], auth()->id(), $notes);
+
+                    // Record advocate certification (Track 2)
+                    $tracking->recordCertification(
+                        type: $data['certification_type'],
+                        lskNumber: $data['advocate_lsk_number'] ?? null,
+                        certifiedAt: ! empty($data['certified_at']) ? \Carbon\Carbon::parse($data['certified_at']) : now(),
+                        physicalCopyDocumentId: $physicalDocId,
+                    );
+
                     $this->record->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
 
                     Notification::make()->success()
-                        ->title('Marked Returned')
-                        ->body('Lease marked as returned from lawyer. Status set to Pending Upload.')
+                        ->title('Marked Returned from Lawyer')
+                        ->body('Advocate certification recorded. Lease status set to Pending Upload.')
+                        ->send();
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                }),
+
+            // ── RECORD WITNESS ────────────────────────────────────────────────
+            Action::make('recordWitness')
+                ->label('Record Witness')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->visible(
+                    fn () => in_array($this->record->workflow_state, [
+                        'tenant_signed', 'with_lawyer', 'pending_upload', 'pending_deposit', 'active',
+                    ]) && auth()->user()?->canManageLeases(),
+                )
+                ->modalHeading('Record Witness Declaration')
+                ->modalDescription('Record the identity of the person who was physically present and witnessed the signing. This creates the formal witness trail for the legal record.')
+                ->modalSubmitActionLabel('Save Witness Record')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('witnessed_party')
+                        ->label('Who did this person witness signing?')
+                        ->options([
+                            'tenant' => 'Tenant (Lessee) — the person signing as Lessee',
+                            'lessor' => 'Lessor / Property Manager — signing on behalf of Chabrin',
+                        ])
+                        ->required(),
+
+                    Select::make('witness_type')
+                        ->label('Type of Witness')
+                        ->options([
+                            'staff'    => 'Chabrin Staff Member',
+                            'advocate' => 'LSK Advocate',
+                            'external' => 'External Witness',
+                        ])
+                        ->default('staff')
+                        ->required()
+                        ->live(),
+
+                    TextInput::make('witnessed_by_name')
+                        ->label('Witness Full Name')
+                        ->default(fn () => Auth::user()?->name ?? '')
+                        ->required()
+                        ->maxLength(255),
+
+                    TextInput::make('witnessed_by_title')
+                        ->label('Witness Title / Role')
+                        ->placeholder('e.g. Lease Officer, Chabrin Agencies Ltd')
+                        ->default(fn () => 'Chabrin Agencies Ltd')
+                        ->maxLength(255),
+
+                    TextInput::make('lsk_number')
+                        ->label('LSK Number (if advocate)')
+                        ->placeholder('e.g. LSK/2024/01234')
+                        ->maxLength(50)
+                        ->visible(fn (\Filament\Forms\Get $get) => $get('witness_type') === 'advocate'),
+
+                    Textarea::make('notes')
+                        ->label('Notes (optional)')
+                        ->rows(2)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    LeaseWitness::create([
+                        'lease_id'             => $this->record->id,
+                        'witnessed_party'      => $data['witnessed_party'],
+                        'witnessed_by_user_id' => auth()->id(),
+                        'witnessed_by_name'    => $data['witnessed_by_name'],
+                        'witnessed_by_title'   => $data['witnessed_by_title'] ?? null,
+                        'witness_type'         => $data['witness_type'],
+                        'lsk_number'           => $data['lsk_number'] ?? null,
+                        'witnessed_at'         => now(),
+                        'ip_address'           => request()->ip(),
+                        'notes'                => $data['notes'] ?? null,
+                    ]);
+
+                    \App\Models\LeaseAuditLog::create([
+                        'lease_id'   => $this->record->id,
+                        'action'     => 'witness_recorded',
+                        'performed_by' => auth()->id(),
+                        'details'    => json_encode([
+                            'witnessed_party'   => $data['witnessed_party'],
+                            'witness_name'      => $data['witnessed_by_name'],
+                            'witness_type'      => $data['witness_type'],
+                        ]),
+                    ]);
+
+                    Notification::make()->success()
+                        ->title('Witness Recorded')
+                        ->body($data['witnessed_by_name'] . ' recorded as witness for the ' . ($data['witnessed_party'] === 'tenant' ? 'Tenant' : 'Lessor') . '.')
                         ->send();
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                 }),

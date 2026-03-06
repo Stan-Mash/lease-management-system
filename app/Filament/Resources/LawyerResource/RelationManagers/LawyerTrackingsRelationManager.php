@@ -117,6 +117,40 @@ class LawyerTrackingsRelationManager extends RelationManager
                         : null
                     ),
 
+                Tables\Columns\TextColumn::make('certification_type')
+                    ->label('Advocate Certified')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'review'       => '📋 Review Only',
+                        'witness'      => '✍️ Witness',
+                        'attestation'  => '🔏 Attestation',
+                        'registration' => '🏛️ Registration',
+                        default        => '—',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'review'       => 'gray',
+                        'witness'      => 'info',
+                        'attestation'  => 'success',
+                        'registration' => 'success',
+                        default        => 'gray',
+                    })
+                    ->placeholder('Not yet certified')
+                    ->toggleable(isToggledHiddenByDefault: false),
+
+                Tables\Columns\TextColumn::make('advocate_lsk_number')
+                    ->label('LSK No.')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\IconColumn::make('physical_copy_uploaded')
+                    ->label('Physical Copy')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-document-check')
+                    ->falseIcon('heroicon-o-document')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->toggleable(isToggledHiddenByDefault: false),
+
                 Tables\Columns\TextColumn::make('sentByUser.name')
                     ->label('Sent By')
                     ->toggleable(isToggledHiddenByDefault: true),

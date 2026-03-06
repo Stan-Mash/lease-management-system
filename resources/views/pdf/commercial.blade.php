@@ -406,9 +406,16 @@
         herein before written.
     </p>
 
+    @php
+        $lessorWitness = isset($witnesses) ? $witnesses->where('witnessed_party', 'lessor')->first() : null;
+        $tenantWitness = isset($witnesses) ? $witnesses->where('witnessed_party', 'tenant')->first() : null;
+    @endphp
+
     <div class="sig-section">
 
-        {{-- ── LESSOR / MANAGING AGENTS ── --}}
+        {{-- ══════════════════════════════════════════════════════════════
+             SIGNATORY 1: LESSOR / MANAGING AGENTS (Chabrin)
+        ══════════════════════════════════════════════════════════════ --}}
         <div class="sig-row">
             <div class="sig-lbl">
                 SIGNED by the said )<br>
@@ -417,23 +424,44 @@
                 <em>(the Lessor/Assigned agents)</em> )
             </div>
             <div class="sig-box">
-                <span class="sig-spacer"></span>
-                <span class="sig-line-el">&nbsp;</span>
+                @if(!empty($managerSigPath) && file_exists($managerSigPath))
+                    <img class="sig-img" src="{{ $managerSigPath }}" alt="Manager Signature">
+                    <div class="sig-meta">
+                        {{ $managerSignature?->signed_by_name ?? 'Property Manager' }}<br>
+                        Countersigned: {{ $managerSignature?->created_at?->format('d M Y, h:i A') }}<br>
+                        IP: {{ $managerSignature?->ip_address ?? 'N/A' }}
+                    </div>
+                @else
+                    <span class="sig-spacer"></span>
+                    <span class="sig-line-el">&nbsp;</span>
+                @endif
             </div>
         </div>
 
-        <p style="margin-bottom:2px;">Signature</p>
-        <br>
-        <p style="margin-bottom:2px;">in the presence of :</p>
-
+        {{-- SIGNATORY 2: ADVOCATE / WITNESS FOR LESSOR --}}
+        <p style="margin-bottom:2px;margin-top:6px;">in the presence of:</p>
         <div class="sig-row">
-            <div class="sig-lbl">ADVOCATE</div>
-            <div class="sig-box"><span class="sig-line-el">&nbsp;</span></div>
+            <div class="sig-lbl">ADVOCATE / WITNESS )</div>
+            <div class="sig-box">
+                @if($lessorWitness)
+                    <span class="sig-line-el">&nbsp;</span>
+                    <div class="sig-meta">
+                        <strong>{{ $lessorWitness->witnessed_by_name }}</strong>
+                        @if($lessorWitness->witnessed_by_title) — {{ $lessorWitness->witnessed_by_title }}@endif<br>
+                        @if($lessorWitness->lsk_number) LSK No: {{ $lessorWitness->lsk_number }}<br>@endif
+                        Witnessed: {{ $lessorWitness->witnessed_at?->format('d M Y, h:i A') }}
+                    </div>
+                @else
+                    <span class="sig-line-el">&nbsp;</span>
+                @endif
+            </div>
         </div>
 
-        <br><br>
+        <br>
 
-        {{-- ── LESSEE / TENANT ── --}}
+        {{-- ══════════════════════════════════════════════════════════════
+             SIGNATORY 3: LESSEE / TENANT
+        ══════════════════════════════════════════════════════════════ --}}
         <div class="sig-row">
             <div class="sig-lbl">SIGNED by the Lessee )</div>
             <div class="sig-box">
@@ -450,50 +478,56 @@
             </div>
         </div>
 
-        @if(!empty($signatureImagePath) && file_exists($signatureImagePath))
-            {{-- DIGITAL: Property Manager countersignature row --}}
-            <div class="sig-row" style="margin-top:12px;">
-                <div class="sig-lbl">SIGNED by Property Manager )<br>on behalf of Chabrin Agencies )</div>
-                <div class="sig-box">
-                    @if(!empty($managerSigPath) && file_exists($managerSigPath))
-                        <img class="sig-img" src="{{ $managerSigPath }}" alt="Manager Signature">
-                        <div class="sig-meta">
-                            {{ $managerSignature?->signed_by_name ?? 'Property Manager' }}<br>
-                            Countersigned: {{ $managerSignature?->created_at?->format('d M Y, h:i A') }}<br>
-                            IP: {{ $managerSignature?->ip_address ?? 'N/A' }}
-                        </div>
-                    @else
-                        <span class="sig-line-el">&nbsp;</span>
-                        <div class="sig-meta" style="color:#aaa;">Pending countersignature</div>
-                    @endif
-                </div>
+        {{-- SIGNATORY 4 + 5: WITNESS AND ADVOCATE FOR LESSEE --}}
+        <p style="margin-bottom:2px;margin-top:6px;">in the presence of:</p>
+        <div class="sig-row">
+            <div class="sig-lbl">WITNESS )</div>
+            <div class="sig-box">
+                @if($tenantWitness)
+                    <span class="sig-line-el">&nbsp;</span>
+                    <div class="sig-meta">
+                        <strong>{{ $tenantWitness->witnessed_by_name }}</strong>
+                        @if($tenantWitness->witnessed_by_title) — {{ $tenantWitness->witnessed_by_title }}@endif<br>
+                        @if($tenantWitness->lsk_number) LSK No: {{ $tenantWitness->lsk_number }}<br>@endif
+                        Witnessed: {{ $tenantWitness->witnessed_at?->format('d M Y, h:i A') }}
+                    </div>
+                @else
+                    <span class="sig-line-el">&nbsp;</span>
+                @endif
             </div>
+        </div>
 
+        <div class="sig-row" style="margin-top:6px;">
+            <div class="sig-lbl">ADVOCATE )</div>
+            <div class="sig-box"><span class="uline" style="min-width:220px;">&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;</span></div>
+        </div>
+
+        @if(!empty($signatureImagePath) && file_exists($signatureImagePath))
             {{-- DIGITAL: Electronic Execution Record --}}
             <div class="exec-record">
                 <b>ELECTRONIC EXECUTION RECORD</b>
                 This lease was executed digitally. The Lessee&rsquo;s identity was verified via One-Time
                 Password (OTP) sent to their registered mobile number prior to signing. This audit trail
                 constitutes the record of execution in accordance with the Business Laws (Amendment)
-                Act No. 1 of 2020:<br><br>
+                Act No. 1 of 2020 (Kenya):<br><br>
                 <strong>Tenant signed:</strong> {{ $digitalSignature?->created_at?->format('d M Y, h:i:s A') }}<br>
                 <strong>Tenant IP:</strong> {{ $digitalSignature?->ip_address ?? 'N/A' }}<br>
-                <strong>Verification:</strong> OTP &ndash; registered mobile number<br>
+                <strong>Identity verification:</strong> OTP &ndash; registered mobile number<br>
+                @if($tenantWitness)
+                <strong>Tenant witness:</strong> {{ $tenantWitness->witnessed_by_name }}
+                    @if($tenantWitness->witnessed_by_title), {{ $tenantWitness->witnessed_by_title }}@endif
+                    &mdash; {{ $tenantWitness->witnessed_at?->format('d M Y, h:i A') }}<br>
+                @endif
                 @if(!empty($managerSigPath) && file_exists($managerSigPath))
-                <strong>Manager countersigned:</strong> {{ $managerSignature?->created_at?->format('d M Y, h:i:s A') }}
+                <strong>Lessor countersigned:</strong> {{ $managerSignature?->created_at?->format('d M Y, h:i:s A') }}
                     &nbsp;by {{ $managerSignature?->signed_by_name ?? 'Property Manager' }}<br>
                 @endif
+                @if($lessorWitness)
+                <strong>Lessor witness:</strong> {{ $lessorWitness->witnessed_by_name }}
+                    @if($lessorWitness->witnessed_by_title), {{ $lessorWitness->witnessed_by_title }}@endif
+                    &mdash; {{ $lessorWitness->witnessed_at?->format('d M Y, h:i A') }}<br>
+                @endif
                 <strong>Lease reference:</strong> {{ $lease->reference_number }}
-            </div>
-        @else
-            {{-- PHYSICAL: traditional witness lines --}}
-            <div class="sig-row">
-                <div class="sig-lbl">in the presence of: )<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
-                <div class="sig-box"></div>
-            </div>
-            <div class="sig-row">
-                <div class="sig-lbl">ADVOCATE )</div>
-                <div class="sig-box"><span class="uline" style="min-width:220px;">&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;</span></div>
             </div>
         @endif
 

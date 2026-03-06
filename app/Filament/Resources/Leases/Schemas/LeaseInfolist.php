@@ -482,6 +482,23 @@ class LeaseInfolist
                 ->collapsible()
                 ->collapsed(fn ($record) => ! in_array($record->workflow_state, ['with_lawyer'])),
 
+            // ── WITNESS RECORDS ───────────────────────────────────────────────────
+            Section::make('Witness Records')
+                ->icon('heroicon-o-eye')
+                ->description('Persons who formally witnessed the signing of this lease (Track 1 — Operational Signing).')
+                ->schema([
+                    Grid::make(1)->schema([
+                        TextEntry::make('_witness_panel')
+                            ->label('')
+                            ->state(fn ($record) => self::buildWitnessPanel($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+                ])
+                ->visible(fn ($record) => $record->witnesses()->exists())
+                ->collapsible()
+                ->collapsed(fn ($record) => in_array($record->workflow_state, ['draft', 'received', 'pending_landlord_approval', 'approved', 'printed', 'checked_out'])),
+
             // ── 7. FINANCIAL SUMMARY ──────────────────────────────────────────────
             Section::make('Financial Summary')
                 ->icon('heroicon-o-banknotes')
@@ -743,6 +760,72 @@ class LeaseInfolist
         <div>
             <p style="font-size:9pt; color:#6b7280; margin:0 0 12px 0;">{$targetNote}</p>
             {$rows}
+        </div>
+        HTML;
+    }
+
+    /**
+     * Build HTML panel showing all witness records for this lease.
+     */
+    private static function buildWitnessPanel($record): string
+    {
+        $witnesses = $record->witnesses()->orderBy('witnessed_at')->get();
+
+        if ($witnesses->isEmpty()) {
+            return '<p style="color:#9ca3af; font-size:9pt; margin:0;">No witness records recorded yet.</p>';
+        }
+
+        $cards = '';
+        foreach ($witnesses as $w) {
+            $partyLabel = $w->witnessed_party === 'tenant' ? 'Tenant (Lessee)' : 'Lessor / Property Manager';
+            $partyColor = $w->witnessed_party === 'tenant' ? '#2563eb' : '#16a34a';
+            $typeLabel  = match ($w->witness_type) {
+                'advocate' => 'LSK Advocate',
+                'external' => 'External Witness',
+                default    => 'Chabrin Staff',
+            };
+            $typeBg = match ($w->witness_type) {
+                'advocate' => '#fef3c7',
+                'external' => '#f3e8ff',
+                default    => '#f0f9ff',
+            };
+            $typeColor = match ($w->witness_type) {
+                'advocate' => '#92400e',
+                'external' => '#6b21a8',
+                default    => '#0c4a6e',
+            };
+            $name    = htmlspecialchars($w->witnessed_by_name);
+            $title   = $w->witnessed_by_title ? ' &mdash; <em>' . htmlspecialchars($w->witnessed_by_title) . '</em>' : '';
+            $lsk     = $w->lsk_number ? "<span style=\"font-size:8pt; color:#6b7280;\">LSK No: {$w->lsk_number}</span><br>" : '';
+            $date    = $w->witnessed_at?->format('d M Y, h:i A') ?? '—';
+            $notes   = $w->notes ? '<p style="font-size:8pt; color:#6b7280; margin:4px 0 0 0;">' . htmlspecialchars($w->notes) . '</p>' : '';
+
+            $cards .= <<<HTML
+            <div style="border:1px solid #e5e7eb; border-radius:8px; padding:12px 16px; margin-bottom:10px; background:#fff;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span style="font-size:8pt; font-weight:600; background:{$partyColor}; color:#fff; padding:2px 8px; border-radius:10px;">
+                        Witnessed: {$partyLabel}
+                    </span>
+                    <span style="font-size:8pt; font-weight:500; background:{$typeBg}; color:{$typeColor}; padding:2px 8px; border-radius:10px;">
+                        {$typeLabel}
+                    </span>
+                </div>
+                <p style="margin:0 0 2px 0; font-size:10pt; font-weight:600; color:#111827;">{$name}{$title}</p>
+                {$lsk}
+                <p style="margin:0; font-size:9pt; color:#6b7280;">Witnessed on: <strong>{$date}</strong></p>
+                {$notes}
+            </div>
+            HTML;
+        }
+
+        $count = $witnesses->count();
+        $max   = 5; // expected for a full commercial lease
+        $summary = "{$count} of {$max} witness position(s) recorded";
+
+        return <<<HTML
+        <div>
+            <p style="font-size:9pt; color:#6b7280; margin:0 0 12px 0;">{$summary} — full execution requires witnesses for both Lessor and Lessee.</p>
+            {$cards}
         </div>
         HTML;
     }

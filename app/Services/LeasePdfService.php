@@ -70,7 +70,7 @@ class LeasePdfService
      */
     public function generate(Lease $lease): string
     {
-        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
+        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses']);
         $needsDraft = $this->needsDraftWatermark($lease);
 
         // Tenant signature — the drawn canvas signature from the signing portal
@@ -245,6 +245,8 @@ class LeasePdfService
                 // Manager countersignature
                 'managerSignature' => $managerSignature,
                 'managerSigPath' => $managerSigPath,
+                // Witness records (Addition 1 — enterprise witness trail)
+                'witnesses' => $lease->witnesses()->orderBy('witnessed_at')->get(),
             ];
 
             $pdf = Pdf::loadView($viewName, $data);
