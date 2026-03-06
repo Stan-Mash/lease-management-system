@@ -224,6 +224,11 @@ class Lease extends Model
         return $this->hasMany(DigitalSignature::class);
     }
 
+    public function witnesses(): HasMany
+    {
+        return $this->hasMany(LeaseWitness::class);
+    }
+
     public function otpVerifications(): HasMany
     {
         return $this->hasMany(OTPVerification::class);

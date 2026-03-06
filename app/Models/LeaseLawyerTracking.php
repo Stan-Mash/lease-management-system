@@ -28,13 +28,21 @@ class LeaseLawyerTracking extends Model
         'lawyer_link_token',
         'lawyer_link_expires_at',
         'sent_via_portal_link',
+        // Advocate certification (Track 2 — Legal Certification)
+        'certification_type',
+        'advocate_lsk_number',
+        'certified_at',
+        'physical_copy_uploaded',
+        'physical_copy_document_id',
     ];
 
     protected $casts = [
-        'sent_at' => 'datetime',
-        'returned_at' => 'datetime',
+        'sent_at'                => 'datetime',
+        'returned_at'            => 'datetime',
         'lawyer_link_expires_at' => 'datetime',
-        'sent_via_portal_link' => 'boolean',
+        'certified_at'           => 'datetime',
+        'sent_via_portal_link'   => 'boolean',
+        'physical_copy_uploaded' => 'boolean',
     ];
 
     public function lease(): BelongsTo
@@ -55,6 +63,11 @@ class LeaseLawyerTracking extends Model
     public function receivedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'received_by');
+    }
+
+    public function physicalCopyDocument(): BelongsTo
+    {
+        return $this->belongsTo(LeaseDocument::class, 'physical_copy_document_id');
     }
 
     public function scopePending($query)
@@ -96,12 +109,46 @@ class LeaseLawyerTracking extends Model
 
         $this->update([
             'returned_method' => $method,
-            'returned_at' => $returnedAt,
-            'received_by' => $userId,
-            'returned_notes' => $notes,
+            'returned_at'     => $returnedAt,
+            'received_by'     => $userId,
+            'returned_notes'  => $notes,
             'turnaround_days' => $turnaroundDays,
-            'status' => 'returned',
+            'status'          => 'returned',
         ]);
+    }
+
+    /**
+     * Record advocate certification details (Track 2 — Legal Certification).
+     *
+     * @param  string  $type  'review' | 'witness' | 'attestation' | 'registration'
+     */
+    public function recordCertification(
+        string $type,
+        ?string $lskNumber = null,
+        ?\DateTimeInterface $certifiedAt = null,
+        ?int $physicalCopyDocumentId = null,
+    ): void {
+        $this->update([
+            'certification_type'       => $type,
+            'advocate_lsk_number'      => $lskNumber,
+            'certified_at'             => $certifiedAt ?? now(),
+            'physical_copy_uploaded'   => $physicalCopyDocumentId !== null,
+            'physical_copy_document_id' => $physicalCopyDocumentId,
+        ]);
+    }
+
+    /**
+     * Human-readable label for the certification type.
+     */
+    public function certificationTypeLabel(): string
+    {
+        return match ($this->certification_type) {
+            'review'       => 'Review Only',
+            'witness'      => 'Witness',
+            'attestation'  => 'Attestation / Certification',
+            'registration' => 'Registration (Lands Registry)',
+            default        => '—',
+        };
     }
 
     public function cancel(): void
