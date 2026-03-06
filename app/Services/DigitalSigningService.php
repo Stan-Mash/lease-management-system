@@ -324,6 +324,77 @@ class DigitalSigningService
     }
 
     /**
+     * Stamp manager's canvas-drawn signature on the lease and create DigitalSignature record.
+     * Called from the countersign action when signature_mode = 'draw'.
+     * Optionally saves the drawn PNG (encrypted) to the manager's profile for future reuse.
+     *
+     * @param string $base64Png Raw base64 PNG data from the canvas pad (no data URI prefix)
+     * @param bool   $saveToProfile Whether to store the signature encrypted on the manager's profile
+     *
+     * @throws LeaseSigningException When the base64 data is invalid
+     */
+    public static function stampManagerSignatureFromPng(
+        Lease $lease,
+        User $manager,
+        string $base64Png,
+        bool $saveToProfile = false,
+    ): DigitalSignature {
+        $pngBytes = base64_decode($base64Png, strict: true);
+
+        if ($pngBytes === false || strlen($pngBytes) < 50) {
+            throw new LeaseSigningException('The signature drawing is invalid or empty. Please draw your signature and try again.');
+        }
+
+        $verificationHash = hash('sha256', $lease->id . $manager->id . now()->timestamp . $pngBytes);
+        $dataUri = 'data:image/png;base64,' . base64_encode($pngBytes);
+
+        // Optionally persist the drawn signature to the manager's profile (encrypted)
+        if ($saveToProfile) {
+            $manager->update([
+                'signature_image_encrypted' => encrypt($pngBytes),
+            ]);
+        }
+
+        $signature = DigitalSignature::create([
+            'lease_id'           => $lease->id,
+            'tenant_id'          => null,
+            'signer_type'        => 'manager',
+            'signed_by_user_id'  => $manager->id,
+            'signed_by_name'     => $manager->name ?? 'Property Manager',
+            'signature_data'     => $dataUri,
+            'signature_type'     => 'canvas',
+            'ip_address'         => request()->ip(),
+            'user_agent'         => request()->userAgent(),
+            'signed_at'          => now(),
+            'is_verified'        => true,
+            'verification_hash'  => $verificationHash,
+        ]);
+
+        $lease->auditLogs()->create([
+            'action'            => 'manager_countersigned',
+            'old_state'         => $lease->workflow_state,
+            'new_state'         => 'active',
+            'user_id'           => $manager->id,
+            'user_role_at_time' => $manager->getRoleNames()->first() ?? 'manager',
+            'ip_address'        => request()->ip(),
+            'additional_data'   => [
+                'method'                   => 'canvas_draw',
+                'saved_to_profile'         => $saveToProfile,
+                'verification_hash_prefix' => substr($verificationHash, 0, 16),
+            ],
+            'description' => 'Manager countersigned with canvas-drawn signature',
+        ]);
+
+        Log::info('Manager countersigned with drawn signature', [
+            'lease_id'    => $lease->id,
+            'manager_id'  => $manager->id,
+            'saved_to_profile' => $saveToProfile,
+        ]);
+
+        return $signature;
+    }
+
+    /**
      * Send the finalised lease confirmation to the tenant (email + SMS).
      * Called by the admin workflow when the property manager has countersigned
      * and the lease transitions to ACTIVE — NOT immediately after tenant signs.
