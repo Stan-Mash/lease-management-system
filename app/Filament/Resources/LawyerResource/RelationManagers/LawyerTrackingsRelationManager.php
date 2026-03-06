@@ -7,7 +7,6 @@ namespace App\Filament\Resources\LawyerResource\RelationManagers;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -16,8 +15,6 @@ class LawyerTrackingsRelationManager extends RelationManager
     protected static string $relationship = 'lawyerTrackings';
 
     protected static ?string $title = 'Lease Tracking History';
-
-    protected static ?string $icon = 'heroicon-o-document-text';
 
     public function table(Table $table): Table
     {
