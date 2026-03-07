@@ -187,10 +187,12 @@ class PdfOverlayService
         $fontFile = $fontDir . '/centurygothic.php';
 
         if (file_exists($fontFile)) {
-            $pdf->AddFont('CenturyGothic', '', 'centurygothic.php');
-            // Only load bold variant if font file was generated for it
+            // Pass $dir explicitly so FPDF uses our storage path regardless of
+            // whether FPDF_FONTPATH is defined (it's a PHP constant — unreliable
+            // across FPM workers/requests if not set before first Fpdi construction).
+            $pdf->AddFont('CenturyGothic', '', 'centurygothic.php', $fontDir . '/');
             if (file_exists($fontDir . '/centurygothicb.php')) {
-                $pdf->AddFont('CenturyGothic', 'B', 'centurygothicb.php');
+                $pdf->AddFont('CenturyGothic', 'B', 'centurygothicb.php', $fontDir . '/');
             }
             return;
         }
@@ -205,10 +207,8 @@ class PdfOverlayService
         $g = (int) hexdec(substr($colorHex, 2, 2));
         $b = (int) hexdec(substr($colorHex, 4, 2));
 
-        // Use Century Gothic if loaded, otherwise Helvetica
-        $fontName = defined('FPDF_FONTPATH') && file_exists(constant('FPDF_FONTPATH') . 'centurygothic.php')
-            ? 'CenturyGothic'
-            : 'Helvetica';
+        $fontDir  = storage_path('app/fonts');
+        $fontName = file_exists($fontDir . '/centurygothic.php') ? 'CenturyGothic' : 'Helvetica';
 
         $pdf->SetFont($fontName, '', $fontSize);
         $pdf->SetTextColor($r, $g, $b);
