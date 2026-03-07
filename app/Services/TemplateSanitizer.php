@@ -70,7 +70,10 @@ class TemplateSanitizer
         'putenv', 'getenv', 'phpinfo', 'php_uname', 'posix_', 'dl',
         'reflectionclass', 'reflectionfunction', 'reflectionmethod',
         'header',   // HTTP header injection / redirect
-        'mail',     // SMTP header injection
+        // NOTE: 'mail' is intentionally NOT in this list — the pattern \bmail\s*[\(\:]
+        // would false-positive on "MAIL: info@..." in plain HTML header blocks.
+        // mail() is blocked via the BLOCKED_FUNCTION_ONLY list below instead,
+        // which only matches `mail(` (open-paren form, never colon).
     ];
 
     /**
@@ -106,6 +109,15 @@ class TemplateSanitizer
                     'Contact a system administrator if this is a legitimate requirement.',
                 );
             }
+        }
+
+        // 2b. mail() — checked separately with open-paren only (not colon) to avoid
+        //     false-positives on "MAIL: info@..." plain-text in HTML templates.
+        if (preg_match('/\bmail\s*\(/i', $lowerTemplate)) {
+            throw new InvalidArgumentException(
+                'Template contains a disallowed function or keyword: [mail]. ' .
+                'Contact a system administrator if this is a legitimate requirement.',
+            );
         }
 
         // 3. Block include/require in no-parens form: `include 'file'` or `include $var`
