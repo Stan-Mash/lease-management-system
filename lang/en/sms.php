@@ -42,7 +42,7 @@ return [
     | Signing & Document Messages
     |--------------------------------------------------------------------------
     */
-    'signing_link' => 'Dear :name, your lease is ready. Sign here: :link (Valid 72h). - Chabrin Agencies',
+    'signing_link' => 'Dear :name, lease :reference awaits your signature. Sign securely via the portal: :link - Chabrin Agencies',
 
     'signing_reminder' => 'Reminder: Please sign lease :reference. Link: :link. Expires in :hours hours. - Chabrin',
 

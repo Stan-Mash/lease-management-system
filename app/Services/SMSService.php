@@ -431,20 +431,19 @@ class SMSService
                 $tenant,
                 'sms.signing_link',
                 [
+                    'name' => $tenant->names ?? 'Tenant',
                     'reference' => $reference,
                     'link' => $link,
-                    'hours' => 72,
                 ],
                 ['type' => 'signing_link', 'reference' => $reference],
             );
         }
 
-        // Fallback to English
+        // Fallback to English (short format; no long URLs)
         $message = self::translateWithLocale('en', 'sms.signing_link', [
             'name' => 'Tenant',
             'reference' => $reference,
             'link' => $link,
-            'hours' => 72,
         ]);
 
         self::sendQueued($phone, $message, ['type' => 'signing_link', 'reference' => $reference]);

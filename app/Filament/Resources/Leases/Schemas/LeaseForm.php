@@ -291,13 +291,33 @@ class LeaseForm
                                 }
                             }),
 
-                        // ── Step 2: Unit (filtered by property) ─────────────
+                        // ── Step 2: Unit (VACANT only; filtered by property) ─
                         Forms\Components\Select::make('unit_id')
                             ->label('Unit')
                             ->options(function ($get) {
                                 $propertyId = (int) $get('property_id');
+                                if (! $propertyId) {
+                                    return [];
+                                }
 
-                                return self::unitOptionsForProperty($propertyId ?: null);
+                                return \App\Models\Unit::query()
+                                    ->where('property_id', $propertyId)
+                                    ->where('status_legacy', 'VACANT')
+                                    ->whereNull('deleted_at')
+                                    ->orderBy('unit_number')
+                                    ->get()
+                                    ->mapWithKeys(function ($u) {
+                                        $label = $u->unit_number;
+                                        if ($u->unit_code) {
+                                            $label .= ' · ' . $u->unit_code;
+                                        }
+                                        if ($u->rent_amount) {
+                                            $label .= ' · Ksh ' . number_format((float) $u->rent_amount, 0);
+                                        }
+
+                                        return [$u->id => $label];
+                                    })
+                                    ->all();
                             })
                             ->required()
                             ->live()
@@ -456,7 +476,7 @@ class LeaseForm
                         Grid::make(2)->schema([
                             Forms\Components\DatePicker::make('start_date')
                                 ->label('Lease Start Date')
-                                ->default(now()->toDateString())
+                                ->default(fn () => now()->toDateString())
                                 ->required()
                                 ->native(false)
                                 ->displayFormat('D, j M Y')

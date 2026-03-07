@@ -243,8 +243,11 @@ class DigitalSigningService
     private static function sendSMS(Lease $lease, Tenant $tenant, string $link): void
     {
         $shortLink = self::shortenUrl($link);
+        $rent = number_format((float) ($lease->monthly_rent ?? 0), 0);
         $message = LocaleHelper::forTenant($tenant, 'sms_signing_link', [
             'name' => $tenant->names ?? '',
+            'reference' => $lease->reference_number ?? 'N/A',
+            'rent' => $rent,
             'url' => $shortLink,
         ]);
         SMSService::send($tenant->mobile_number, $message, ['type' => 'signing_link', 'reference' => $lease->reference_number]);

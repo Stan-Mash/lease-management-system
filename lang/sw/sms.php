@@ -44,7 +44,7 @@ return [
     | Signing & Document Messages (Kusaini na Hati)
     |--------------------------------------------------------------------------
     */
-    'signing_link' => 'Saini mkataba :reference hapa: :link. Kiungo kinaisha baada ya saa :hours. - Chabrin Agencies',
+    'signing_link' => 'Habari :name, mkataba :reference unasubiri sahihi yako. Saini kwa usalama kupitia kiungo: :link - Chabrin Agencies',
 
     'signing_reminder' => 'Kumbuka: Tafadhali saini mkataba :reference. Kiungo: :link. Kinaisha saa :hours. - Chabrin',
 

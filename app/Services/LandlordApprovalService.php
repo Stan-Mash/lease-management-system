@@ -240,11 +240,11 @@ class LandlordApprovalService
                 $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease, $approvalUrl));
             }
 
-            // Send SMS to landlord with short approval link
+            // Send SMS to landlord (short format; no long system URLs)
             if (in_array($method, ['sms', 'both']) && $lease->landlord->mobile_number) {
                 $name = $lease->landlord->names ?? 'Landlord';
-                $rent = number_format((float) $lease->monthly_rent);
-                $message = "Dear {$name}, commercial lease {$lease->reference_number} awaits approval. Rent: KES {$rent}. Sign here: {$approvalUrl} - Chabrin Agencies";
+                $rent = number_format((float) $lease->monthly_rent, 0);
+                $message = "Dear {$name}, lease {$lease->reference_number} awaits your signature. Rent: KES {$rent}. Sign securely via the portal: {$approvalUrl} - Chabrin Agencies";
                 SMSService::sendQueued($lease->landlord->mobile_number, $message, [
                     'type'      => 'approval_request',
                     'reference' => $lease->reference_number,
