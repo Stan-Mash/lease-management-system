@@ -120,9 +120,13 @@ class LeaseTemplateResource extends Resource
                                     ))
                                     ->placeholder('{"tenant_name":{"page":1,"x":120,"y":180},"tenant_signature":{"page":2,"x":140,"y":240,"width":80,"height":30},...}')
                                     ->columnSpanFull()
-                                    ->dehydrateStateUsing(function (?string $state): ?array {
+                                    ->dehydrateStateUsing(function (?string $state, $record): mixed {
+                                        // If textarea is blank, preserve the existing value (don't wipe
+                                        // coordinates that were saved via the coordinate picker).
                                         if (blank($state)) {
-                                            return null;
+                                            return $record?->getRawOriginal('pdf_coordinate_map') !== null
+                                                ? $record->pdf_coordinate_map  // keep existing array
+                                                : null;
                                         }
                                         $decoded = json_decode($state, true);
                                         return is_array($decoded) ? $decoded : null;
