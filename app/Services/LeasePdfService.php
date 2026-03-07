@@ -277,59 +277,27 @@ class LeasePdfService
                 }
             }
 
-            // Strategy 2: Default template for lease type
+            // Strategy 2: Default template for lease type (fallback when assigned template fails)
             $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
                 ->where('is_active', true)
                 ->where('is_default', true)
                 ->first();
 
             if ($defaultTemplate) {
-                try {
-                    $html = $this->renderTemplate($defaultTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
-                    if ($needsDraft) {
-                        $html = $this->injectDraftWatermark($html);
-                    }
-                    $pdf = Pdf::loadHTML($html);
-                    $this->setPdfMetadata($pdf, $lease);
-
-                    return $pdf->output();
-                } catch (Exception $e) {
-                    Log::warning('LeasePdfService: default template failed, trying hardcoded view', [
-                        'lease_id' => $lease->id,
-                        'error' => $e->getMessage(),
-                    ]);
+                $html = $this->renderTemplate($defaultTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
+                if ($needsDraft) {
+                    $html = $this->injectDraftWatermark($html);
                 }
+                $pdf = Pdf::loadHTML($html);
+                $this->setPdfMetadata($pdf, $lease);
+
+                return $pdf->output();
             }
 
-            // Strategy 3: Hardcoded Blade views
-            $viewName = match ($lease->lease_type) {
-                'residential_major' => 'pdf.residential-major',
-                'residential_micro' => 'pdf.residential-micro',
-                'commercial' => 'pdf.commercial',
-                default => 'pdf.residential-major',
-            };
-
-            $data = [
-                'lease' => $lease,
-                'tenant' => $lease->tenant,
-                'unit' => $lease->unit,
-                'landlord' => $lease->landlord,
-                'property' => $lease->property,
-                'today' => now()->format('d/m/Y'),
-                // Tenant signature (legacy variable name kept for backward compat with Blade views)
-                'digitalSignature' => $tenantSignature,
-                'signatureImagePath' => $tenantSigPath,
-                // Manager countersignature
-                'managerSignature' => $managerSignature,
-                'managerSigPath' => $managerSigPath,
-                // Witness records (Addition 1 — enterprise witness trail)
-                'witnesses' => $lease->witnesses()->orderBy('witnessed_at')->get(),
-            ];
-
-            $pdf = Pdf::loadView($viewName, $data);
-            $this->setPdfMetadata($pdf, $lease);
-
-            return $pdf->output();
+            throw new Exception(
+                "No template found for lease {$lease->reference_number} (type: {$lease->lease_type}). " .
+                'Assign a template to this lease or mark one as default for this lease type.'
+            );
         } finally {
             foreach (array_filter([$tenantSigPath, $managerSigPath, $witnessSigPath ?? null, $advocateSigPath ?? null]) as $p) {
                 if ($p && file_exists($p)) {

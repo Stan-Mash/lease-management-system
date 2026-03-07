@@ -8,7 +8,6 @@ use App\Services\SampleLeaseDataService;
 use App\Services\TemplateRenderService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -158,56 +157,6 @@ class TemplatePreviewController extends Controller
     }
 
     /**
-     * Preview template with direct blade rendering (for testing new templates).
-     * View and type are whitelisted to prevent path traversal / LFI.
-     */
-    public function previewDirect(Request $request)
-    {
-        try {
-            $templateType = $request->input('type', 'residential_major');
-            $viewName = $request->input('view', 'templates.lease-residential-major');
-
-            $allowedViews = self::allowedPreviewViews();
-            $allowedTypes = self::allowedPreviewTypes();
-            if (! in_array($viewName, $allowedViews, true)) {
-                $viewName = 'templates.lease-residential-major';
-            }
-            if (! in_array($templateType, $allowedTypes, true)) {
-                $templateType = 'residential_major';
-            }
-
-            Log::info('Direct template preview requested', [
-                'view' => $viewName,
-                'type' => $templateType,
-            ]);
-
-            // Generate sample data
-            $data = SampleLeaseDataService::generate($templateType);
-
-            // Generate PDF directly from view
-            $pdf = Pdf::loadView($viewName, $data);
-            $filename = 'Direct-Preview-' . $templateType . '.pdf';
-
-            Log::info('Direct template preview generated successfully');
-
-            return response($pdf->output(), 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $filename . '"',
-            ]);
-        } catch (Exception $e) {
-            Log::error('Failed to generate direct template preview', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'error' => 'Failed to generate preview',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
      * Serve the raw source PDF file (for coordinate picker and "View uploaded PDF").
      * Supports Range requests so pdf.js can stream the document.
      */
@@ -298,26 +247,4 @@ class TemplatePreviewController extends Controller
         return $mockLease;
     }
 
-    /**
-     * Allowed view names for direct preview (whitelist to prevent LFI).
-     */
-    private static function allowedPreviewViews(): array
-    {
-        return [
-            'templates.lease-residential-major',
-            'templates.lease-residential-micro',
-            'templates.lease-commercial',
-            'pdf.residential-major',
-            'pdf.residential-micro',
-            'pdf.commercial',
-        ];
-    }
-
-    /**
-     * Allowed template types for sample data (whitelist).
-     */
-    private static function allowedPreviewTypes(): array
-    {
-        return ['residential_major', 'residential_micro', 'commercial'];
-    }
 }

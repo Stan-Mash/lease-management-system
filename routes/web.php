@@ -133,8 +133,6 @@ Route::middleware(['auth'])->group(function () {
             ->name('preview-html');
         Route::get('/{template}/serve-pdf', [TemplatePreviewController::class, 'servePdf'])
             ->name('serve-pdf');
-        Route::get('/preview-direct', [TemplatePreviewController::class, 'previewDirect'])
-            ->name('preview-direct');
     });
 
     // Lease Document Routes — uses policy for authorization, rate limited
