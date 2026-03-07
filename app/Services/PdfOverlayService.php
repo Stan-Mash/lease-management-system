@@ -176,10 +176,15 @@ class PdfOverlayService
         $fontFile = $fontDir . '/centurygothic.php';
 
         if (file_exists($fontFile)) {
-            // Custom Century Gothic available
-            define('FPDF_FONTPATH', $fontDir . '/');
+            // Set FPDF_FONTPATH only once per process (PHP constants cannot be redefined)
+            if (! defined('FPDF_FONTPATH')) {
+                define('FPDF_FONTPATH', $fontDir . '/');
+            }
             $pdf->AddFont('CenturyGothic', '', 'centurygothic.php');
-            $pdf->AddFont('CenturyGothic', 'B', 'centurygothicb.php');
+            // Only load bold variant if font file was generated for it
+            if (file_exists($fontDir . '/centurygothicb.php')) {
+                $pdf->AddFont('CenturyGothic', 'B', 'centurygothicb.php');
+            }
             return;
         }
 
