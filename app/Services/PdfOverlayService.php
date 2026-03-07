@@ -29,6 +29,17 @@ class PdfOverlayService
     /** Default color for stamped text — dark red for clear visual distinction */
     private const DEFAULT_COLOR = 'C00000';
 
+    public function __construct()
+    {
+        // FPDF reads FPDF_FONTPATH in its constructor, so the constant must be defined
+        // before any Fpdi instance is created. Define it here, at service construction time.
+        $fontDir  = storage_path('app/fonts');
+        $fontFile = $fontDir . '/centurygothic.php';
+        if (file_exists($fontFile) && ! defined('FPDF_FONTPATH')) {
+            define('FPDF_FONTPATH', $fontDir . '/');
+        }
+    }
+
     /**
      * Stamp text fields onto an uploaded PDF template.
      * Page dimensions are auto-detected from the source PDF (supports Letter, A4, etc.)
@@ -176,10 +187,6 @@ class PdfOverlayService
         $fontFile = $fontDir . '/centurygothic.php';
 
         if (file_exists($fontFile)) {
-            // Set FPDF_FONTPATH only once per process (PHP constants cannot be redefined)
-            if (! defined('FPDF_FONTPATH')) {
-                define('FPDF_FONTPATH', $fontDir . '/');
-            }
             $pdf->AddFont('CenturyGothic', '', 'centurygothic.php');
             // Only load bold variant if font file was generated for it
             if (file_exists($fontDir . '/centurygothicb.php')) {
