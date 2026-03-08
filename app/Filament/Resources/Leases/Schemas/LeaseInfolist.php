@@ -620,7 +620,7 @@ class LeaseInfolist
                                 TextEntry::make('status')
                                     ->label('Review Status')
                                     ->badge()
-                                    ->color(fn (string $state): string => match ($state) {
+                                    ->color(fn ($state): string => match ($state instanceof \BackedEnum ? $state->value : $state) {
                                         'approved', 'linked' => 'success',
                                         'pending_review', 'in_review' => 'warning',
                                         'rejected' => 'danger',
