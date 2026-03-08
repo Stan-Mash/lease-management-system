@@ -91,6 +91,9 @@ class PdfOverlayService
         string $outputPath,
     ): string {
         $pdf = new Fpdi();
+        // Disable auto-page-break so an out-of-bounds y coordinate in the map never
+        // silently inserts extra blank pages into the generated document.
+        $pdf->SetAutoPageBreak(false);
         $this->loadFont($pdf);
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
@@ -151,7 +154,8 @@ class PdfOverlayService
             $y = $y - $height;
         }
 
-        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
@@ -193,6 +197,7 @@ class PdfOverlayService
         $block = implode("\n", $lines);
 
         $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
         $pageCount = $pdf->setSourceFile($pdfPath);
         $lastPage  = $pageCount;
 
