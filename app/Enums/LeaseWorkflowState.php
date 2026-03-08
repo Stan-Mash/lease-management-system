@@ -62,7 +62,7 @@ enum LeaseWorkflowState: string
             self::PENDING_ADVOCATE => [self::WITH_LAWYER, self::PENDING_LANDLORD_PM, self::PENDING_DEPOSIT, self::ACTIVE],
             self::PENDING_LANDLORD_PM => [self::PENDING_ADVOCATE, self::PENDING_DEPOSIT, self::ACTIVE],
             self::WITH_LAWYER => [self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
-            self::PENDING_UPLOAD => [self::PENDING_DEPOSIT],
+            self::PENDING_UPLOAD => [self::PENDING_DEPOSIT, self::ACTIVE],
             self::PENDING_DEPOSIT => [self::ACTIVE],
             self::ACTIVE => [self::RENEWAL_OFFERED, self::EXPIRED, self::TERMINATED],
             self::RENEWAL_OFFERED => [self::RENEWAL_ACCEPTED, self::RENEWAL_DECLINED, self::EXPIRED],
