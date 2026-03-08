@@ -398,14 +398,17 @@ class ViewLease extends ViewRecord
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                 }),
 
-            // ── SEND TO LAWYER (tenant_signed → with_lawyer) ─────────────────
+            // ── SEND TO LAWYER (tenant_signed / pending_advocate / pending_witness → with_lawyer) ───
             Action::make('sendToLawyer')
                 ->label('Send to Lawyer')
                 ->icon('heroicon-o-scale')
                 ->color('gray')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'tenant_signed'
-                        && auth()->user()?->can('send_to_lawyer'),
+                    fn () => in_array($this->record->workflow_state, [
+                        'tenant_signed',    // direct path (if state lands here)
+                        'pending_advocate', // commercial: next after tenant signs
+                        'pending_witness',  // residential_major: next after tenant signs
+                    ]) && auth()->user()?->can('send_to_lawyer'),
                 )
                 ->modalHeading('Send Lease to Lawyer')
                 ->modalDescription('Select the advocate and how to send the lease. They can receive the PDF by email or a secure link to download and upload the stamped copy.')
