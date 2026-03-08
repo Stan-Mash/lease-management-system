@@ -17,7 +17,11 @@ class Landlord extends Model
      */
     public function routeNotificationForMail(): ?string
     {
-        return $this->email_address ?: null;
+        // During test periods MAIL_REDIRECT_TO is set and Mail::alwaysTo() intercepts
+        // all outgoing mail — but only if we actually attempt the send. Fall back to
+        // the redirect address so notifications are never silently dropped when a
+        // landlord record has no email address on file.
+        return $this->email_address ?: config('mail.redirect_to') ?: null;
     }
 
     /**
