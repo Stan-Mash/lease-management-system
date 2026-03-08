@@ -18,9 +18,9 @@
                 </p>
             </div>
 
-            <div class="p-4 flex flex-col lg:flex-row gap-4" x-data="coordinatePicker()">
+            <div class="p-4 flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-8rem)]" x-data="coordinatePicker()">
                 {{-- Field list --}}
-                <div class="lg:w-64 flex-shrink-0 space-y-2">
+                <div class="lg:w-64 flex-shrink-0 space-y-2 overflow-y-auto max-h-[calc(100vh-10rem)]">
                     <p class="text-xs font-semibold text-gray-500 uppercase">Text fields</p>
                     @foreach ($textFields as $key => $label)
                         <button type="button"
@@ -62,15 +62,15 @@
                 </div>
 
                 {{-- PDF display --}}
-                <div class="flex-1 min-w-0">
-                    <div class="flex gap-2 mb-2">
+                <div class="flex-1 min-w-0 flex flex-col min-h-0">
+                    <div class="flex gap-2 mb-2 flex-shrink-0">
                         <button type="button" @click="prevPage()" :disabled="currentPage <= 1"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">← Prev</button>
                         <span class="py-1 text-sm" x-text="'Page ' + currentPage + ' of ' + totalPages"></span>
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 flex items-start justify-center" style="min-height: 70vh; max-height: 70vh;">
+                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 flex items-start justify-center min-h-[calc(100vh-12rem)] flex-1">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
                                 class="cursor-crosshair block mx-auto"
