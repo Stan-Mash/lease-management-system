@@ -174,6 +174,60 @@ class PdfOverlayService
     }
 
     /**
+     * Apply advocate signature and optional stamp (e.g. Commissioner for Oaths) to the PDF.
+     * Stamp is drawn first (slightly left of the signature box), then the signature.
+     *
+     * @param  array{page: int, x: float, y: float, width: float, height: float, anchor?: string}  $advocateCoord  From template pdf_coordinate_map['advocate_signature']
+     */
+    public function applyAdvocateSignatureAndStamp(
+        string $sourcePdfPath,
+        string $signaturePath,
+        ?string $stampPath,
+        array $advocateCoord,
+        string $outputPath,
+    ): string {
+        if (! file_exists($signaturePath)) {
+            throw new InvalidArgumentException("Signature file not found: {$signaturePath}");
+        }
+
+        $pageNum = (int) ($advocateCoord['page'] ?? 1);
+        $x       = (float) ($advocateCoord['x'] ?? 160);
+        $y       = (float) ($advocateCoord['y'] ?? 250);
+        $width   = (float) ($advocateCoord['width'] ?? 45);
+        $height  = (float) ($advocateCoord['height'] ?? 18);
+        $anchor  = (string) ($advocateCoord['anchor'] ?? 'beside');
+
+        if ($anchor === 'above') {
+            $y = $y - $height;
+        }
+
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            if ($pageNo === $pageNum) {
+                if ($stampPath !== null && $stampPath !== '' && file_exists($stampPath)) {
+                    $stampWidth  = min(25, $width * 0.6);
+                    $stampHeight = min(20, $height * 1.1);
+                    $stampX      = $x - $stampWidth - 5;
+                    $pdf->Image($stampPath, $stampX, $y, $stampWidth, $stampHeight);
+                }
+                $pdf->Image($signaturePath, $x, $y, $width, $height);
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+
+        return $outputPath;
+    }
+
+    /**
      * Stamp manager countersignature + timestamp + SHA-256 audit stamp.
      */
     public function stampAuditBlock(
