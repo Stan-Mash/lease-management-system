@@ -1,4 +1,12 @@
 <x-filament-panels::page>
+    <style>
+        #pdf-canvas {
+            width: 100% !important;
+            height: auto !important;
+            max-width: 100% !important;
+            display: block !important;
+        }
+    </style>
     @if (! $pdfUrl)
         <div class="rounded-xl border border-danger-200 bg-danger-50 dark:border-danger-800 dark:bg-danger-900/20 p-6">
             <p class="text-danger-700 dark:text-danger-400">PDF file could not be loaded. Ensure the file exists in storage.</p>
