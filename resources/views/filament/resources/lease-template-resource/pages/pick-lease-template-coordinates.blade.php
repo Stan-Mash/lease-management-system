@@ -70,10 +70,10 @@
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto flex justify-center bg-gray-200 dark:bg-gray-800 min-h-[calc(100vh-12rem)] flex-1">
+                    <div id="pdf-container" class="w-full flex-1 overflow-auto bg-gray-200 dark:bg-gray-800 p-4 min-h-[calc(100vh-12rem)]">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
-                                class="cursor-crosshair block w-full max-w-full h-auto object-contain"
+                                class="cursor-crosshair w-full h-auto shadow-2xl border border-gray-400"
                                 :style="selectedField ? 'cursor: crosshair;' : 'cursor: default;'"></canvas>
                     </div>
                     <p class="mt-2 text-xs text-gray-500" x-show="selectedField">
@@ -137,15 +137,8 @@
                     async renderPage() {
                         if (!pdfDocRef) return;
                         const page = await pdfDocRef.getPage(this.currentPage);
-                        const container = document.getElementById('pdf-container');
-                        const baseViewport = page.getViewport({ scale: 1 });
-                        const containerW = container ? container.clientWidth : 800;
-                        const containerH = container ? container.clientHeight : 700;
-                        const scaleW = containerW / baseViewport.width;
-                        const scaleH = containerH / baseViewport.height;
-                        const scale = Math.min(scaleW, scaleH, 2);
-                        const fitScale = Math.max(0.5, scale);
-                        viewportRef = page.getViewport({ scale: fitScale });
+                        const scale = 2.5;
+                        viewportRef = page.getViewport({ scale: scale });
                         this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
                         const canvas = document.getElementById('pdf-canvas');
                         const ctx = canvas.getContext('2d');
