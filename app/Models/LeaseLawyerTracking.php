@@ -105,7 +105,7 @@ class LeaseLawyerTracking extends Model
     {
         $sentAt = $this->sent_at;
         $returnedAt = now();
-        $turnaroundDays = $sentAt ? $sentAt->diffInDays($returnedAt) : null;
+        $turnaroundDays = $sentAt ? (int) $sentAt->diffInDays($returnedAt) : null;
 
         $this->update([
             'returned_method' => $method,
