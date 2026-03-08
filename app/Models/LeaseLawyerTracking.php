@@ -193,10 +193,9 @@ class LeaseLawyerTracking extends Model
             return null;
         }
 
-        if ($tracking->status === 'returned') {
-            return null; // Already returned; link no longer valid for upload
-        }
-
+        // Note: status=returned is NOT blocked here — the portal show/view/download
+        // routes must remain accessible so the advocate sees the "already processed"
+        // message. The upload() controller method enforces the re-submission guard.
         return $tracking;
     }
 }

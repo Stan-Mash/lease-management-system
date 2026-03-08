@@ -118,6 +118,17 @@ class LawyerPortalController extends Controller
                 ->with('error', 'This link is invalid or has expired.');
         }
 
+        // Guard against re-submission — findByToken() no longer blocks returned status
+        // so the portal page remains accessible showing the "already processed" banner,
+        // but we must still reject upload attempts on an already-returned record.
+        if ($tracking->status === 'returned') {
+            return $this->portalError(
+                $request,
+                $token,
+                'This document has already been processed. No further uploads are accepted.',
+            );
+        }
+
         $lease = $tracking->lease;
 
         if ($request->hasFile('stamped_pdf')) {
