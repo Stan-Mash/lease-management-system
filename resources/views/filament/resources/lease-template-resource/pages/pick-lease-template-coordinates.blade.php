@@ -1,9 +1,10 @@
 <x-filament-panels::page>
     <style>
+        #pdf-container { display: block !important; }
         #pdf-canvas {
             width: 100% !important;
+            max-width: none !important;
             height: auto !important;
-            max-width: 100% !important;
             display: block !important;
         }
     </style>
@@ -78,10 +79,10 @@
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div id="pdf-container" class="w-full flex-1 overflow-auto bg-gray-200 dark:bg-gray-800 p-4 min-h-[calc(100vh-12rem)]">
+                    <div id="pdf-container" class="w-full h-[85vh] overflow-auto bg-gray-200 block">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
-                                class="cursor-crosshair w-full h-auto shadow-2xl border border-gray-400"
+                                class="cursor-crosshair w-full h-auto block shadow-2xl"
                                 :style="selectedField ? 'cursor: crosshair;' : 'cursor: default;'"></canvas>
                     </div>
                     <p class="mt-2 text-xs text-gray-500" x-show="selectedField">
@@ -144,6 +145,7 @@
 
                     async renderPage() {
                         if (!pdfDocRef) return;
+                        await new Promise(function (r) { setTimeout(r, 100); });
                         const page = await pdfDocRef.getPage(this.currentPage);
                         const container = document.getElementById('pdf-container');
                         const unscaledViewport = page.getViewport({ scale: 1.0 });
