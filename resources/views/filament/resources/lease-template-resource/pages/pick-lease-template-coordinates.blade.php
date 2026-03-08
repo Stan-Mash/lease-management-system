@@ -1,13 +1,4 @@
 <x-filament-panels::page>
-    <style>
-        #pdf-container { display: block !important; }
-        #pdf-canvas {
-            width: 100% !important;
-            max-width: none !important;
-            height: auto !important;
-            display: block !important;
-        }
-    </style>
     @if (! $pdfUrl)
         <div class="rounded-xl border border-danger-200 bg-danger-50 dark:border-danger-800 dark:bg-danger-900/20 p-6">
             <p class="text-danger-700 dark:text-danger-400">PDF file could not be loaded. Ensure the file exists in storage.</p>
@@ -79,10 +70,10 @@
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div id="pdf-container" class="w-full h-[85vh] overflow-auto bg-gray-200 block">
+                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 min-h-[calc(100vh-12rem)] flex-1 flex justify-center">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
-                                class="cursor-crosshair w-full h-auto block shadow-2xl"
+                                class="cursor-crosshair block"
                                 :style="selectedField ? 'cursor: crosshair;' : 'cursor: default;'"></canvas>
                     </div>
                     <p class="mt-2 text-xs text-gray-500" x-show="selectedField">
@@ -106,7 +97,6 @@
                     currentPage: 1,
                     totalPages: 1,
                     viewportSize: { width: 0, height: 0 },
-                    unscaledViewport: null,
                     selectedField: null,
                     isSignature: false,
                     coordinates: @js($record->pdf_coordinate_map ?? []),
@@ -146,19 +136,13 @@
 
                     async renderPage() {
                         if (!pdfDocRef) return;
-                        await new Promise(function (r) { setTimeout(r, 100); });
                         const page = await pdfDocRef.getPage(this.currentPage);
-                        const container = document.getElementById('pdf-container');
-                        const unscaledViewport = page.getViewport({ scale: 1.0 });
-                        this.unscaledViewport = { width: unscaledViewport.width, height: unscaledViewport.height };
-                        const scale = (container ? container.clientWidth - 40 : 800) / unscaledViewport.width;
+                        const scale = 1.5;
                         viewportRef = page.getViewport({ scale: scale });
                         this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
                         const canvas = document.getElementById('pdf-canvas');
                         canvas.width = viewportRef.width;
                         canvas.height = viewportRef.height;
-                        canvas.style.width = '100%';
-                        canvas.style.height = 'auto';
                         const ctx = canvas.getContext('2d');
                         await page.render({ canvasContext: ctx, viewport: viewportRef }).promise;
                     },
@@ -183,19 +167,15 @@
                     },
 
                     onCanvasClick(ev) {
-                        if (!this.selectedField || !this.unscaledViewport) return;
+                        if (!this.selectedField || !this.viewportSize || !this.viewportSize.width) return;
                         const canvas = document.getElementById('pdf-canvas');
                         const rect = canvas.getBoundingClientRect();
-                        const unscaledViewport = this.unscaledViewport;
-
-                        const screenX = ev.clientX - rect.left;
-                        const screenY = ev.clientY - rect.top;
-                        const percentX = screenX / rect.width;
-                        const percentY = screenY / rect.height;
-                        const ptX = percentX * unscaledViewport.width;
-                        const ptY = percentY * unscaledViewport.height;
-                        const finalX = ptX * (25.4 / 72);
-                        const finalY = ptY * (25.4 / 72);
+                        const scaleX = canvas.width / rect.width;
+                        const scaleY = canvas.height / rect.height;
+                        const canvasX = (ev.clientX - rect.left) * scaleX;
+                        const canvasY = (ev.clientY - rect.top) * scaleY;
+                        const finalX = canvasX * (25.4 / 72);
+                        const finalY = canvasY * (25.4 / 72);
 
                         this.coordinates[this.selectedField] = {
                             page: this.currentPage,
