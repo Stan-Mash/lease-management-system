@@ -191,8 +191,8 @@
         <div class="support-info">
             <strong>Common Issues:</strong>
             <ul style="text-align: left; margin-top: 12px; padding-left: 20px; line-height: 1.8;">
-                <li>Check for unclosed Blade tags: <code>{{ '{{' }} ... }}</code></li>
-                <li>Ensure all variables are properly formatted: <code>{{ '{{ $variable }}' }}</code></li>
+                <li>Check for unclosed Blade tags: <code>&#123;&#123; ... &#125;&#125;</code></li>
+                <li>Ensure all variables are properly formatted: <code>&#123;&#123; $variable &#125;&#125;</code></li>
                 <li>Verify CSS syntax in style tags</li>
                 <li>Check for missing closing HTML tags</li>
             </ul>
