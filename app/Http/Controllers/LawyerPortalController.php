@@ -45,14 +45,17 @@ class LawyerPortalController extends Controller
         $alreadyProcessed = $tracking->status === 'returned'
             || ($lease->workflow_state !== null && $lease->workflow_state !== 'with_lawyer');
 
-        return view('lawyer.portal', [
+        return response()->view('lawyer.portal', [
             'tracking' => $tracking,
             'lease' => $lease,
             'token' => $token,
             'alreadyProcessed' => $alreadyProcessed,
             'downloadUrl' => route('lawyer.portal.download', ['token' => $token]),
             'expiresAt' => $tracking->lawyer_link_expires_at,
-        ]);
+        ])
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**

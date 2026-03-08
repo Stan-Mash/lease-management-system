@@ -158,59 +158,67 @@
     </div>
 
     <script>
-(function () {
-    var canvas = document.getElementById('signature-pad');
-    var hiddenInput = document.getElementById('signature-data');
-    var clearBtn = document.getElementById('clear-signature-btn');
-    var form = document.getElementById('form-sign-stamp');
+    (function () {
+        var canvas = document.getElementById('signature-pad');
+        var hiddenInput = document.getElementById('signature-data');
+        var clearBtn = document.getElementById('clear-signature-btn');
+        var form = document.getElementById('form-sign-stamp');
 
-    if (!canvas) return;
+        if (!canvas) return;
 
-    function initPad() {
-        var ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
+        function initPad() {
+            var ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
 
-        window.advocateSignaturePad = new SignaturePad(canvas, {
-            backgroundColor: 'rgb(255, 255, 255)',
-            penColor: 'rgb(0, 0, 0)',
-            minWidth: 0.5,
-            maxWidth: 2.5
-        });
+            window.advocateSignaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 0.5,
+                maxWidth: 2.5
+            });
 
-        window.advocateSignaturePad.addEventListener('endStroke', function () {
-            if (!window.advocateSignaturePad.isEmpty()) {
-                hiddenInput.value = window.advocateSignaturePad.toDataURL('image/png');
-            } else {
-                hiddenInput.value = '';
+            window.advocateSignaturePad.addEventListener('endStroke', function () {
+                if (!window.advocateSignaturePad.isEmpty()) {
+                    hiddenInput.value = window.advocateSignaturePad.toDataURL('image/png');
+                } else {
+                    hiddenInput.value = '';
+                }
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                if (window.advocateSignaturePad) {
+                    window.advocateSignaturePad.clear();
+                    hiddenInput.value = '';
+                }
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', function () {
+                if (window.advocateSignaturePad && !window.advocateSignaturePad.isEmpty()) {
+                    hiddenInput.value = window.advocateSignaturePad.toDataURL('image/png');
+                }
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPad);
+        } else {
+            initPad();
+        }
+    })();
+    </script>
+    <script>
+        // Security: Force reload if loaded from browser cache (Back button)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
             }
         });
-    }
-
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-            if (window.advocateSignaturePad) {
-                window.advocateSignaturePad.clear();
-                hiddenInput.value = '';
-            }
-        });
-    }
-
-    if (form) {
-        form.addEventListener('submit', function () {
-            if (window.advocateSignaturePad && !window.advocateSignaturePad.isEmpty()) {
-                hiddenInput.value = window.advocateSignaturePad.toDataURL('image/png');
-            }
-        });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initPad);
-    } else {
-        initPad();
-    }
-})();
     </script>
 </body>
 </html>
