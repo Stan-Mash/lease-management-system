@@ -225,29 +225,18 @@ class ViewLease extends ViewRecord
                     Select::make('send_method')
                         ->label('Send Via')
                         ->options(function () {
-                            $options = [];
-                            if ($this->record->tenant?->mobile_number) {
-                                $options['sms'] = '📱 SMS — ' . ($this->record->tenant->mobile_number);
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                $options['email'] = '✉️ Email — ' . ($this->record->tenant->email_address);
-                            }
-                            if (count($options) === 2) {
-                                $options['both'] = '📱 + ✉️ Both SMS & Email';
-                            }
+                            $phone = $this->record->tenant?->mobile_number
+                                ?: config('services.sms_redirect_to', '');
+                            $email = $this->record->tenant?->email_address
+                                ?: config('mail.redirect_to', '');
 
-                            return $options;
+                            return [
+                                'sms'   => '📱 SMS' . ($phone ? ' — ' . $phone : ''),
+                                'email' => '✉️ Email' . ($email ? ' — ' . $email : ''),
+                                'both'  => '📱 + ✉️ Both SMS & Email',
+                            ];
                         })
-                        ->default(function () {
-                            if ($this->record->tenant?->mobile_number) {
-                                return 'sms';
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                return 'email';
-                            }
-
-                            return 'both';
-                        })
+                        ->default('both')
                         ->required()
                         ->helperText('Choose how to send the signing link to the tenant'),
                 ])
@@ -295,29 +284,18 @@ class ViewLease extends ViewRecord
                     Select::make('send_method')
                         ->label('Send Via')
                         ->options(function () {
-                            $options = [];
-                            if ($this->record->tenant?->mobile_number) {
-                                $options['sms'] = '📱 SMS — ' . ($this->record->tenant->mobile_number);
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                $options['email'] = '✉️ Email — ' . ($this->record->tenant->email_address);
-                            }
-                            if (count($options) === 2) {
-                                $options['both'] = '📱 + ✉️ Both SMS & Email';
-                            }
+                            $phone = $this->record->tenant?->mobile_number
+                                ?: config('services.sms_redirect_to', '');
+                            $email = $this->record->tenant?->email_address
+                                ?: config('mail.redirect_to', '');
 
-                            return $options;
+                            return [
+                                'sms'   => '📱 SMS' . ($phone ? ' — ' . $phone : ''),
+                                'email' => '✉️ Email' . ($email ? ' — ' . $email : ''),
+                                'both'  => '📱 + ✉️ Both SMS & Email',
+                            ];
                         })
-                        ->default(function () {
-                            if ($this->record->tenant?->mobile_number) {
-                                return 'sms';
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                return 'email';
-                            }
-
-                            return 'sms';
-                        })
+                        ->default('both')
                         ->required(),
                 ])
                 ->action(function (array $data) {
