@@ -103,13 +103,99 @@ class LeasePdfService
         $signatureImagePath = $tenantSigPath;
 
         try {
-            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures.
-            // Only used when a coordinate map has been configured; without coordinates the stamping
-            // produces a blank template with no lease data, so we fall through to Strategy 1 instead.
             $template = $lease->leaseTemplate;
             $coordinates = $template?->pdf_coordinate_map ?? [];
             $hasCoordinates = is_array($coordinates) && count($coordinates) > 0;
 
+            // Strategy 0a: Lawyer-stamped document as base.
+            // When the advocate has uploaded via the portal, their signature AND stamp are already
+            // baked into the stored lawyer_stamped PDF. Use it as the base and overlay only the
+            // remaining signatures (manager, witness) on top — the advocate stamp is preserved.
+            $lawyerStampedDoc = $lease->documents()->where('document_type', 'lawyer_stamped')->latest()->first();
+            if ($lawyerStampedDoc) {
+                $lawyerDocPath = \Illuminate\Support\Facades\Storage::disk('local')->path($lawyerStampedDoc->file_path);
+                if (file_exists($lawyerDocPath)) {
+                    try {
+                        $outDir = storage_path('app/lease-pdf-overlay');
+                        if (! is_dir($outDir)) {
+                            mkdir($outDir, 0755, true);
+                        }
+                        $baseName = 'lease-' . $lease->id . '-ls-' . uniqid();
+                        $current  = $lawyerDocPath;
+
+                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature && is_array($coordinates) && isset($coordinates['manager_signature'])) {
+                            $coord = $coordinates['manager_signature'];
+                            $next  = $outDir . '/' . $baseName . '-mgr.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $managerSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 260),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                (string) ($coord['anchor'] ?? 'above'),
+                            );
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        if ($witnessSigPath && file_exists($witnessSigPath) && is_array($coordinates) && isset($coordinates['witness_signature'])) {
+                            $coord = $coordinates['witness_signature'];
+                            $next  = $outDir . '/' . $baseName . '-witness.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $witnessSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 235),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                'default',
+                            );
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        if ($tenantSignature && $managerSignature) {
+                            $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
+                            $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $auditPath;
+                        }
+
+                        $binary = file_get_contents($current);
+                        foreach (glob($outDir . '/' . $baseName . '*.pdf') ?: [] as $f) {
+                            if (file_exists($f)) {
+                                @unlink($f);
+                            }
+                        }
+
+                        if ($binary !== false) {
+                            Log::info('LeasePdfService: Strategy 0a (lawyer-stamped base) succeeded', ['lease_id' => $lease->id]);
+
+                            return $binary;
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('LeasePdfService: Strategy 0a failed, falling back', [
+                            'lease_id' => $lease->id,
+                            'error'    => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures.
+            // Only used when a coordinate map has been configured; without coordinates the stamping
+            // produces a blank template with no lease data, so we fall through to Strategy 1 instead.
             if ($template && $template->source_pdf_path && $hasCoordinates) {
                 $sourcePath = storage_path('app/' . $template->source_pdf_path);
                 if (! file_exists($sourcePath)) {
