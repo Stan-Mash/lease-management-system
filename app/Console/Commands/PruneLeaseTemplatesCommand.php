@@ -33,7 +33,7 @@ class PruneLeaseTemplatesCommand extends Command
 
         if ($keep->count() < 3) {
             $this->warn('Need exactly one default template per type (residential_major, residential_micro, commercial). Found: ' . $keep->count());
-            $this->line('Run: php artisan db:seed --class=ChabrinPdfLeaseTemplateSeeder');
+            $this->line('Add PDFs to storage/app/templates/leases and run: php artisan templates:use-pdf-only');
             $this->line('Then run this command again.');
             return self::FAILURE;
         }

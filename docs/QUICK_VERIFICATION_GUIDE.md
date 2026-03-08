@@ -231,24 +231,22 @@ Before marking as complete, verify:
 
 ## 🚀 Deployment Verification
 
-After seeding templates:
+After setting up templates from PDFs:
 
 ```bash
-# Seed the database
-php artisan db:seed --class=DefaultLeaseTemplateSeeder
+# Create templates from PDFs in storage/app/templates/leases
+php artisan templates:use-pdf-only
 
 # Verify templates exist
 php artisan tinker
 >>> App\Models\LeaseTemplate::count()
-# Should show: 3
+# Should show: number of PDFs in that folder (e.g. 3)
 
 >>> App\Models\LeaseTemplate::pluck('name')
-# Should show:
-# [
-#   "Chabrin Residential Major Dwelling Agreement",
-#   "Chabrin Residential Micro Dwelling Agreement",
-#   "Chabrin Commercial Lease Agreement"
-# ]
+# Should show imported template names, e.g.:
+# "Imported - Chabrin Agencies Tenancy Lease Agreement Commercial Lease",
+# "Imported - Chabrin Agencies Tenancy Lease Agreement Major Dwelling",
+# "Imported - Chabrin Agencies Tenancy Lease Agreement Micro Dwelling"
 
 >>> exit
 ```

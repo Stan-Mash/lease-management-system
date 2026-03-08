@@ -10,6 +10,7 @@ Enterprise lease management system for Chabrin Agencies. Manages property leases
 
 ### Key documentation
 - [docs/CODE_REVIEW_REPORT.md](docs/CODE_REVIEW_REPORT.md) — Security, performance, and architecture review; implemented fixes
+- [docs/LEASE_TEMPLATES_WHY_AND_RESTORE.md](docs/LEASE_TEMPLATES_WHY_AND_RESTORE.md) — Lease templates are PDF-only; `storage/app/templates/leases` + `php artisan templates:use-pdf-only`
 - [docs/FINANCIAL_POLICY.md](docs/FINANCIAL_POLICY.md) — Currency, rounding, MoneyHelper, bcmath
 - [docs/TIMEZONE.md](docs/TIMEZONE.md) — App timezone (Africa/Nairobi), Carbon usage
 - [docs/SYNC_AND_DEPLOY.md](docs/SYNC_AND_DEPLOY.md) — Sync and deploy workflow
@@ -138,6 +139,8 @@ php artisan pii:encrypt --dry-run    # Preview PII encryption (run after adding 
 php artisan pii:encrypt --force      # Encrypt existing plain-text PII rows in DB
 php artisan db:backup --compress     # Create compressed PostgreSQL backup
 php artisan db:restore               # Restore from backup (interactive)
+php artisan templates:use-pdf-only   # Set lease templates from storage/app/templates/leases only (removes others)
+php artisan templates:import --force # Import PDFs from that folder; --force to replace existing
 ```
 
 ## Deployment
