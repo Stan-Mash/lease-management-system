@@ -43,7 +43,7 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
         $startDate = $this->lease->start_date?->format('d/m/Y') ?? 'N/A';
 
         return (new MailMessage)
-            ->subject("Action Required: Sign Your Lease — {$reference}")
+            ->subject("Your Lease is Ready to Sign — {$reference}")
             ->greeting("Dear {$tenantName},")
             ->line('Your lease with Chabrin Agencies has been approved and is ready for your digital signature.')
             ->line('')
