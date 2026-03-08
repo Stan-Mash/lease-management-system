@@ -6,7 +6,7 @@ use App\Filament\Resources\LeaseTemplateResource;
 use App\Models\LeaseTemplate;
 use Filament\Resources\Pages\Page;
 use Filament\Notifications\Notification;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Enums\Width;
 use Illuminate\Support\Facades\Storage;
 
 class PickLeaseTemplateCoordinates extends Page
@@ -17,9 +17,9 @@ class PickLeaseTemplateCoordinates extends Page
 
     protected static ?string $title = 'Pick Field Positions';
 
-    public function getMaxContentWidth(): MaxWidth | string | null
+    public function getMaxContentWidth(): Width | string | null
     {
-        return MaxWidth::Full;
+        return Width::Full;
     }
 
     public LeaseTemplate $record;
