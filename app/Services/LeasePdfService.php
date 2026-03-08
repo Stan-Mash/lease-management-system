@@ -496,10 +496,13 @@ class LeasePdfService
             'lease_date_year'  => $sd->format('Y'),
             'start_date_day'   => $sd->format('d'),
             'start_date_month' => $sd->format('m'),
-            'start_date_year'  => $sd->format('Y'),
+            'start_date_year'  => $sd->format('y'),   // 2-digit year fits the small box on the form
             'end_date_day'     => $ed->format('d'),
             'end_date_month'   => $ed->format('m'),
             'end_date_year'    => $ed->format('Y'),
+            // Lease term duration for "The Term" tiny boxes (years and months count)
+            'lease_years'  => '1',
+            'lease_months' => '0',
             'landlord_name'   => $landlord->names ?? $landlord->name ?? 'Creek View Limited',
             'landlord_po_box' => $landlord->po_box ?? '',
             'tenant_name'     => $tenant->names ?? $tenant->full_name ?? 'John Doe',
@@ -544,9 +547,13 @@ class LeasePdfService
 
         // Lease duration label
         $durationLabel = '';
+        $leaseYears  = '';
+        $leaseMonths = '';
         if ($termMonths) {
             $years  = intdiv((int) $termMonths, 12);
             $months = (int) $termMonths % 12;
+            $leaseYears  = (string) $years;
+            $leaseMonths = (string) $months;
             if ($years && $months) {
                 $durationLabel = "{$years} year(s) {$months} month(s)";
             } elseif ($years) {
@@ -554,6 +561,11 @@ class LeasePdfService
             } else {
                 $durationLabel = "{$months} month(s)";
             }
+        } elseif ($startDate && $endDate) {
+            // Compute from date diff when term_months not set
+            $diff = $startDate->diff($endDate);
+            $leaseYears  = (string) $diff->y;
+            $leaseMonths = (string) $diff->m;
         }
 
         return [
@@ -563,12 +575,17 @@ class LeasePdfService
             'lease_date_year'  => $startDate ? $startDate->format('Y') : '',
 
             // Term "from __ / __ / __ To __ / __ / __" — separate day/month/year so slashes stay on the form
+            // start_date_year uses 2-digit format ('y') to fit the small box printed on the commercial lease form
             'start_date_day'   => $startDate ? $startDate->format('d') : '',
             'start_date_month' => $startDate ? $startDate->format('m') : '',
-            'start_date_year'  => $startDate ? $startDate->format('Y') : '',
+            'start_date_year'  => $startDate ? $startDate->format('y') : '',
             'end_date_day'     => $endDate ? $endDate->format('d') : '',
             'end_date_month'   => $endDate ? $endDate->format('m') : '',
             'end_date_year'    => $endDate ? $endDate->format('Y') : '',
+
+            // Lease term duration numbers for "The Term" section tiny boxes
+            'lease_years'  => $leaseYears,
+            'lease_months' => $leaseMonths,
 
             // Parties
             'landlord_name'   => $lease->landlord?->names ?? '',
