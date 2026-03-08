@@ -146,10 +146,11 @@ php artisan templates:import --force # Import PDFs from that folder; --force to 
 ## Deployment
 - Server IP: `161.35.74.238`, user: `deploy`, app: `/var/www/chips`
 - SSH: `ssh deploy@161.35.74.238` (password auth)
-- Deploy command: `cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear`
+- Deploy command: `cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear && php artisan opcache:flush`
 - If server has local changes blocking pull: `git stash` first, then pull
 - Remote uses SSH URL: git@github.com:Stan-Mash/lease-management-system.git
 - **Always include `php artisan migrate --force`** in deploy — migrations may be pending
+- **Always include `php artisan opcache:flush`** — server has `validate_timestamps=0`; FPM won't pick up new code without an explicit opcache reset
 
 ## Machine Identification
 
