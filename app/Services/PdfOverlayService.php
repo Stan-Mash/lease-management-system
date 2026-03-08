@@ -29,7 +29,7 @@ class PdfOverlayService
     private const OVERLAY_FONT_SIZE = 12;
 
     /** Y-offset in mm applied only to fields that sit above their baseline (selective alignment). */
-    private const Y_OFFSET_FOR_BASELINE_MM = 4;
+    private const Y_OFFSET_FOR_BASELINE_MM = 1;
 
     /** Field keys that receive the selective Y-offset; all others use coordinates as-is. */
     private const FIELDS_WITH_Y_OFFSET = [
