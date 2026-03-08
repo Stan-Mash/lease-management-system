@@ -76,7 +76,7 @@ class PickLeaseTemplateCoordinates extends Page
         $path = $this->normalizePath($this->record->source_pdf_path);
         $fullPath = $this->resolveSourcePdfPath($path);
         if ($fullPath && file_exists($fullPath)) {
-            $this->pdfUrl = url(route('templates.serve-pdf', ['template' => $this->record->id]));
+            $this->pdfUrl = Storage::disk('public')->url($this->record->source_pdf_path);
         }
 
         if (! $this->pdfUrl) {
