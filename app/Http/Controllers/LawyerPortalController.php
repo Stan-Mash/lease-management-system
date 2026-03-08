@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Enums\LeaseWorkflowState;
 use App\Models\DigitalSignature;
 use App\Models\LeaseLawyerTracking;
+use App\Models\User;
+use App\Notifications\LeaseReturnedFromLawyerNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LeasePdfService;
 use App\Services\PdfOverlayService;
@@ -192,6 +194,8 @@ class LawyerPortalController extends Controller
             if ($lease->workflow_state === 'with_lawyer') {
                 $lease->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
             }
+
+            $this->notifyManagerLawyerReturned($lease, $tracking);
         } catch (\Throwable $e) {
             Log::error('Lawyer portal upload failed', [
                 'lease_id' => $lease->id,
@@ -334,6 +338,8 @@ class LawyerPortalController extends Controller
             if ($lease->workflow_state === 'with_lawyer') {
                 $lease->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
             }
+
+            $this->notifyManagerLawyerReturned($lease, $tracking);
         } catch (\Throwable $e) {
             Log::error('Lawyer portal signature/stamp failed', [
                 'lease_id' => $lease->id,
@@ -368,5 +374,30 @@ class LawyerPortalController extends Controller
             return response()->json(['message' => $message], 422);
         }
         return redirect()->route('lawyer.portal', $token)->with('error', $message);
+    }
+
+    /**
+     * Notify the zone manager (or fallback to super_admin/admin) that the
+     * advocate has returned the signed lease via the portal.
+     */
+    private function notifyManagerLawyerReturned(\App\Models\Lease $lease, LeaseLawyerTracking $tracking): void
+    {
+        try {
+            $notification = new LeaseReturnedFromLawyerNotification($lease, $tracking);
+
+            $zoneManager = $lease->assignedZone?->zoneManager;
+            if ($zoneManager instanceof User) {
+                $zoneManager->notify($notification);
+                return;
+            }
+
+            User::whereIn('role', ['super_admin', 'admin'])->get()
+                ->each(fn (User $u) => $u->notify($notification));
+        } catch (\Throwable $e) {
+            Log::warning('LawyerPortalController: failed to notify manager after lawyer return', [
+                'lease_id' => $lease->id,
+                'error'    => $e->getMessage(),
+            ]);
+        }
     }
 }

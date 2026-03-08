@@ -699,7 +699,12 @@ class ViewLease extends ViewRecord
                 ->icon('heroicon-o-check-badge')
                 ->color('success')
                 ->visible(
-                    fn () => in_array($this->record->workflow_state, ['tenant_signed', 'pending_deposit', 'pending_landlord_pm'], true)
+                    fn () => in_array($this->record->workflow_state, [
+                        'tenant_signed',
+                        'pending_upload',   // lawyer returned signed copy via portal
+                        'pending_deposit',
+                        'pending_landlord_pm',
+                    ], true)
                         && auth()->user()?->canManageLeases(),
                 )
                 ->modalHeading('Countersign & Activate Lease')
