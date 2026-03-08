@@ -65,11 +65,11 @@ class DigitalSigningService
         $tenant = $lease->tenant;
 
         try {
-            if (in_array($method, ['email', 'both']) && $tenant->email_address) {
+            if (in_array($method, ['email', 'both'])) {
                 self::sendEmail($lease, $tenant, $link);
             }
 
-            if (in_array($method, ['sms', 'both']) && $tenant->mobile_number) {
+            if (in_array($method, ['sms', 'both'])) {
                 self::sendSMS($lease, $tenant, $link);
             }
 
@@ -399,31 +399,27 @@ class DigitalSigningService
         }
 
         // SMS confirmation
-        if ($tenant->mobile_number) {
-            try {
-                SMSService::sendLeaseSigned(
-                    $tenant,
-                    $lease->reference_number,
-                    $lease->start_date?->format('d M Y') ?? 'N/A',
-                );
-            } catch (Exception $e) {
-                Log::warning('Failed to send lease-signed SMS', [
-                    'lease_id' => $lease->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        try {
+            SMSService::sendLeaseSigned(
+                $tenant,
+                $lease->reference_number,
+                $lease->start_date?->format('d M Y') ?? 'N/A',
+            );
+        } catch (Exception $e) {
+            Log::warning('Failed to send lease-signed SMS', [
+                'lease_id' => $lease->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         // Email confirmation
-        if ($tenant->email_address) {
-            try {
-                $tenant->notify(new LeaseSignedConfirmationNotification($lease));
-            } catch (Exception $e) {
-                Log::warning('Failed to send lease-signed confirmation email', [
-                    'lease_id' => $lease->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        try {
+            $tenant->notify(new LeaseSignedConfirmationNotification($lease));
+        } catch (Exception $e) {
+            Log::warning('Failed to send lease-signed confirmation email', [
+                'lease_id' => $lease->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         Log::info('Post-signing confirmations dispatched', [
