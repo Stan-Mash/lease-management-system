@@ -192,7 +192,9 @@ class LawyerPortalController extends Controller
 
             $tracking->markAsReturned('email', null, 'Returned via lawyer portal upload.');
             if ($lease->workflow_state === 'with_lawyer') {
-                $lease->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
+                // Document already in system — skip pending_upload (that state is
+                // only for physical returns where staff still need to scan & upload).
+                $lease->transitionTo(LeaseWorkflowState::PENDING_DEPOSIT);
             }
 
             $this->notifyManagerLawyerReturned($lease, $tracking);
@@ -336,7 +338,9 @@ class LawyerPortalController extends Controller
 
             $tracking->markAsReturned('email', null, 'Returned via lawyer portal (signature and/or stamp applied).');
             if ($lease->workflow_state === 'with_lawyer') {
-                $lease->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
+                // Document already in system — skip pending_upload (that state is
+                // only for physical returns where staff still need to scan & upload).
+                $lease->transitionTo(LeaseWorkflowState::PENDING_DEPOSIT);
             }
 
             $this->notifyManagerLawyerReturned($lease, $tracking);
