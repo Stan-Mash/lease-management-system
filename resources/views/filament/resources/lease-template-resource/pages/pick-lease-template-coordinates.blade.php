@@ -106,6 +106,7 @@
                     currentPage: 1,
                     totalPages: 1,
                     viewportSize: { width: 0, height: 0 },
+                    unscaledViewport: null,
                     selectedField: null,
                     isSignature: false,
                     coordinates: @js($record->pdf_coordinate_map ?? []),
@@ -149,6 +150,7 @@
                         const page = await pdfDocRef.getPage(this.currentPage);
                         const container = document.getElementById('pdf-container');
                         const unscaledViewport = page.getViewport({ scale: 1.0 });
+                        this.unscaledViewport = { width: unscaledViewport.width, height: unscaledViewport.height };
                         const scale = (container ? container.clientWidth - 40 : 800) / unscaledViewport.width;
                         viewportRef = page.getViewport({ scale: scale });
                         this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
@@ -181,22 +183,24 @@
                     },
 
                     onCanvasClick(ev) {
-                        if (!this.selectedField || !this.viewportSize || !this.viewportSize.width) return;
+                        if (!this.selectedField || !this.unscaledViewport) return;
                         const canvas = document.getElementById('pdf-canvas');
                         const rect = canvas.getBoundingClientRect();
-                        // CSS may scale the canvas; ratio between internal resolution and displayed size
-                        const scaleX = canvas.width / rect.width;
-                        const scaleY = canvas.height / rect.height;
-                        const canvasX = (ev.clientX - rect.left) * scaleX;
-                        const canvasY = (ev.clientY - rect.top) * scaleY;
-                        // Map to PDF viewport coordinates (y flipped: PDF origin is bottom-left)
-                        const pdfX = (canvasX / canvas.width) * this.viewportSize.width;
-                        const pdfY = this.viewportSize.height - (canvasY / canvas.height) * this.viewportSize.height;
+                        const unscaledViewport = this.unscaledViewport;
+
+                        const screenX = ev.clientX - rect.left;
+                        const screenY = ev.clientY - rect.top;
+                        const percentX = screenX / rect.width;
+                        const percentY = screenY / rect.height;
+                        const ptX = percentX * unscaledViewport.width;
+                        const ptY = percentY * unscaledViewport.height;
+                        const finalX = ptX * (25.4 / 72);
+                        const finalY = ptY * (25.4 / 72);
 
                         this.coordinates[this.selectedField] = {
                             page: this.currentPage,
-                            x: Math.round(pdfX),
-                            y: Math.round(pdfY)
+                            x: Math.round(finalX * 100) / 100,
+                            y: Math.round(finalY * 100) / 100
                         };
                         if (this.isSignature) {
                             this.coordinates[this.selectedField].width = 80;
