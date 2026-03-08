@@ -145,13 +145,17 @@
                     async renderPage() {
                         if (!pdfDocRef) return;
                         const page = await pdfDocRef.getPage(this.currentPage);
-                        const scale = 2.5;
+                        const container = document.getElementById('pdf-container');
+                        const unscaledViewport = page.getViewport({ scale: 1.0 });
+                        const scale = (container ? container.clientWidth - 40 : 800) / unscaledViewport.width;
                         viewportRef = page.getViewport({ scale: scale });
                         this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
                         const canvas = document.getElementById('pdf-canvas');
-                        const ctx = canvas.getContext('2d');
-                        canvas.height = viewportRef.height;
                         canvas.width = viewportRef.width;
+                        canvas.height = viewportRef.height;
+                        canvas.style.width = '100%';
+                        canvas.style.height = 'auto';
+                        const ctx = canvas.getContext('2d');
                         await page.render({ canvasContext: ctx, viewport: viewportRef }).promise;
                     },
 
