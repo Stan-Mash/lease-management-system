@@ -487,10 +487,19 @@ class LeasePdfService
         $rent      = $lease->monthly_rent ? (float) $lease->monthly_rent : null;
         $deposit   = $lease->deposit_amount ? (float) $lease->deposit_amount : null;
 
+        $sd = $startDate ? (is_object($startDate) ? $startDate : \Carbon\Carbon::parse($startDate)) : \Carbon\Carbon::parse('2026-03-07');
+        $ed = $endDate ? (is_object($endDate) ? $endDate : \Carbon\Carbon::parse($endDate)) : \Carbon\Carbon::parse('2027-03-07');
+
         return [
-            'lease_date_day'   => $startDate ? (is_string($startDate) ? date('j', strtotime($startDate)) : $startDate->format('j')) : '5',
-            'lease_date_month' => $startDate ? (is_string($startDate) ? date('F', strtotime($startDate)) : $startDate->format('F')) : 'March',
-            'lease_date_year'  => $startDate ? (is_string($startDate) ? date('Y', strtotime($startDate)) : $startDate->format('Y')) : date('Y'),
+            'lease_date_day'   => $sd->format('d'),
+            'lease_date_month' => $sd->format('F'),
+            'lease_date_year'  => $sd->format('Y'),
+            'start_date_day'   => $sd->format('d'),
+            'start_date_month' => $sd->format('m'),
+            'start_date_year'  => $sd->format('Y'),
+            'end_date_day'     => $ed->format('d'),
+            'end_date_month'   => $ed->format('m'),
+            'end_date_year'    => $ed->format('Y'),
             'landlord_name'   => $landlord->names ?? $landlord->name ?? 'Creek View Limited',
             'landlord_po_box' => $landlord->po_box ?? '',
             'tenant_name'     => $tenant->names ?? $tenant->full_name ?? 'John Doe',
@@ -499,8 +508,8 @@ class LeasePdfService
             'property_name'      => $property->property_name ?? $property->name ?? 'Sample Building',
             'property_lr_number' => $property->lr_number ?? 'LR/12345/678',
             'unit_code'          => $unit->unit_code ?? $unit->unit_number ?? 'A-101',
-            'start_date'            => $startDate ? (is_string($startDate) ? $startDate : $startDate->format('d/m/Y')) : '01/01/2026',
-            'end_date'              => $endDate ? (is_string($endDate) ? $endDate : $endDate->format('d/m/Y')) : '31/03/2031',
+            'start_date'            => $sd->format('d-m-Y'),
+            'end_date'              => $ed->format('d-m-Y'),
             'lease_duration_months' => '5 year(s) 3 month(s)',
             'monthly_rent'   => $rent ? number_format($rent, 2) : '50,000.00',
             'deposit_amount' => $deposit ? number_format($deposit, 2) : '100,000.00',
@@ -548,10 +557,18 @@ class LeasePdfService
         }
 
         return [
-            // Date fields (split for precise placement on date line)
-            'lease_date_day'   => $startDate ? $startDate->format('j') : '',
+            // Date at top: "dated the __ day on the month of __ in the year __" (no slashes; document has its own separators)
+            'lease_date_day'   => $startDate ? $startDate->format('d') : '',
             'lease_date_month' => $startDate ? $startDate->format('F') : '',
             'lease_date_year'  => $startDate ? $startDate->format('Y') : '',
+
+            // Term "from __ / __ / __ To __ / __ / __" — separate day/month/year so slashes stay on the form
+            'start_date_day'   => $startDate ? $startDate->format('d') : '',
+            'start_date_month' => $startDate ? $startDate->format('m') : '',
+            'start_date_year'  => $startDate ? $startDate->format('Y') : '',
+            'end_date_day'     => $endDate ? $endDate->format('d') : '',
+            'end_date_month'   => $endDate ? $endDate->format('m') : '',
+            'end_date_year'    => $endDate ? $endDate->format('Y') : '',
 
             // Parties
             'landlord_name'   => $lease->landlord?->names ?? '',
@@ -565,9 +582,9 @@ class LeasePdfService
             'property_lr_number' => $lease->property?->lr_number ?? '',
             'unit_code'          => $lease->unit_code ?? $lease->unit?->unit_code ?? '',
 
-            // Term
-            'start_date'            => $startDate?->format('d/m/Y') ?? '',
-            'end_date'              => $endDate?->format('d/m/Y') ?? '',
+            // Term (single-field fallback: no slashes; document may already show separators)
+            'start_date'            => $startDate ? $startDate->format('d-m-Y') : '',
+            'end_date'              => $endDate ? $endDate->format('d-m-Y') : '',
             'lease_duration_months' => $durationLabel,
 
             // Financials

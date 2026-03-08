@@ -114,9 +114,10 @@ class LeaseTemplateResource extends Resource
                                     ->label('PDF coordinate map (optional)')
                                     ->rows(12)
                                     ->helperText(new \Illuminate\Support\HtmlString(
-                                        'To make generated leases <strong>look exactly like this PDF</strong>, provide a JSON map of field names to positions (page, x, y in points). '
-                                        . 'Keys: tenant_name, unit_code, property_name, monthly_rent, start_date, end_date, landlord_name, reference_number; '
-                                        . 'plus tenant_signature and manager_signature with width/height. See docs/LEASE_TEMPLATES_AND_PDF_LOOKALIKE.md.'
+                                        'Map of field names to positions (page, x, y in mm). Font size defaults to <strong>12</strong>. '
+                                        . 'Use <code>width</code> (mm) and <code>align</code> (L|C|R) so text stays inside the printed boxes. '
+                                        . 'For dates where the form has separate day/month/year boxes, use lease_date_day, lease_date_month, lease_date_year and start_date_day, start_date_month, start_date_year, end_date_day, end_date_month, end_date_year (no slashes). '
+                                        . 'See docs/LEASE_TEMPLATES_AND_PDF_LOOKALIKE.md.'
                                     ))
                                     ->placeholder('{"tenant_name":{"page":1,"x":120,"y":180},"tenant_signature":{"page":2,"x":140,"y":240,"width":80,"height":30},...}')
                                     ->columnSpanFull()

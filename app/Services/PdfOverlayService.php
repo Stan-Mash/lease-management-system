@@ -12,7 +12,9 @@ use setasign\Fpdi\Fpdi;
 /**
  * Stamp text and images onto an existing PDF (e.g. landlord-provided lease).
  * Uses FPDI to import the source PDF and FPDF API to draw at (x, y) coordinates.
- * Coordinates are in mm; font size in pt.
+ * Coordinates are in mm; font size in pt (default 12).
+ * Per-field optional keys: size, color, width (mm), align (L|C|R).
+ * Use width so text stays within the printed box; align controls horizontal alignment within that width.
  *
  * Font notes:
  *   Default overlay font is Helvetica (built-in FPDF). To use Century Gothic:
@@ -75,9 +77,11 @@ class PdfOverlayService
                 }
                 $x        = (float) ($config['x'] ?? 0);
                 $y        = (float) ($config['y'] ?? 0);
-                $fontSize = (int) ($config['size'] ?? 10);
+                $fontSize = (int) ($config['size'] ?? 12);
                 $color    = $config['color'] ?? self::DEFAULT_COLOR;
-                $this->writeText($pdf, $value, $x, $y, $fontSize, $color);
+                $widthMm  = isset($config['width']) ? (float) $config['width'] : null;
+                $align    = $config['align'] ?? 'L';
+                $this->writeText($pdf, $value, $x, $y, $fontSize, $color, $widthMm, $align);
             }
         }
 
@@ -201,8 +205,19 @@ class PdfOverlayService
         // (visually similar at small sizes; Century Gothic setup documented above)
     }
 
-    private function writeText(Fpdi $pdf, string $text, float $x, float $y, int $fontSize, string $colorHex): void
-    {
+    /**
+     * Write text at (x,y). Optional width (mm) keeps text within a box; align (L/C/R) aligns within that width.
+     */
+    private function writeText(
+        Fpdi $pdf,
+        string $text,
+        float $x,
+        float $y,
+        int $fontSize,
+        string $colorHex,
+        ?float $widthMm = null,
+        string $align = 'L',
+    ): void {
         $r = (int) hexdec(substr($colorHex, 0, 2));
         $g = (int) hexdec(substr($colorHex, 2, 2));
         $b = (int) hexdec(substr($colorHex, 4, 2));
@@ -213,6 +228,16 @@ class PdfOverlayService
         $pdf->SetFont($fontName, '', $fontSize);
         $pdf->SetTextColor($r, $g, $b);
         $pdf->SetXY($x, $y);
-        $pdf->Cell(0, 5, $text);
+
+        $align = strtoupper($align);
+        if (! in_array($align, ['L', 'C', 'R'], true)) {
+            $align = 'L';
+        }
+
+        if ($widthMm !== null && $widthMm > 0) {
+            $pdf->Cell($widthMm, 5, $text, 0, 0, $align);
+        } else {
+            $pdf->Cell(0, 5, $text, 0, 0, $align);
+        }
     }
 }

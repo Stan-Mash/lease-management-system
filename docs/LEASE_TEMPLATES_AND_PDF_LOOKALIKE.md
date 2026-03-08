@@ -48,27 +48,34 @@ So the final PDF **is** your uploaded PDF with fields filled in. It will look li
 
 ### Coordinate map shape
 
-- **Text fields** (e.g. tenant name, rent, dates): each entry needs at least `page`, `x`, `y` (and optionally font/size if the overlay service supports it).
-- **Signatures**: entries for `tenant_signature` and `manager_signature` with `page`, `x`, `y`, `width`, `height`.
+- **Text fields**: each entry needs at least `page`, `x`, `y`. Optional: `size` (font size in pt, default **12**), `width` (mm, keeps text in box), `align` (`L`|`C`|`R`), `color` (hex e.g. `000000`).
+- **Signatures**: entries for `tenant_signature`, `manager_signature`, etc. with `page`, `x`, `y`, `width`, `height`.
 
-Field keys used when stamping text (must match keys from `overlayFieldsFromLease()`):
+**Dates:** The document often has separate boxes for day / month / year (with slashes pre-printed). Use the **split** keys so the system does not add slashes:
 
-- `tenant_name`, `unit_code`, `property_name`, `monthly_rent`, `start_date`, `end_date`, `landlord_name`, `reference_number`
-- `tenant_signature`, `manager_signature` (for image stamps)
+- `lease_date_day`, `lease_date_month`, `lease_date_year` — for “dated the __ day on the month of __ in the year __”
+- `start_date_day`, `start_date_month`, `start_date_year` — for “from __ / __ / __”
+- `end_date_day`, `end_date_month`, `end_date_year` — for “To __ / __ / __”
+
+Single-field keys `start_date` and `end_date` are formatted as `d-m-Y` (no slashes).
+
+Field keys (must match overlay fields): `lease_date_day`, `lease_date_month`, `lease_date_year`, `start_date_day`, `start_date_month`, `start_date_year`, `end_date_day`, `end_date_month`, `end_date_year`, `landlord_name`, `landlord_po_box`, `tenant_name`, `tenant_id_number`, `tenant_po_box`, `property_name`, `property_lr_number`, `unit_code`, `monthly_rent`, `deposit_amount`, `vat_amount`, `start_date`, `end_date`, `reference_number`, plus signature keys.
 
 Example (conceptual):
 
 ```json
 {
-  "tenant_name":   { "page": 1, "x": 120, "y": 180 },
-  "monthly_rent": { "page": 1, "x": 120, "y": 220 },
-  "start_date":    { "page": 1, "x": 120, "y": 260 },
+  "tenant_name":   { "page": 1, "x": 120, "y": 180, "size": 12, "width": 80, "align": "L" },
+  "monthly_rent": { "page": 1, "x": 120, "y": 220, "size": 12 },
+  "start_date_day":   { "page": 1, "x": 100, "y": 260 },
+  "start_date_month": { "page": 1, "x": 115, "y": 260 },
+  "start_date_year":  { "page": 1, "x": 130, "y": 260 },
   "tenant_signature": { "page": 2, "x": 140, "y": 240, "width": 80, "height": 30 },
   "manager_signature": { "page": 2, "x": 140, "y": 280, "width": 80, "height": 30 }
 }
 ```
 
-Coordinates are in PDF points (72 points ≈ 1 inch). You can measure positions in your PDF with a PDF editor or a small script.
+Coordinates are in mm. Use `width` so stamped text stays inside the printed box; font size defaults to 12 pt.
 
 ### Where to set this
 
@@ -87,6 +94,16 @@ Coordinates are in PDF points (72 points ≈ 1 inch). You can measure positions 
 **Option 2 — Manual JSON**
 
 - On the **Edit** page, open the **PDF Upload** tab. After uploading the PDF, paste JSON into **“PDF coordinate map”**. Example format is in the placeholder. Save.
+
+**Option 3 — Apply default “Particulars” map**
+
+If your PDF follows the standard “Particulars” layout (date, lessor, lessee, building, term, rent, deposit, VAT on page 1), you can apply a built-in coordinate map so text aligns in the boxes (font 12, width/align). Only applies to templates that have a source PDF and **no** existing map (use `--force` to overwrite):
+
+```bash
+php artisan templates:apply-default-coordinates
+```
+
+Optional: `--type=commercial` (or `residential_major` / `residential_micro`), `--force` to overwrite existing maps. After running, fine-tune via **Pick positions** if your PDF layout differs.
 
 ---
 
