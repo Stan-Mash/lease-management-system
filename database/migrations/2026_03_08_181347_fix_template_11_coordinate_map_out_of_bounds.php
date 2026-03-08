@@ -49,9 +49,28 @@ return new class extends Migration
             'color' => 'FF0000',
         ];
 
-        // Remove grant_of_lease_duration — the Commercial Lease PDF hardcodes this text;
-        // overlaying it would duplicate copy and the old coords were out of bounds anyway.
+        // Remove grant_of_lease_duration — the term duration text is split across two
+        // separate blanks in section 2 "Grant of Lease" (lease_years + lease_months below).
         unset($coords['grant_of_lease_duration']);
+
+        // Grant of Lease section (page 3, y=91.7mm DataTm):
+        //   "The Lessor leases to the Lessee for a period of [__] year(s) and [__] month(s)"
+        //   cell_top = 91.7 - 5 = 86.7mm  (FIELDS_WITH_Y_OFFSET adds +1mm at render)
+        $coords['lease_years'] = [
+            'page'  => 3,
+            'x'     => 117.7,
+            'y'     => 86.7,
+            'size'  => 12,
+            'color' => 'FF0000',
+        ];
+
+        $coords['lease_months'] = [
+            'page'  => 3,
+            'x'     => 139.7,
+            'y'     => 86.7,
+            'size'  => 12,
+            'color' => 'FF0000',
+        ];
 
         $template->pdf_coordinate_map = $coords;
         $template->save();
