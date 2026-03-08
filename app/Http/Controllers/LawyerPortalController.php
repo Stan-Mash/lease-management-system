@@ -42,11 +42,14 @@ class LawyerPortalController extends Controller
 
         $tracking->load(['lease.tenant', 'lease.property', 'lawyer']);
         $lease = $tracking->lease;
+        $alreadyProcessed = $tracking->status === 'returned'
+            || ($lease->workflow_state !== null && $lease->workflow_state !== 'with_lawyer');
 
         return view('lawyer.portal', [
             'tracking' => $tracking,
             'lease' => $lease,
             'token' => $token,
+            'alreadyProcessed' => $alreadyProcessed,
             'downloadUrl' => route('lawyer.portal.download', ['token' => $token]),
             'expiresAt' => $tracking->lawyer_link_expires_at,
         ]);
@@ -54,6 +57,7 @@ class LawyerPortalController extends Controller
 
     /**
      * Download the lease PDF (for lawyer to stamp).
+     * Access revoked once the document has been processed (tracking returned or lease moved past with_lawyer).
      */
     public function download(string $token): Response
     {
@@ -63,7 +67,15 @@ class LawyerPortalController extends Controller
             abort(404, 'This link is invalid or has expired.');
         }
 
+        if ($tracking->status === 'returned') {
+            abort(403, 'This document has already been processed and is no longer accessible via this secure link.');
+        }
+
         $lease = $tracking->lease;
+        if ($lease->workflow_state !== 'with_lawyer') {
+            abort(403, 'This document has already been processed and is no longer accessible via this secure link.');
+        }
+
         $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
 
         $binary = $this->pdfService->generate($lease);
@@ -78,7 +90,7 @@ class LawyerPortalController extends Controller
 
     /**
      * Serve the lease PDF inline so the advocate can read it in the browser.
-     * Same token validation as download() — no authentication required beyond the secure token.
+     * Access revoked once the document has been processed (tracking returned or lease moved past with_lawyer).
      */
     public function viewDocument(string $token): Response
     {
@@ -88,7 +100,15 @@ class LawyerPortalController extends Controller
             abort(404, 'This link is invalid or has expired.');
         }
 
+        if ($tracking->status === 'returned') {
+            abort(403, 'This document has already been processed and is no longer accessible via this secure link.');
+        }
+
         $lease = $tracking->lease;
+        if ($lease->workflow_state !== 'with_lawyer') {
+            abort(403, 'This document has already been processed and is no longer accessible via this secure link.');
+        }
+
         $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
 
         $binary   = $this->pdfService->generate($lease);

@@ -32,11 +32,17 @@
                     </div>
                 @endif
 
+                @if($alreadyProcessed ?? $tracking->status === 'returned')
+                    <div class="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-green-800">
+                        <p class="font-semibold text-base mb-1">✅ Document already processed</p>
+                        <p class="text-sm">Your signature and/or stamped PDF have been received by Chabrin Agencies. This document is no longer accessible via this link. No further action is needed. Thank you.</p>
+                    </div>
+                @else
                 <p class="text-gray-600">
                     This lease has been sent to you for legal review and advocate stamping. Read the document below, then either <strong>sign and stamp digitally</strong> or <strong>upload a pre-stamped PDF</strong>.
                 </p>
 
-                {{-- Section 1: Document viewer --}}
+                {{-- Section 1: Document viewer (hidden once processed) --}}
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
                     <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
                         <h2 class="font-semibold text-gray-900">1. Review lease document</h2>
@@ -64,14 +70,6 @@
                         </div>
                     </iframe>
                 </div>
-
-                {{-- Already returned: hide forms, show confirmation --}}
-                @if($tracking->status === 'returned')
-                    <div class="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-green-800">
-                        <p class="font-semibold text-base mb-1">✅ Document already processed</p>
-                        <p class="text-sm">Your signature and/or stamped PDF have been received by Chabrin Agencies. No further action is needed on this portal. Thank you.</p>
-                    </div>
-                @else
 
                 {{-- Option A: Sign & stamp digitally --}}
                 <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
