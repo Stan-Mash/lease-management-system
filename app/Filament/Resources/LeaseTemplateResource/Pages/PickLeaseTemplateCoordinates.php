@@ -44,7 +44,7 @@ class PickLeaseTemplateCoordinates extends Page
         'start_date' => 'Start date (single field)',
         'end_date' => 'End date (single field)',
         'lease_duration_months' => 'Lease duration (e.g. 5 year(s) 3 month(s))',
-        'grant_of_lease_duration' => 'Grant of Lease — duration (Section 2, Page 3)',
+        'grant_of_lease_duration' => 'Grant of Lease Duration (Section 2)',
         'reference_number' => 'Reference number',
     ];
 
