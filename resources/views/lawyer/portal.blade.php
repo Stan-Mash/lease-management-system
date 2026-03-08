@@ -65,6 +65,14 @@
                     </iframe>
                 </div>
 
+                {{-- Already returned: hide forms, show confirmation --}}
+                @if($tracking->status === 'returned')
+                    <div class="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-green-800">
+                        <p class="font-semibold text-base mb-1">✅ Document already processed</p>
+                        <p class="text-sm">Your signature and/or stamped PDF have been received by Chabrin Agencies. No further action is needed on this portal. Thank you.</p>
+                    </div>
+                @else
+
                 {{-- Option A: Sign & stamp digitally --}}
                 <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h2 class="font-semibold text-gray-900 mb-2">2a. Sign and stamp digitally</h2>
@@ -140,6 +148,8 @@
                         </button>
                     </form>
                 </div>
+
+                @endif {{-- end @else (tracking not yet returned) --}}
 
                 @if($expiresAt)
                     <p class="text-xs text-gray-500">This link expires on {{ $expiresAt->format('d M Y') }}.</p>
