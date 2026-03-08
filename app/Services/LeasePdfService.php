@@ -514,9 +514,10 @@ class LeasePdfService
             'start_date'            => $sd->format('d-m-Y'),
             'end_date'              => $ed->format('d-m-Y'),
             'lease_duration_months' => '5 year(s) 3 month(s)',
-            'monthly_rent'   => $rent ? number_format($rent, 2) : '50,000.00',
-            'deposit_amount' => $deposit ? number_format($deposit, 2) : '100,000.00',
-            'vat_amount'     => $rent ? number_format($rent * 0.16, 2) : '8,000.00',
+            'grant_of_lease_duration' => '5 year(s) 3 month(s)',
+            'monthly_rent'   => $rent !== null ? number_format((float) $rent, 2) : '50,000.00',
+            'deposit_amount' => $deposit !== null ? number_format((float) $deposit, 2) : '100,000.00',
+            'vat_amount'     => $rent !== null ? number_format((float) $rent * 0.16, 2) : '8,000.00',
             'rent_review_years' => '1',
             'rent_review_rate'  => '5.0',
             'reference_number' => $lease->reference_number ?? 'CH-COM-SAMPLE-2026',
@@ -603,11 +604,12 @@ class LeasePdfService
             'start_date'            => $startDate ? $startDate->format('d-m-Y') : '',
             'end_date'              => $endDate ? $endDate->format('d-m-Y') : '',
             'lease_duration_months' => $durationLabel,
+            'grant_of_lease_duration' => $durationLabel,
 
-            // Financials
-            'monthly_rent'     => $rent ? number_format($rent, 2) : '',
-            'deposit_amount'   => $deposit ? number_format($deposit, 2) : '',
-            'vat_amount'       => $vatAmount ? number_format($vatAmount, 2) : '',
+            // Financials (number_format for clean display e.g. 279,270.00)
+            'monthly_rent'     => $rent !== null ? number_format((float) $rent, 2) : '',
+            'deposit_amount'   => $deposit !== null ? number_format((float) $deposit, 2) : '',
+            'vat_amount'       => $vatAmount !== null ? number_format((float) $vatAmount, 2) : '',
 
             // Rent review (optional — set on lease when creating)
             'rent_review_years' => $lease->rent_review_years ? (string) $lease->rent_review_years : '',

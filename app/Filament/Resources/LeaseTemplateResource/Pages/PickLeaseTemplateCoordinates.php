@@ -43,6 +43,8 @@ class PickLeaseTemplateCoordinates extends Page
         'vat_amount' => 'VAT amount',
         'start_date' => 'Start date (single field)',
         'end_date' => 'End date (single field)',
+        'lease_duration_months' => 'Lease duration (e.g. 5 year(s) 3 month(s))',
+        'grant_of_lease_duration' => 'Grant of Lease — duration (Section 2, Page 3)',
         'reference_number' => 'Reference number',
     ];
 
