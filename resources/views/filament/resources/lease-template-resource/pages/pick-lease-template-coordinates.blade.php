@@ -26,8 +26,7 @@
                         <button type="button"
                                 @click="selectField('{{ $key }}', false)"
                                 :class="{ 'ring-2 ring-primary-500': selectedField === '{{ $key }}' }"
-                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                                x-show="!coordinates['{{ $key }}'] || selectedField === '{{ $key }}'">
+                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                             <span class="font-medium">{{ $label }}</span>
                             <span class="block text-xs text-gray-500" x-show="coordinates['{{ $key }}']">
                                 Page <span x-text="coordinates['{{ $key }}']?.page || 1"></span>,
@@ -41,8 +40,7 @@
                         <button type="button"
                                 @click="selectField('{{ $key }}', true)"
                                 :class="{ 'ring-2 ring-primary-500': selectedField === '{{ $key }}' }"
-                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                                x-show="!coordinates['{{ $key }}'] || selectedField === '{{ $key }}'">
+                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                             <span class="font-medium">{{ $label }}</span>
                             <span class="block text-xs text-gray-500" x-show="coordinates['{{ $key }}']">
                                 Page <span x-text="coordinates['{{ $key }}']?.page || 1"></span>,
