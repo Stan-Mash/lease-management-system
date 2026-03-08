@@ -654,7 +654,7 @@ class ViewLease extends ViewRecord
                         ->label('LSK Number (if advocate)')
                         ->placeholder('e.g. LSK/2024/01234')
                         ->maxLength(50)
-                        ->visible(fn (\Filament\Forms\Get $get) => $get('witness_type') === 'advocate'),
+                        ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('witness_type') === 'advocate'),
 
                     Textarea::make('notes')
                         ->label('Notes (optional)')
