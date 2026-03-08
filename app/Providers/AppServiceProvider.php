@@ -10,7 +10,10 @@ use App\Observers\LeaseObserver;
 use App\Observers\RoleObserver;
 use App\Observers\TenantObserver;
 use App\Observers\UnitObserver;
+use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Pulse\Facades\Pulse;
@@ -36,6 +39,15 @@ class AppServiceProvider extends ServiceProvider
         if ($redirect = config('mail.redirect_to')) {
             Mail::alwaysTo($redirect);
         }
+
+        // Log every outgoing email's final recipient for tracing (remove once deliverability confirmed)
+        Event::listen(MessageSent::class, function (MessageSent $event): void {
+            $to = collect($event->sent->getTo() ?? [])->keys()->implode(', ');
+            Log::info('Mail sent via SMTP', [
+                'to'      => $to ?: '(none)',
+                'subject' => $event->sent->getSubject() ?? '(no subject)',
+            ]);
+        });
 
         // Register observers
         Lease::observe(LeaseObserver::class);

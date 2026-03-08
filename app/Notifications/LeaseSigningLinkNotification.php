@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 
 class LeaseSigningLinkNotification extends Notification implements ShouldQueue
 {
@@ -28,6 +29,14 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
     {
         $tenantName = $notifiable->names ?? 'Tenant';
         $reference = $this->lease->reference_number ?? 'N/A';
+
+        Log::info('LeaseSigningLinkNotification::toMail called', [
+            'lease_id'       => $this->lease->id,
+            'reference'      => $reference,
+            'notifiable_id'  => $notifiable->id ?? null,
+            'notifiable_email' => $notifiable->email_address ?? $notifiable->email ?? 'none',
+            'mail_redirect'  => config('mail.redirect_to') ?? 'not set',
+        ]);
         $propertyName = $this->lease->property?->property_name ?? 'N/A';
         $unitNumber = $this->lease->unit?->unit_number ?? 'N/A';
         $monthlyRent = number_format((float) ($this->lease->monthly_rent ?? 0), 2);
