@@ -74,6 +74,20 @@ class PdfOverlayService
         }
         if (file_exists($fontFile) && ! defined('FPDF_FONTPATH')) {
             define('FPDF_FONTPATH', $fontDir . '/');
+
+            // FPDF_FONTPATH overrides the search path for ALL fonts including core fonts
+            // (helvetica, courier, times). If those .php descriptors are absent from the
+            // custom font dir, any SetFont('Helvetica') call will fail with an include error.
+            // Copy missing core font descriptors from the FPDF vendor bundle on first use.
+            $vendorFontDir = base_path('vendor/setasign/fpdf/font');
+            if (is_dir($vendorFontDir)) {
+                foreach (glob($vendorFontDir . '/*.php') ?: [] as $vendorFont) {
+                    $dest = $fontDir . '/' . basename($vendorFont);
+                    if (! file_exists($dest)) {
+                        @copy($vendorFont, $dest);
+                    }
+                }
+            }
         }
     }
 
