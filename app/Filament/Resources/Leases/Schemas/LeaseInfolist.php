@@ -933,6 +933,18 @@ class LeaseInfolist
 
                 return ['🎉', '#059669', 'Tenant Has Signed!', $body, $next];
             })(),
+            'pending_witness' => [
+                '👤', '#f59e0b',
+                'Pending Witness',
+                "This lease is waiting for a witness to sign. Arrange for the witness to sign the document.",
+                'Once the witness has signed, the lease will move to Pending Advocate. You can then assign and send it to an advocate.',
+            ],
+            'pending_advocate' => [
+                '⚖️', '#f59e0b',
+                'Pending Advocate',
+                'This lease is ready to be sent to an advocate for legal review and witnessing. Assign an advocate and send them the document via the button below.',
+                'Click "Assign & Send to Advocate" to select an advocate and send them a secure portal link. The document will then be with the legal team for review.',
+            ],
             'with_lawyer' => (function () use ($record): array {
                 $tracking  = $record->lawyerTrackings()
                     ->with('lawyer')
@@ -1052,6 +1064,9 @@ class LeaseInfolist
             'pending_otp' => 'OTP Requested',
             'pending_tenant_signature' => 'Awaiting Signature',
             'tenant_signed' => 'Tenant Signed',
+            'pending_witness' => 'Pending Witness',
+            'pending_advocate' => 'Pending Advocate',
+            'pending_landlord_pm' => 'Pending Landlord/PM',
             'with_lawyer' => 'With Lawyer',
             'pending_upload' => 'Pending Upload',
             'pending_deposit' => 'Pending Deposit',
@@ -1080,6 +1095,9 @@ class LeaseInfolist
             'pending_otp' => 'warning',
             'pending_tenant_signature' => 'warning',
             'tenant_signed' => 'success',
+            'pending_witness' => 'warning',
+            'pending_advocate' => 'warning',
+            'pending_landlord_pm' => 'warning',
             'with_lawyer' => 'info',
             'pending_upload' => 'warning',
             'pending_deposit' => 'warning',
@@ -1259,7 +1277,8 @@ class LeaseInfolist
             'pending_landlord_approval' => 2, 'approved' => 2,
             'printed' => 3, 'checked_out' => 3, 'sent_digital' => 3,
             'pending_otp' => 3, 'pending_tenant_signature' => 3, 'returned_unsigned' => 3,
-            'tenant_signed' => 4, 'with_lawyer' => 4, 'pending_upload' => 4,
+            'tenant_signed' => 4, 'pending_witness' => 4, 'pending_advocate' => 4,
+            'with_lawyer' => 4, 'pending_upload' => 4, 'pending_landlord_pm' => 4,
             'pending_deposit' => 5,
             'active' => 6, 'renewal_offered' => 6, 'renewal_accepted' => 6,
             'expired' => 7, 'terminated' => 7, 'cancelled' => 7, 'renewal_declined' => 7, 'archived' => 7,
@@ -1317,7 +1336,7 @@ class LeaseInfolist
         // Build a simple ordering map
         $allStates = ['draft', 'received', 'pending_landlord_approval', 'approved', 'printed', 'checked_out',
             'sent_digital', 'pending_otp', 'pending_tenant_signature', 'returned_unsigned',
-            'tenant_signed', 'with_lawyer', 'pending_upload', 'pending_deposit',
+            'tenant_signed', 'pending_witness', 'pending_advocate', 'pending_landlord_pm', 'with_lawyer', 'pending_upload', 'pending_deposit',
             'active', 'renewal_offered', 'renewal_accepted', 'expired', 'terminated', 'cancelled', 'renewal_declined', 'archived'];
         $stateOrder    = array_flip($allStates);
         $currentOrder  = $stateOrder[$workflowState] ?? 999;
@@ -1367,7 +1386,8 @@ class LeaseInfolist
             'pending_landlord_approval' => 2, 'approved' => 2,
             'printed' => 3, 'checked_out' => 3, 'sent_digital' => 3,
             'pending_otp' => 3, 'pending_tenant_signature' => 3, 'returned_unsigned' => 3,
-            'tenant_signed' => 4, 'with_lawyer' => 4, 'pending_upload' => 4,
+            'tenant_signed' => 4, 'pending_witness' => 4, 'pending_advocate' => 4,
+            'with_lawyer' => 4, 'pending_upload' => 4, 'pending_landlord_pm' => 4,
             'pending_deposit' => 5,
             'active' => 6, 'renewal_offered' => 6, 'renewal_accepted' => 6,
             'expired' => 7, 'terminated' => 7, 'cancelled' => 7, 'renewal_declined' => 7, 'archived' => 7,

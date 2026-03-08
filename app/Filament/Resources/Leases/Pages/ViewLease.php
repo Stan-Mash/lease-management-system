@@ -323,6 +323,81 @@ class ViewLease extends ViewRecord
                     }
                 }),
 
+            // ── ASSIGN & SEND TO ADVOCATE (pending_advocate → with_lawyer) ───
+            Action::make('assignAndSendToAdvocate')
+                ->label('Assign & Send to Advocate')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('primary')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'pending_advocate'
+                        && auth()->user()?->can('send_to_lawyer'),
+                )
+                ->modalHeading('Assign & Send to Advocate')
+                ->modalDescription('Select the advocate and add any instructions. They will receive an email with a secure link to download the lease and upload the stamped copy.')
+                ->modalSubmitActionLabel('Send')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('lawyer_id')
+                        ->label('Advocate')
+                        ->options(fn () => Lawyer::active()->orderBy('name')->pluck('name', 'id'))
+                        ->searchable()
+                        ->required(),
+                    Textarea::make('advocate_instructions')
+                        ->label('Instructions for advocate (optional)')
+                        ->placeholder('e.g. Please witness Section 7 and return by Friday...')
+                        ->rows(3)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    $lawyer = Lawyer::find($data['lawyer_id']);
+                    if (! $lawyer) {
+                        Notification::make()->danger()->title('Invalid advocate')->send();
+                        return;
+                    }
+                    $notes = $data['advocate_instructions'] ?? null;
+
+                    $tracking = LeaseLawyerTracking::create([
+                        'lease_id' => $this->record->id,
+                        'lawyer_id' => $lawyer->id,
+                        'sent_method' => 'email',
+                        'sent_by' => auth()->id(),
+                        'sent_notes' => $notes,
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                    ]);
+
+                    $token = LeaseLawyerTracking::generateToken();
+                    $tracking->update([
+                        'lawyer_link_token' => $token,
+                        'lawyer_link_expires_at' => now()->addDays(14),
+                        'sent_via_portal_link' => true,
+                    ]);
+
+                    try {
+                        \Illuminate\Support\Facades\Notification::route('mail', $lawyer->email)
+                            ->notify(new LeaseSentToLawyerNotification(
+                                $this->record,
+                                $lawyer,
+                                $tracking->fresh(),
+                                false,
+                            ));
+                    } catch (Exception $e) {
+                        report($e);
+                        Notification::make()->warning()
+                            ->title('Sent to advocate')
+                            ->body('Tracking recorded, but email could not be sent: ' . $e->getMessage())
+                            ->send();
+                    }
+
+                    $this->record->transitionTo(LeaseWorkflowState::WITH_LAWYER);
+
+                    Notification::make()->success()
+                        ->title('Sent to Advocate')
+                        ->body('Lease assigned to ' . $lawyer->name . ($lawyer->firm ? " ({$lawyer->firm})" : '') . '. They have been emailed a secure portal link for download and upload.')
+                        ->send();
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                }),
+
             // ── SEND TO LAWYER (tenant_signed → with_lawyer) ─────────────────
             Action::make('sendToLawyer')
                 ->label('Send to Lawyer')

@@ -59,7 +59,7 @@ enum LeaseWorkflowState: string
             self::RETURNED_UNSIGNED => [self::CHECKED_OUT, self::CANCELLED],
             self::TENANT_SIGNED => [self::PENDING_ADVOCATE, self::PENDING_WITNESS, self::PENDING_DEPOSIT, self::WITH_LAWYER, self::PENDING_UPLOAD, self::ACTIVE],
             self::PENDING_WITNESS => [self::PENDING_ADVOCATE],
-            self::PENDING_ADVOCATE => [self::PENDING_LANDLORD_PM, self::PENDING_DEPOSIT, self::ACTIVE],
+            self::PENDING_ADVOCATE => [self::WITH_LAWYER, self::PENDING_LANDLORD_PM, self::PENDING_DEPOSIT, self::ACTIVE],
             self::PENDING_LANDLORD_PM => [self::PENDING_ADVOCATE, self::PENDING_DEPOSIT, self::ACTIVE],
             self::WITH_LAWYER => [self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
             self::PENDING_UPLOAD => [self::PENDING_DEPOSIT],
