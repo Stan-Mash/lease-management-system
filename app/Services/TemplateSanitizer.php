@@ -111,9 +111,10 @@ class TemplateSanitizer
             }
         }
 
-        // 2b. mail() — checked separately with open-paren only (not colon) to avoid
-        //     false-positives on "MAIL: info@..." plain-text in HTML templates.
-        if (preg_match('/\bmail\s*\(/i', $lowerTemplate)) {
+        // 2b. mail() — checked inside @php blocks only to avoid false-positives on
+        //     "MAIL: info@..." plain-text in HTML lease templates. mail() in plain
+        //     HTML or text is harmless; only mail() as executable PHP is dangerous.
+        if (preg_match('/@php.*?\bmail\s*\(/si', $template)) {
             throw new InvalidArgumentException(
                 'Template contains a disallowed function or keyword: [mail]. ' .
                 'Contact a system administrator if this is a legitimate requirement.',
