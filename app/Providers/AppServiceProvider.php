@@ -42,11 +42,19 @@ class AppServiceProvider extends ServiceProvider
 
         // Log every outgoing email's final recipient for tracing (remove once deliverability confirmed)
         Event::listen(MessageSent::class, function (MessageSent $event): void {
-            $to = collect($event->sent->getTo() ?? [])->keys()->implode(', ');
-            Log::info('Mail sent via SMTP', [
-                'to'      => $to ?: '(none)',
-                'subject' => $event->sent->getSubject() ?? '(no subject)',
-            ]);
+            try {
+                $recipients = collect($event->message->getTo())
+                    ->map(fn ($addr) => $addr->getAddress())
+                    ->implode(', ');
+                Log::info('Mail sent via SMTP', [
+                    'to'      => $recipients ?: '(none)',
+                    'subject' => $event->message->getSubject() ?? '(no subject)',
+                ]);
+            } catch (\Throwable $e) {
+                Log::info('Mail sent via SMTP (could not parse recipients)', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
         });
 
         // Register observers
