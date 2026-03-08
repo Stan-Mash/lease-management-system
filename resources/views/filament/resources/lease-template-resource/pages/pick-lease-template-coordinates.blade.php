@@ -70,10 +70,10 @@
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 flex items-start justify-center min-h-[calc(100vh-12rem)] flex-1">
+                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto flex justify-center bg-gray-200 dark:bg-gray-800 min-h-[calc(100vh-12rem)] flex-1">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
-                                class="cursor-crosshair block mx-auto"
+                                class="cursor-crosshair block w-full max-w-full h-auto object-contain"
                                 :style="selectedField ? 'cursor: crosshair;' : 'cursor: default;'"></canvas>
                     </div>
                     <p class="mt-2 text-xs text-gray-500" x-show="selectedField">
@@ -177,10 +177,12 @@
                         if (!this.selectedField || !this.viewportSize || !this.viewportSize.width) return;
                         const canvas = document.getElementById('pdf-canvas');
                         const rect = canvas.getBoundingClientRect();
+                        // CSS may scale the canvas; ratio between internal resolution and displayed size
                         const scaleX = canvas.width / rect.width;
                         const scaleY = canvas.height / rect.height;
                         const canvasX = (ev.clientX - rect.left) * scaleX;
                         const canvasY = (ev.clientY - rect.top) * scaleY;
+                        // Map to PDF viewport coordinates (y flipped: PDF origin is bottom-left)
                         const pdfX = (canvasX / canvas.width) * this.viewportSize.width;
                         const pdfY = this.viewportSize.height - (canvasY / canvas.height) * this.viewportSize.height;
 
