@@ -529,7 +529,6 @@ class LeaseForm
                             ->default(false),
 
                         Forms\Components\Repeater::make('guarantors')
-                            ->relationship('guarantors')
                             ->schema([
                                 Grid::make(2)->schema([
                                     Forms\Components\TextInput::make('name')
