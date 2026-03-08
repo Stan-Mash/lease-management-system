@@ -33,15 +33,36 @@
                 @endif
 
                 <p class="text-gray-600">
-                    This lease has been sent to you for legal review and advocate stamping. You can either <strong>sign and stamp digitally</strong> below (we overlay your signature onto the PDF), or <strong>download the PDF</strong>, stamp it offline, and upload it.
+                    This lease has been sent to you for legal review and advocate stamping. Read the document below, then either <strong>sign and stamp digitally</strong> or <strong>upload a pre-stamped PDF</strong>.
                 </p>
 
-                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <h2 class="font-semibold text-gray-900 mb-2">1. Download lease PDF</h2>
-                    <a href="{{ $downloadUrl }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Download lease PDF
-                    </a>
+                {{-- Section 1: Document viewer --}}
+                <div class="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <h2 class="font-semibold text-gray-900">1. Review lease document</h2>
+                        <a href="{{ $downloadUrl }}"
+                           class="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Download PDF
+                        </a>
+                    </div>
+                    <iframe
+                        src="{{ route('lawyer.portal.view', ['token' => $token]) }}"
+                        class="w-full"
+                        style="height: 680px; min-height: 400px;"
+                        title="Lease document – {{ $lease->reference_number }}"
+                        loading="lazy">
+                        <div class="p-6 text-center text-gray-600">
+                            <p class="mb-2">Your browser does not support inline PDF viewing.</p>
+                            <a href="{{ $downloadUrl }}"
+                               class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
+                                Click here to download and view the lease
+                            </a>
+                        </div>
+                    </iframe>
                 </div>
 
                 {{-- Option A: Sign & stamp digitally --}}

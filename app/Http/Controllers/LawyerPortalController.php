@@ -77,6 +77,32 @@ class LawyerPortalController extends Controller
     }
 
     /**
+     * Serve the lease PDF inline so the advocate can read it in the browser.
+     * Same token validation as download() — no authentication required beyond the secure token.
+     */
+    public function viewDocument(string $token): Response
+    {
+        $tracking = LeaseLawyerTracking::findByToken($token);
+
+        if (! $tracking) {
+            abort(404, 'This link is invalid or has expired.');
+        }
+
+        $lease = $tracking->lease;
+        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures']);
+
+        $binary   = $this->pdfService->generate($lease);
+        $filename = $this->pdfService->filename($lease);
+
+        return response($binary, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Content-Length'      => strlen($binary),
+            'Cache-Control'       => 'private, max-age=300',
+        ]);
+    }
+
+    /**
      * Accept either: (1) uploaded stamped PDF, or (2) signature (pad base64 or file) + optional stamp (we overlay and save).
      */
     public function upload(Request $request, string $token): Response
