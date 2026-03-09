@@ -23,6 +23,12 @@ class SubmitSignatureRequest extends FormRequest
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'screen_resolution' => ['nullable', 'string', 'max:20'],
+            'lessee_witness_name' => ['required', 'string', 'max:255'],
+            'lessee_witness_id' => ['required', 'string', 'max:100'],
+            'witness_signature_data' => ['required', 'string'],
+            'advocate_selection' => ['required', 'in:chabrin_advocate,own_advocate'],
+            'tenant_advocate_name' => ['required_if:advocate_selection,own_advocate', 'nullable', 'string', 'max:255'],
+            'tenant_advocate_email' => ['required_if:advocate_selection,own_advocate', 'nullable', 'email', 'max:255'],
         ];
     }
 

@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\LeaseApproval;
+use App\Models\LeaseWitness;
 use App\Services\LandlordApprovalService;
 use App\Services\LeasePdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
@@ -39,12 +42,20 @@ class LandlordPublicApprovalController extends Controller
             $approval = LeaseApproval::where('token', $token)
                 ->with(['lease', 'landlord'])
                 ->first();
-            return view('landlord.public.already_actioned', compact('approval'));
+            return response()
+                ->view('landlord.public.already_actioned', compact('approval'))
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         $documentUrl = route('landlord.public.document', $token);
 
-        return view('landlord.public.approval', compact('approval', 'documentUrl'));
+        return response()
+            ->view('landlord.public.approval', compact('approval', 'documentUrl'))
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**
@@ -108,9 +119,79 @@ class LandlordPublicApprovalController extends Controller
         $action = $request->input('action');
 
         if ($action === 'approve') {
+            $validated = $request->validate([
+                'signature_data' => ['required', 'string'],
+                'lessor_witness_name' => ['required', 'string', 'max:255'],
+                'lessor_witness_id' => ['required', 'string', 'max:100'],
+                'witness_signature_data' => ['required', 'string'],
+                'comments' => ['nullable', 'string'],
+            ]);
+
+            $lease = $approval->lease;
+
+            // Decode landlord signature
+            $landlordPng = $validated['signature_data'];
+            $prefix = 'data:image/png;base64,';
+            if (! str_starts_with($landlordPng, $prefix)) {
+                return redirect()->route('landlord.public.approval', $token)
+                    ->with('error', 'Invalid landlord signature payload.');
+            }
+            $landlordBytes = base64_decode(substr($landlordPng, strlen($prefix)), true);
+            if ($landlordBytes === false || $landlordBytes === '') {
+                return redirect()->route('landlord.public.approval', $token)
+                    ->with('error', 'Landlord signature could not be decoded. Please try again.');
+            }
+
+            // Decode witness signature
+            $witnessPng = $validated['witness_signature_data'];
+            if (! str_starts_with($witnessPng, $prefix)) {
+                return redirect()->route('landlord.public.approval', $token)
+                    ->with('error', 'Invalid witness signature payload.');
+            }
+            $witnessBytes = base64_decode(substr($witnessPng, strlen($prefix)), true);
+            if ($witnessBytes === false || $witnessBytes === '') {
+                return redirect()->route('landlord.public.approval', $token)
+                    ->with('error', 'Witness signature could not be decoded. Please try again.');
+            }
+
+            // Store PNGs on local disk
+            $leaseId = $lease->id;
+            $sigDir = 'lease-signatures/lease-' . $leaseId;
+            $witDir = 'lease-witness-signatures/lease-' . $leaseId;
+
+            $landlordFilename = 'landlord-' . Str::uuid()->toString() . '.png';
+            $landlordPath = $sigDir . '/' . $landlordFilename;
+            Storage::disk('local')->put($landlordPath, $landlordBytes);
+
+            $witnessFilename = 'lessor-witness-' . Str::uuid()->toString() . '.png';
+            $witnessPath = $witDir . '/' . $witnessFilename;
+            Storage::disk('local')->put($witnessPath, $witnessBytes);
+
+            // Persist witness metadata on lease
+            $lease->update([
+                'lessor_witness_name' => $validated['lessor_witness_name'],
+                'lessor_witness_id' => $validated['lessor_witness_id'],
+            ]);
+
+            // Create LeaseWitness record
+            LeaseWitness::create([
+                'lease_id' => $leaseId,
+                'witnessed_party' => 'lessor',
+                'witnessed_by_user_id' => null,
+                'witnessed_by_name' => $validated['lessor_witness_name'],
+                'witnessed_by_title' => null,
+                'witness_type' => 'external',
+                'lsk_number' => null,
+                'witness_id_number' => $validated['lessor_witness_id'],
+                'witness_signature_path' => $witnessPath,
+                'witnessed_at' => now(),
+                'ip_address' => $request->ip(),
+                'notes' => 'Captured via landlord public approval portal.',
+            ]);
+
             LandlordApprovalService::approveLease(
-                $approval->lease,
-                $request->input('comments'),
+                $lease,
+                $validated['comments'] ?? null,
                 'both',
             );
 
@@ -118,8 +199,8 @@ class LandlordPublicApprovalController extends Controller
 
             return view('landlord.public.done', [
                 'action'    => 'approved',
-                'reference' => $approval->lease->reference_number,
-                'tenant'    => $approval->lease->tenant?->names ?? 'the tenant',
+                'reference' => $lease->reference_number,
+                'tenant'    => $lease->tenant?->names ?? 'the tenant',
             ]);
         }
 

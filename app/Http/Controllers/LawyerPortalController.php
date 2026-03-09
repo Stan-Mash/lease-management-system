@@ -38,13 +38,17 @@ class LawyerPortalController extends Controller
         $tracking->load(['lease.tenant', 'lease.property', 'lawyer']);
         $lease = $tracking->lease;
 
-        return view('lawyer.portal', [
-            'tracking' => $tracking,
-            'lease' => $lease,
-            'token' => $token,
-            'downloadUrl' => route('lawyer.portal.download', ['token' => $token]),
-            'expiresAt' => $tracking->lawyer_link_expires_at,
-        ]);
+        return response()
+            ->view('lawyer.portal', [
+                'tracking' => $tracking,
+                'lease' => $lease,
+                'token' => $token,
+                'downloadUrl' => route('lawyer.portal.download', ['token' => $token]),
+                'expiresAt' => $tracking->lawyer_link_expires_at,
+            ])
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**
@@ -87,36 +91,13 @@ class LawyerPortalController extends Controller
                 ->with('error', 'This link is invalid or has expired.');
         }
 
-        $request->validate([
-            'stamped_pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'], // 20MB
-        ], [
-            'stamped_pdf.required' => 'Please select the stamped PDF file to upload.',
-            'stamped_pdf.mimes' => 'The file must be a PDF.',
-            'stamped_pdf.max' => 'The file must not exceed 20 MB.',
-        ]);
-
-        $file = $request->file('stamped_pdf');
         $lease = $tracking->lease;
 
         try {
-            $document = $this->uploadService->upload(
-                $file,
-                $lease->id,
-                'lawyer_stamped',
-                'Stamped lease returned from advocate – ' . ($lease->reference_number ?? 'Lease ' . $lease->id),
-                'Uploaded via lawyer portal.',
-                now()->format('Y-m-d'),
-                null, // No user: uploaded via lawyer portal
-            );
-
-            if ($lease->unit_code) {
-                $document->update(['unit_code' => $lease->unit_code]);
-            }
-
-            $tracking->markAsReturned('email', null, 'Returned via lawyer portal upload.');
-            if ($lease->workflow_state === 'with_lawyer') {
-                $lease->transitionTo(LeaseWorkflowState::PENDING_UPLOAD);
-            }
+            // For now, only record that the lawyer has completed their part.
+            // The actual stamping of the server-side PDF is handled internally
+            // by staff using PdfOverlayService; no external PDFs are trusted.
+            $tracking->markAsReturned('email', null, 'Lawyer confirmed completion via portal.');
         } catch (\Throwable $e) {
             Log::error('Lawyer portal upload failed', [
                 'lease_id' => $lease->id,

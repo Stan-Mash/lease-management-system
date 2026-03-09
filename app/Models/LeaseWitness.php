@@ -17,6 +17,8 @@ class LeaseWitness extends Model
         'witnessed_by_title',
         'witness_type',
         'lsk_number',
+        'witness_id_number',
+        'witness_signature_path',
         'witnessed_at',
         'ip_address',
         'notes',

@@ -34,12 +34,14 @@ class LeaseApproval extends Model
 
     /**
      * Generate a secure one-time token for this approval and persist it.
-     * Token valid 72 hours (matches tenant signing link). Safe to call multiple times (replaces existing token).
+     * Token validity matches the tenant signing link (default: 14 days).
+     * Safe to call multiple times (replaces existing token).
      */
     public function generateToken(): static
     {
-        $this->token            = bin2hex(random_bytes(32)); // 64-char hex string
-        $this->token_expires_at = now()->addHours(72);
+        $this->token = bin2hex(random_bytes(32)); // 64-char hex string
+        $expiryHours = (int) config('lease.signing.link_expiry_hours', 14 * 24);
+        $this->token_expires_at = now()->addHours($expiryHours);
         $this->save();
 
         return $this;

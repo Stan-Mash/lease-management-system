@@ -11,6 +11,8 @@ use App\Http\Requests\RejectLeaseRequest;
 use App\Http\Requests\SubmitSignatureRequest;
 use App\Http\Requests\VerifyOTPRequest;
 use App\Models\Lease;
+use App\Models\LeaseLawyerTracking;
+use App\Models\LeaseWitness;
 use App\Services\DigitalSigningService;
 use App\Services\LeaseDisputeService;
 use App\Services\LeasePdfService;
@@ -22,6 +24,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -42,11 +45,15 @@ class TenantSigningController extends Controller
         // Get signing status
         $status = DigitalSigningService::getSigningStatus($lease);
 
-        return view('tenant.signing.portal', [
-            'lease' => $lease,
-            'tenant' => $lease->tenant,
-            'status' => $status,
-        ]);
+        return response()
+            ->view('tenant.signing.portal', [
+                'lease' => $lease,
+                'tenant' => $lease->tenant,
+                'status' => $status,
+            ])
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**
@@ -138,7 +145,9 @@ class TenantSigningController extends Controller
         $this->verifySignedUrlAndTenant($request, $lease);
 
         try {
-            $signature = DB::transaction(function () use ($request, $lease) {
+            $validated = $request->validated();
+
+            $signature = DB::transaction(function () use ($request, $lease, $validated) {
                 // Lock the lease row to prevent concurrent signature submissions
                 $lockedLease = Lease::lockForUpdate()->findOrFail($lease->id);
 
@@ -154,17 +163,55 @@ class TenantSigningController extends Controller
 
                 $latestOTP = OTPService::getLatestOTP($lockedLease);
 
-                return DigitalSigningService::captureSignature($lockedLease, [
-                    'signature_data' => $request->validated('signature_data'),
+                $signature = DigitalSigningService::captureSignature($lockedLease, [
+                    'signature_data' => $validated['signature_data'],
                     'signature_type' => 'canvas',
-                    'latitude' => $request->validated('latitude'),
-                    'longitude' => $request->validated('longitude'),
+                    'latitude' => $validated['latitude'] ?? null,
+                    'longitude' => $validated['longitude'] ?? null,
                     'otp_verification_id' => $latestOTP?->id,
                     'metadata' => [
                         'browser' => $request->userAgent(),
                         'screen_resolution' => $request->input('screen_resolution'),
                     ],
                 ]);
+
+                // Persist in-person witness for tenant side (lessee)
+                $witnessPngB64 = $validated['witness_signature_data'] ?? null;
+                if (! is_string($witnessPngB64) || ! str_starts_with($witnessPngB64, 'data:image/png;base64,')) {
+                    throw LeaseSigningException::invalidState('Invalid witness signature payload received.');
+                }
+                $witnessBytes = base64_decode(substr($witnessPngB64, strlen('data:image/png;base64,')), true);
+                if ($witnessBytes === false || $witnessBytes === '') {
+                    throw LeaseSigningException::invalidState('Witness signature image could not be decoded.');
+                }
+
+                $witnessDir = 'lease-witness-signatures/lease-' . $lockedLease->id;
+                $witnessFilename = 'tenant-witness-' . Str::uuid()->toString() . '.png';
+                $witnessPath = $witnessDir . '/' . $witnessFilename;
+                Storage::disk('local')->put($witnessPath, $witnessBytes);
+
+                // Update top-level lease witness metadata
+                $lockedLease->update([
+                    'lessee_witness_name' => $validated['lessee_witness_name'] ?? null,
+                    'lessee_witness_id' => $validated['lessee_witness_id'] ?? null,
+                ]);
+
+                LeaseWitness::create([
+                    'lease_id' => $lockedLease->id,
+                    'witnessed_party' => 'tenant',
+                    'witnessed_by_user_id' => null,
+                    'witnessed_by_name' => $validated['lessee_witness_name'] ?? '',
+                    'witnessed_by_title' => null,
+                    'witness_type' => 'external',
+                    'lsk_number' => null,
+                    'witness_id_number' => $validated['lessee_witness_id'] ?? null,
+                    'witness_signature_path' => $witnessPath,
+                    'witnessed_at' => now(),
+                    'ip_address' => $request->ip(),
+                    'notes' => 'Captured via tenant signing portal.',
+                ]);
+
+                return $signature;
             });
 
             Log::info('Signature submitted successfully', [
@@ -172,6 +219,56 @@ class TenantSigningController extends Controller
                 'tenant_id' => $lease->tenant_id,
                 'signature_id' => $signature->id,
             ]);
+
+            // Advocate routing — after successful tenant + witness signing
+            $advocateSelection = $request->validated()['advocate_selection'] ?? null;
+            if ($advocateSelection === 'own_advocate') {
+                $advocateName = $request->validated()['tenant_advocate_name'] ?? null;
+                $advocateEmail = $request->validated()['tenant_advocate_email'] ?? null;
+
+                if ($advocateEmail) {
+                    $tracking = LeaseLawyerTracking::create([
+                        'lease_id' => $lease->id,
+                        'lawyer_id' => null,
+                        'sent_method' => 'email',
+                        'sent_by' => null,
+                        'sent_notes' => 'Tenant-selected advocate: ' . ($advocateName ?? '') . ' <' . $advocateEmail . '>',
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                    ]);
+
+                    $token = LeaseLawyerTracking::generateToken();
+                    $tracking->update([
+                        'lawyer_link_token' => $token,
+                        'lawyer_link_expires_at' => now()->addDays(14),
+                        'sent_via_portal_link' => true,
+                    ]);
+
+                    $portalUrl = route('lawyer.portal', ['token' => $token]);
+
+                    try {
+                        Mail::raw(
+                            "Dear Advocate,\n\n"
+                            . 'Your client ' . ($lease->tenant?->names ?? 'Tenant')
+                            . ' has requested that you review and stamp their commercial lease '
+                            . '(' . ($lease->reference_number ?? 'N/A') . '). '
+                            . "Use the secure link below to access the lease portal (valid for 14 days):\n\n"
+                            . $portalUrl . "\n\n"
+                            . "Regards,\nChabrin Agencies – Lease Management System",
+                            static function ($message) use ($advocateEmail, $advocateName) {
+                                $message->to($advocateEmail, $advocateName ?? null)
+                                    ->subject('Lease review request from your client');
+                            }
+                        );
+                    } catch (Exception $e) {
+                        Log::warning('Failed to email tenant-selected advocate', [
+                            'lease_id' => $lease->id,
+                            'email' => $advocateEmail,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
 
             return response()->json([
                 'success' => true,

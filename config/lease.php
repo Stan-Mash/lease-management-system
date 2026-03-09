@@ -35,8 +35,8 @@ return [
     */
 
     'signing' => [
-        // Signing link expiry time in hours
-        'link_expiry_hours' => env('LEASE_SIGNING_LINK_EXPIRY', 72),
+        // Signing link expiry time in hours (default: 14 days)
+        'link_expiry_hours' => env('LEASE_SIGNING_LINK_EXPIRY', 14 * 24),
 
         // Notification methods: 'email', 'sms', 'both'
         'default_notification_method' => env('LEASE_SIGNING_NOTIFICATION', 'both'),

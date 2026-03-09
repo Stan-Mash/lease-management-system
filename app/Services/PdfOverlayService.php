@@ -128,6 +128,55 @@ class PdfOverlayService
     }
 
     /**
+     * Stamp multiple signature PNGs onto a PDF in a single FPDI pass.
+     *
+     * @param array<string,string> $images      Keyed by logical name, e.g. 'lessee_witness' => '/path/to.png'
+     * @param array<string,array{page:int,x:float,y:float,width:float,height:float}> $coordinates
+     */
+    public function stampMultipleSignatures(
+        string $sourcePdfPath,
+        array $images,
+        array $coordinates,
+        string $outputPath,
+    ): string {
+        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            foreach ($images as $key => $imagePath) {
+                if (! isset($coordinates[$key])) {
+                    continue;
+                }
+                if (! is_string($imagePath) || $imagePath === '' || ! file_exists($imagePath)) {
+                    continue;
+                }
+
+                $config = $coordinates[$key];
+                $targetPage = (int) ($config['page'] ?? 1);
+                if ($targetPage !== $pageNo) {
+                    continue;
+                }
+
+                $x = (float) ($config['x'] ?? 0.0);
+                $y = (float) ($config['y'] ?? 0.0);
+                $w = (float) ($config['width'] ?? 0.0);
+                $h = (float) ($config['height'] ?? 0.0);
+
+                $pdf->Image($imagePath, $x, $y, $w, $h);
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+
+        return $outputPath;
+    }
+
+    /**
      * Stamp manager countersignature + timestamp + SHA-256 audit stamp.
      */
     public function stampAuditBlock(

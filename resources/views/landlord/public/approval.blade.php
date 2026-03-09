@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Lease Approval — {{ $approval->lease->reference_number }}</title>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -349,15 +350,64 @@
         <div class="sheet-sub">
             You are approving lease <strong>{{ $approval->lease->reference_number }}</strong> for <strong>{{ $approval->lease->tenant?->names }}</strong>. This action cannot be undone.
         </div>
-        <form method="POST" action="{{ route('landlord.public.action', $approval->token) }}">
+        <form id="approve-form" method="POST" action="{{ route('landlord.public.action', $approval->token) }}">
             @csrf
             <input type="hidden" name="action" value="approve">
             <label class="field-label">Comments (optional)</label>
             <textarea name="comments" rows="3" placeholder="e.g. Approved — please ensure deposit is paid before key handover."></textarea>
             <div class="field-hint">Any notes or conditions you'd like to add.</div>
+
+            {{-- Landlord signature --}}
+            <div style="margin-top:18px;">
+                <span class="field-label">Landlord Signature</span>
+                <p class="field-hint" style="margin-bottom:6px;">Sign inside the box below using your mouse or finger.</p>
+                <canvas id="signature-pad"
+                        style="width:100%;height:160px;border:1.5px solid #e5e7eb;border-radius:10px;background:#ffffff;display:block;touch-action:none;cursor:crosshair;"
+                        width="600" height="160"></canvas>
+                <input type="hidden" name="signature_data" id="signature_data" value="">
+            </div>
+
+            {{-- In-person witness --}}
+            <div style="margin-top:18px;background:#f9fafb;border:1px dashed #e5e7eb;border-radius:10px;padding:14px 16px;">
+                <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:8px;">
+                    In-Person Witness — Lessor Side
+                </div>
+                <p style="font-size:12px;color:#4b5563;margin-bottom:10px;">
+                    The person physically present when you approve this lease should fill in their details and sign below.
+                </p>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <label for="lessor-witness-name" class="field-label">Witness Full Name</label>
+                        <input id="lessor-witness-name" type="text"
+                               style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;color:#111827;"
+                               placeholder="Full name of witness">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <label for="lessor-witness-id" class="field-label">Witness ID / Passport No.</label>
+                        <input id="lessor-witness-id" type="text"
+                               style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;color:#111827;"
+                               placeholder="National ID or Passport number">
+                    </div>
+                </div>
+                <div style="margin-top:6px;">
+                    <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">Witness Signature</div>
+                    <canvas id="witness-signature-pad"
+                            style="width:100%;height:160px;border:1.5px solid #e5e7eb;border-radius:10px;background:#ffffff;display:block;touch-action:none;cursor:crosshair;"
+                            width="600" height="160"></canvas>
+                    <input type="hidden" name="witness_signature_data" id="witness_signature_data" value="">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+                        <span style="font-size:11px;color:#9ca3af;">Witness should sign inside the box above</span>
+                        <button type="button" id="clear-witness-signature"
+                                style="font-size:11px;color:#6b7280;text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;">
+                            Clear witness signature
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="sheet-actions">
                 <button type="button" class="btn btn-cancel" onclick="closeSheet('approve')">Cancel</button>
-                <button type="submit" class="btn btn-confirm-approve">Confirm Approval</button>
+                <button type="submit" id="approve-submit-btn" class="btn btn-confirm-approve" disabled>Confirm Approval</button>
             </div>
         </form>
     </div>
@@ -405,7 +455,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
 function openSheet(type) {
     document.getElementById(type + 'Sheet').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -429,6 +479,91 @@ document.querySelectorAll('.overlay').forEach(el => {
             document.body.style.overflow = '';
         }
     });
+});
+
+// Initialize landlord + witness signature pads when approve sheet opens
+let landlordSigPad = null;
+let witnessSigPad = null;
+
+function initLandlordPads() {
+    if (landlordSigPad && witnessSigPad) return;
+    const landlordCanvas = document.getElementById('signature-pad');
+    const witnessCanvas = document.getElementById('witness-signature-pad');
+    const approveBtn = document.getElementById('approve-submit-btn');
+
+    if (!landlordCanvas || !witnessCanvas || !approveBtn || typeof SignaturePad === 'undefined') {
+        return;
+    }
+
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+    landlordCanvas.width = landlordCanvas.offsetWidth * ratio;
+    landlordCanvas.height = 160 * ratio;
+    landlordCanvas.getContext('2d').scale(ratio, ratio);
+
+    witnessCanvas.width = witnessCanvas.offsetWidth * ratio;
+    witnessCanvas.height = 160 * ratio;
+    witnessCanvas.getContext('2d').scale(ratio, ratio);
+
+    landlordSigPad = new SignaturePad(landlordCanvas, {
+        backgroundColor: 'rgb(255,255,255)',
+        penColor: 'rgb(0,0,0)',
+        minWidth: 0.5,
+        maxWidth: 2.5,
+    });
+    witnessSigPad = new SignaturePad(witnessCanvas, {
+        backgroundColor: 'rgb(255,255,255)',
+        penColor: 'rgb(0,0,0)',
+        minWidth: 0.5,
+        maxWidth: 2.5,
+    });
+
+    landlordSigPad.addEventListener('endStroke', updateApproveState);
+    witnessSigPad.addEventListener('endStroke', updateApproveState);
+
+    const clearWitnessBtn = document.getElementById('clear-witness-signature');
+    if (clearWitnessBtn) {
+        clearWitnessBtn.addEventListener('click', function () {
+            witnessSigPad.clear();
+            document.getElementById('witness_signature_data').value = '';
+            updateApproveState();
+        });
+    }
+
+    ['lessor-witness-name', 'lessor-witness-id'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateApproveState);
+        }
+    });
+}
+
+function updateApproveState() {
+    const btn = document.getElementById('approve-submit-btn');
+    if (!btn) return;
+    const witnessName = document.getElementById('lessor-witness-name')?.value.trim() || '';
+    const witnessId = document.getElementById('lessor-witness-id')?.value.trim() || '';
+    const landlordOk = landlordSigPad && !landlordSigPad.isEmpty();
+    const witnessOk = witnessSigPad && !witnessSigPad.isEmpty() && witnessName !== '' && witnessId !== '';
+    btn.disabled = !(landlordOk && witnessOk);
+}
+
+document.getElementById('btnApprove')?.addEventListener('click', function () {
+    setTimeout(initLandlordPads, 150);
+});
+
+document.getElementById('approve-form')?.addEventListener('submit', function (e) {
+    if (!landlordSigPad || landlordSigPad.isEmpty() || !witnessSigPad || witnessSigPad.isEmpty()) {
+        e.preventDefault();
+        alert('Please sign as landlord and ask your in-person witness to sign before confirming.');
+        return;
+    }
+    document.getElementById('signature_data').value = landlordSigPad.toDataURL('image/png');
+    document.getElementById('witness_signature_data').value = witnessSigPad.toDataURL('image/png');
+});
+
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) { window.location.reload(); }
 });
 
 </script>

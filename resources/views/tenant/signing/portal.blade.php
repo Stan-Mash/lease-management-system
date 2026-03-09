@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Sign Lease - {{ $lease->reference_number }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.tailwindcss.com"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     <style>
         .signature-canvas {
             border: 2px solid #e5e7eb;
@@ -225,6 +225,8 @@
                 <canvas id="signature-pad" class="signature-canvas w-full" width="700" height="300"></canvas>
             </div>
 
+            <input type="hidden" id="geolocation_data" name="geolocation_data" value="">
+
             <div class="flex gap-3 mb-6">
                 <button id="clear-signature-btn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition">
                     Clear
@@ -234,8 +236,73 @@
                 </button>
             </div>
 
+            <!-- In-Person Witness section -->
+            <div class="border-t border-gray-200 pt-6 mt-4">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">In-Person Witness (Lessee)</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    The person physically present with you while you sign must enter their details and sign below.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="lessee-witness-name" class="block text-sm font-medium text-gray-700 mb-1">Witness Full Name</label>
+                        <input id="lessee-witness-name" type="text"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                               placeholder="Full name of witness">
+                    </div>
+                    <div>
+                        <label for="lessee-witness-id" class="block text-sm font-medium text-gray-700 mb-1">Witness ID / Passport No.</label>
+                        <input id="lessee-witness-id" type="text"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                               placeholder="National ID or Passport number">
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Witness Signature</p>
+                    <canvas id="witness-signature-pad" class="signature-canvas w-full bg-white" width="700" height="200"></canvas>
+                    <input type="hidden" id="witness-signature-data" name="witness_signature_data" value="">
+                </div>
+                <div class="flex gap-3 mb-6">
+                    <button id="clear-witness-signature-btn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition">
+                        Clear Witness Signature
+                    </button>
+                </div>
+
+                <!-- Advocate routing -->
+                <div class="border-t border-gray-100 pt-4 mt-2">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Legal Representation</p>
+                    <p class="text-xs text-gray-500 mb-3">
+                        Are you using Chabrin's advocate or your own advocate to review this lease?
+                    </p>
+                    <div class="flex flex-col md:flex-row gap-3 mb-3">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="advocate_selection" value="chabrin_advocate" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">Use Chabrin's Advocate</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="advocate_selection" value="own_advocate" class="text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">I have my own Advocate</span>
+                        </label>
+                    </div>
+                    <div id="own-advocate-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div>
+                            <label for="tenant-advocate-name" class="block text-sm font-medium text-gray-700 mb-1">Advocate Full Name</label>
+                            <input id="tenant-advocate-name" type="text"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                   placeholder="e.g. John Doe, Advocate">
+                        </div>
+                        <div>
+                            <label for="tenant-advocate-email" class="block text-sm font-medium text-gray-700 mb-1">Advocate Email Address</label>
+                            <input id="tenant-advocate-email" type="email"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                   placeholder="advocate@example.com">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <button id="submit-signature-btn"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled>
                 Submit Signature
             </button>
@@ -311,10 +378,11 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         const leaseId    = {{ $lease->id }};
         const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
         let signaturePad;
+        let witnessSignaturePad;
         let otpTimer;
         let otpExpiresAt;
         let userLocation  = null;
@@ -335,6 +403,10 @@
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         userLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                        const geoField = document.getElementById('geolocation_data');
+                        if (geoField) {
+                            geoField.value = `${pos.coords.latitude},${pos.coords.longitude}`;
+                        }
                     },
                     () => { /* User denied browser permission — proceed without location */ },
                     { timeout: 10000, maximumAge: 300000 }
@@ -364,6 +436,17 @@
             document.getElementById('request-otp-btn').addEventListener('click', requestOTP);
             document.getElementById('verify-otp-btn').addEventListener('click', verifyOTP);
             document.getElementById('resend-otp-btn').addEventListener('click', requestOTP);
+
+            const otpInput = document.getElementById('otp-code');
+            if (otpInput) {
+                otpInput.addEventListener('input', () => {
+                    // Strip non-digits to guard against pasted content
+                    otpInput.value = otpInput.value.replace(/\D/g, '');
+                    if (otpInput.value.length === 6) {
+                        verifyOTP();
+                    }
+                });
+            }
         }
 
         async function requestOTP(event) {
@@ -448,55 +531,164 @@
         // ═══════════ STEP 3 — SIGNATURE ═══════════
 
         function initializeSignaturePad() {
-            const canvas = document.getElementById('signature-pad');
             try {
+                const mainCanvas = document.getElementById('signature-pad');
+                const witnessCanvas = document.getElementById('witness-signature-pad');
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width  = canvas.offsetWidth  * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext('2d').scale(ratio, ratio);
 
-                signaturePad = new SignaturePad(canvas, {
-                    backgroundColor: 'rgb(255, 255, 255)',
-                    penColor: 'rgb(0, 0, 0)',
-                    minWidth: 0.5,
-                    maxWidth: 2.5
+                if (mainCanvas && !signaturePad) {
+                    mainCanvas.width  = mainCanvas.offsetWidth  * ratio;
+                    mainCanvas.height = mainCanvas.offsetHeight * ratio;
+                    mainCanvas.getContext('2d').scale(ratio, ratio);
+
+                    signaturePad = new SignaturePad(mainCanvas, {
+                        backgroundColor: 'rgb(255, 255, 255)',
+                        penColor: 'rgb(0, 0, 0)',
+                        minWidth: 0.5,
+                        maxWidth: 2.5
+                    });
+                    signaturePad.addEventListener('endStroke', () => {
+                        updateSubmitButtonState();
+                    });
+                    document.getElementById('clear-signature-btn').addEventListener('click', () => {
+                        signaturePad.clear();
+                        updateSubmitButtonState();
+                    });
+                    document.getElementById('undo-signature-btn').addEventListener('click', () => {
+                        const d = signaturePad.toData();
+                        if (d) { d.pop(); signaturePad.fromData(d); }
+                        updateSubmitButtonState();
+                    });
+                }
+
+                if (witnessCanvas && !witnessSignaturePad) {
+                    witnessCanvas.width  = witnessCanvas.offsetWidth  * ratio;
+                    witnessCanvas.height = witnessCanvas.offsetHeight * ratio;
+                    witnessCanvas.getContext('2d').scale(ratio, ratio);
+
+                    witnessSignaturePad = new SignaturePad(witnessCanvas, {
+                        backgroundColor: 'rgb(255, 255, 255)',
+                        penColor: 'rgb(0, 0, 0)',
+                        minWidth: 0.5,
+                        maxWidth: 2.5
+                    });
+                    witnessSignaturePad.addEventListener('endStroke', () => {
+                        updateSubmitButtonState();
+                    });
+                    document.getElementById('clear-witness-signature-btn').addEventListener('click', () => {
+                        witnessSignaturePad.clear();
+                        document.getElementById('witness-signature-data').value = '';
+                        updateSubmitButtonState();
+                    });
+                }
+
+                const advocateRadios = document.querySelectorAll('input[name="advocate_selection"]');
+                const ownAdvocateFields = document.getElementById('own-advocate-fields');
+                advocateRadios.forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        if (radio.value === 'own_advocate' && radio.checked) {
+                            ownAdvocateFields.classList.remove('hidden');
+                        } else if (radio.checked) {
+                            ownAdvocateFields.classList.add('hidden');
+                        }
+                        updateSubmitButtonState();
+                    });
                 });
-                signaturePad.addEventListener('endStroke', () => {
-                    document.getElementById('submit-signature-btn').disabled = signaturePad.isEmpty();
+                ['lessee-witness-name', 'lessee-witness-id', 'tenant-advocate-name', 'tenant-advocate-email'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('input', updateSubmitButtonState);
+                    }
                 });
-                document.getElementById('clear-signature-btn').addEventListener('click', () => signaturePad.clear());
-                document.getElementById('undo-signature-btn').addEventListener('click', () => {
-                    const d = signaturePad.toData();
-                    if (d) { d.pop(); signaturePad.fromData(d); }
-                });
-                document.getElementById('submit-signature-btn').addEventListener('click', submitSignature);
+
+                const submitBtn = document.getElementById('submit-signature-btn');
+                if (submitBtn && !submitBtn._bound) {
+                    submitBtn.addEventListener('click', submitSignature);
+                    submitBtn._bound = true;
+                }
             } catch (e) {
                 console.error('SignaturePad init failed:', e);
             }
         }
 
+        function updateSubmitButtonState() {
+            const btn = document.getElementById('submit-signature-btn');
+            if (!btn) return;
+            const witnessName = document.getElementById('lessee-witness-name')?.value.trim() || '';
+            const witnessId = document.getElementById('lessee-witness-id')?.value.trim() || '';
+            const advocateSelection = document.querySelector('input[name="advocate_selection"]:checked')?.value || '';
+            const ownAdvocateName = document.getElementById('tenant-advocate-name')?.value.trim() || '';
+            const ownAdvocateEmail = document.getElementById('tenant-advocate-email')?.value.trim() || '';
+
+            const mainOk = signaturePad && !signaturePad.isEmpty();
+            const witnessOk = witnessSignaturePad && !witnessSignaturePad.isEmpty() && witnessName !== '' && witnessId !== '';
+            let advocateOk = advocateSelection !== '';
+            if (advocateSelection === 'own_advocate') {
+                advocateOk = ownAdvocateName !== '' && ownAdvocateEmail !== '';
+            }
+
+            btn.disabled = !(mainOk && witnessOk && advocateOk);
+        }
+
         async function submitSignature() {
-            if (signaturePad.isEmpty()) {
+            if (!signaturePad || signaturePad.isEmpty()) {
                 showMessage('signature-message', 'error', 'Please provide your signature before submitting.');
                 return;
+            }
+            if (!witnessSignaturePad || witnessSignaturePad.isEmpty()) {
+                showMessage('signature-message', 'error', 'Please ask your in-person witness to sign as well.', true);
+                return;
+            }
+            const witnessName = document.getElementById('lessee-witness-name').value.trim();
+            const witnessId = document.getElementById('lessee-witness-id').value.trim();
+            if (!witnessName || !witnessId) {
+                showMessage('signature-message', 'error', 'Witness name and ID are required.', true);
+                return;
+            }
+            const advocateSelection = document.querySelector('input[name="advocate_selection"]:checked')?.value;
+            if (!advocateSelection) {
+                showMessage('signature-message', 'error', 'Please select your legal representation option.', true);
+                return;
+            }
+            const ownAdvocateName = document.getElementById('tenant-advocate-name').value.trim();
+            const ownAdvocateEmail = document.getElementById('tenant-advocate-email').value.trim();
+            if (advocateSelection === 'own_advocate') {
+                if (!ownAdvocateName || !ownAdvocateEmail) {
+                    showMessage('signature-message', 'error', 'Please provide your advocate’s name and email.', true);
+                    return;
+                }
             }
             const btn = document.getElementById('submit-signature-btn');
             btn.disabled = true;
             btn.textContent = 'Submitting...';
             try {
                 const signatureData = signaturePad.toDataURL();
+                const witnessSignatureData = witnessSignaturePad.toDataURL();
                 if (!signatureData || signatureData.length < 1000) {
                     showMessage('signature-message', 'error', 'Signature capture failed. Please clear and draw again.', true);
                     btn.disabled = false;
                     btn.textContent = 'Submit Signature';
                     return;
                 }
+                if (!witnessSignatureData || witnessSignatureData.length < 1000) {
+                    showMessage('signature-message', 'error', 'Witness signature capture failed. Please clear and draw again.', true);
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Signature';
+                    return;
+                }
+                document.getElementById('witness-signature-data').value = witnessSignatureData;
                 const url = new URL(window.location.href);
                 const response = await fetch(`/tenant/sign/${leaseId}/submit-signature${url.search}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
                     body: JSON.stringify({
                         signature_data: signatureData,
+                        witness_signature_data: witnessSignatureData,
+                        lessee_witness_name: witnessName,
+                        lessee_witness_id: witnessId,
+                        advocate_selection: advocateSelection,
+                        tenant_advocate_name: advocateSelection === 'own_advocate' ? ownAdvocateName : null,
+                        tenant_advocate_email: advocateSelection === 'own_advocate' ? ownAdvocateEmail : null,
                         latitude:  userLocation?.latitude,
                         longitude: userLocation?.longitude
                     })

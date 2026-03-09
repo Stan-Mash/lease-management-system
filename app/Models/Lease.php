@@ -98,6 +98,12 @@ class Lease extends Model
         'date_created',
         'signing_link_expires_at',
         'signing_link_expired_alerted_at',
+        'lessee_witness_name',
+        'lessee_witness_id',
+        'lessor_witness_name',
+        'lessor_witness_id',
+        'tenant_advocate_name',
+        'tenant_advocate_email',
     ];
 
     protected $casts = [

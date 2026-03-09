@@ -11,6 +11,7 @@ use App\Models\DigitalSignature;
 use App\Models\Lawyer;
 use App\Models\LeaseLawyerTracking;
 use App\Models\LeaseWitness;
+use App\Services\PdfOverlayService;
 use App\Notifications\LeaseSentToLawyerNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
@@ -27,6 +28,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class ViewLease extends ViewRecord
 {
@@ -215,10 +217,15 @@ class ViewLease extends ViewRecord
                         && $this->record->signing_mode === 'digital',
                 )
                 ->modalHeading('Send Signing Link to Tenant')
-                ->modalDescription(
-                    fn () => 'The tenant will receive a secure link to digitally sign their lease (valid 72 hours). '
-                        . 'They will open the link, request a 6-digit OTP, verify it, and draw their signature.',
-                )
+                ->modalDescription(function () {
+                    $hours = (int) config('lease.signing.link_expiry_hours', 14 * 24);
+                    $days = max(1, (int) round($hours / 24));
+
+                    return 'The tenant will receive a secure link to digitally sign their lease (valid '
+                        . $days
+                        . ' day' . ($days !== 1 ? 's' : '') . '). '
+                        . 'They will open the link, request a 6-digit OTP, verify it, and draw their signature.';
+                })
                 ->modalSubmitActionLabel('Send Now')
                 /** @phpstan-ignore-next-line */
                 ->schema([
@@ -598,7 +605,7 @@ class ViewLease extends ViewRecord
                         ->label('LSK Number (if advocate)')
                         ->placeholder('e.g. LSK/2024/01234')
                         ->maxLength(50)
-                        ->visible(fn (\Filament\Forms\Get $get) => $get('witness_type') === 'advocate'),
+                        ->visible(fn ($get) => $get('witness_type') === 'advocate'),
 
                     Textarea::make('notes')
                         ->label('Notes (optional)')
@@ -799,6 +806,26 @@ HTML
                         ->default(false)
                         ->helperText('Your drawn signature will be stored encrypted on your account.'),
 
+                    TextInput::make('witness_name')
+                        ->label('Witness Full Name')
+                        ->required()
+                        ->maxLength(255)
+                        ->helperText('Person who was physically present when you countersigned on behalf of the lessor.'),
+
+                    TextInput::make('witness_id_number')
+                        ->label('Witness ID / Passport Number')
+                        ->required()
+                        ->maxLength(100),
+
+                    FileUpload::make('witness_signature_upload')
+                        ->label('Witness Signature Image')
+                        ->required()
+                        ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp'])
+                        ->maxSize(5120)
+                        ->disk('local')
+                        ->directory('temp-manager-witness')
+                        ->helperText('Scan or photo of the witness signature (PNG/JPEG, max 5MB).'),
+
                     Textarea::make('countersign_notes')
                         ->label('Notes (Optional)')
                         ->placeholder('e.g. Deposit received, keys handed over...')
@@ -882,6 +909,48 @@ HTML
                         // Reset the canvas state after a successful countersign
                         $this->canvasPngB64 = '';
 
+                        // Persist manager-side witness details
+                        $managerWitnessPath = null;
+                        if (! empty($data['witness_signature_upload'] ?? null)) {
+                            $tempPath = storage_path('app/' . $data['witness_signature_upload']);
+                            if (file_exists($tempPath)) {
+                                $leaseId = $this->record->id;
+                                $destDir = 'lease-witness-signatures/lease-' . $leaseId;
+                                $filename = 'manager-witness-' . \Illuminate\Support\Str::uuid()->toString() . '.png';
+                                $relativePath = $destDir . '/' . $filename;
+
+                                $bytes = file_get_contents($tempPath);
+                                if ($bytes !== false) {
+                                    Storage::disk('local')->put($relativePath, $bytes);
+                                    $managerWitnessPath = $relativePath;
+
+                                    // Update top-level lease fields
+                                    $this->record->update([
+                                        'lessor_witness_name' => $data['witness_name'],
+                                        'lessor_witness_id' => $data['witness_id_number'],
+                                    ]);
+
+                                    // Create LeaseWitness record
+                                    LeaseWitness::create([
+                                        'lease_id' => $leaseId,
+                                        'witnessed_party' => 'lessor',
+                                        'witnessed_by_user_id' => auth()->id(),
+                                        'witnessed_by_name' => $data['witness_name'],
+                                        'witnessed_by_title' => null,
+                                        'witness_type' => 'staff',
+                                        'lsk_number' => null,
+                                        'witness_id_number' => $data['witness_id_number'],
+                                        'witness_signature_path' => $relativePath,
+                                        'witnessed_at' => now(),
+                                        'ip_address' => request()->ip(),
+                                        'notes' => 'Captured via manager countersign action.',
+                                    ]);
+                                }
+
+                                @unlink($tempPath);
+                            }
+                        }
+
                         $this->record->update([
                             'countersigned_by'  => $data['countersigned_by'] ?? $user->name,
                             'countersigned_at'  => now(),
@@ -893,7 +962,82 @@ HTML
                             : \App\Services\SigningWorkflowService::SIGNER_PM;
                         \App\Services\SigningWorkflowService::advanceAfterSignature($this->record, $signerRole);
 
-                        $state = $this->record->fresh()->workflow_state;
+                        // ── Final PDF multi-signature pass ─────────────────────
+                        $lease = $this->record->fresh();
+
+                        $lesseeWitnessPath = LeaseWitness::where('lease_id', $lease->id)
+                            ->where('witnessed_party', 'tenant')
+                            ->latest('witnessed_at')
+                            ->value('witness_signature_path');
+
+                        $lessorWitnessPath = LeaseWitness::where('lease_id', $lease->id)
+                            ->where('witnessed_party', 'lessor')
+                            ->latest('witnessed_at')
+                            ->value('witness_signature_path') ?? $managerWitnessPath;
+
+                        // Advocate signatures (if stored as digital signatures on this lease)
+                        $tenantAdvocateSig = DigitalSignature::forLease($lease->id)
+                            ->where('signer_type', 'tenant_advocate')
+                            ->latest('signed_at')
+                            ->first();
+                        $chabrinAdvocateSig = DigitalSignature::forLease($lease->id)
+                            ->where('signer_type', 'lessor_advocate')
+                            ->latest('signed_at')
+                            ->first();
+
+                        $tenantAdvocatePath = null;
+                        $chabrinAdvocatePath = null;
+
+                        if ($tenantAdvocateSig && is_string($tenantAdvocateSig->signature_data) && str_starts_with($tenantAdvocateSig->signature_data, 'data:image/png;base64,')) {
+                            $png = base64_decode(substr($tenantAdvocateSig->signature_data, strlen('data:image/png;base64,')), true);
+                            if ($png !== false && $png !== '') {
+                                $dir = 'lease-signatures/lease-' . $lease->id;
+                                $file = 'tenant-advocate-' . \Illuminate\Support\Str::uuid()->toString() . '.png';
+                                $tenantAdvocatePath = $dir . '/' . $file;
+                                Storage::disk('local')->put($tenantAdvocatePath, $png);
+                            }
+                        }
+
+                        if ($chabrinAdvocateSig && is_string($chabrinAdvocateSig->signature_data) && str_starts_with($chabrinAdvocateSig->signature_data, 'data:image/png;base64,')) {
+                            $png = base64_decode(substr($chabrinAdvocateSig->signature_data, strlen('data:image/png;base64,')), true);
+                            if ($png !== false && $png !== '') {
+                                $dir = 'lease-signatures/lease-' . $lease->id;
+                                $file = 'lessor-advocate-' . \Illuminate\Support\Str::uuid()->toString() . '.png';
+                                $chabrinAdvocatePath = $dir . '/' . $file;
+                                Storage::disk('local')->put($chabrinAdvocatePath, $png);
+                            }
+                        }
+
+                        $images = array_filter([
+                            'lessee_witness' => $lesseeWitnessPath ? storage_path('app/' . $lesseeWitnessPath) : null,
+                            'lessor_witness' => $lessorWitnessPath ? storage_path('app/' . $lessorWitnessPath) : null,
+                            'lessee_advocate' => $tenantAdvocatePath ? storage_path('app/' . $tenantAdvocatePath) : null,
+                            'lessor_advocate' => $chabrinAdvocatePath ? storage_path('app/' . $chabrinAdvocatePath) : null,
+                        ]);
+
+                        if (! empty($images) && $lease->leaseTemplate?->pdf_coordinate_map) {
+                            $coordinates = (array) $lease->leaseTemplate->pdf_coordinate_map;
+
+                            $sourcePdfPath = $lease->signed_pdf_path
+                                ? storage_path('app/' . $lease->signed_pdf_path)
+                                : ($lease->generated_pdf_path ? storage_path('app/' . $lease->generated_pdf_path) : null);
+
+                            if ($sourcePdfPath && file_exists($sourcePdfPath)) {
+                                $outputRelative = $lease->signed_pdf_path
+                                    ?: 'executed-leases/lease-' . $lease->id . '-executed.pdf';
+                                $outputPath = storage_path('app/' . $outputRelative);
+
+                                /** @var PdfOverlayService $pdfOverlay */
+                                $pdfOverlay = app(PdfOverlayService::class);
+                                $pdfOverlay->stampMultipleSignatures($sourcePdfPath, $images, $coordinates, $outputPath);
+
+                                if (! $lease->signed_pdf_path) {
+                                    $lease->update(['signed_pdf_path' => $outputRelative]);
+                                }
+                            }
+                        }
+
+                        $state = $lease->workflow_state;
                         $isActive = $state === 'active';
                         Notification::make()
                             ->success()

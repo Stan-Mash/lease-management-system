@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Lease for review – {{ $lease->reference_number }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="max-w-2xl mx-auto px-4 py-10">
@@ -29,7 +29,7 @@
                 @endif
 
                 <p class="text-gray-600">
-                    This lease has been sent to you for legal review and advocate stamping. Download the PDF below, then upload the stamped version using the form.
+                    This lease has been sent to you for legal review and advocate stamping. Download the PDF below and review it carefully.
                 </p>
 
                 <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
@@ -41,20 +41,16 @@
                 </div>
 
                 <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <h2 class="font-semibold text-gray-900 mb-2">2. Upload stamped PDF</h2>
-                    <p class="text-sm text-gray-600 mb-4">After stamping the lease, upload the PDF here. It will be returned to Chabrin automatically.</p>
-                    <form action="{{ route('lawyer.portal.upload', ['token' => $token]) }}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    <h2 class="font-semibold text-gray-900 mb-2">2. Confirm completion</h2>
+                    <p class="text-sm text-gray-600 mb-4">
+                        After you have completed your review and stamping on your side, click the button below so the Chabrin team can proceed.
+                    </p>
+                    <form action="{{ route('lawyer.portal.upload', ['token' => $token]) }}" method="post" class="space-y-4">
                         @csrf
-                        <div>
-                            <input type="file" name="stamped_pdf" accept=".pdf" required
-                                class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            @error('stamped_pdf')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        <input type="hidden" id="geolocation_data" name="geolocation_data" value="">
                         <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            Upload stamped lease
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Mark as completed
                         </button>
                     </form>
                 </div>
@@ -66,5 +62,22 @@
         </div>
 
     </div>
+        <p class="mt-4 text-xs text-gray-400 text-center">
+            This portal does not accept uploaded PDFs. All final stamping is applied on a secured copy of the lease stored on Chabrin's servers.
+        </p>
+    </div>
+
+    <script nonce="{{ $cspNonce }}">
+        const geoField = document.getElementById('geolocation_data');
+        if (navigator.geolocation && geoField) {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                geoField.value = pos.coords.latitude + ',' + pos.coords.longitude;
+            });
+        }
+
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) { window.location.reload(); }
+        });
+    </script>
 </body>
 </html>
