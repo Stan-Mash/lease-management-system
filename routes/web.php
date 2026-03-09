@@ -77,10 +77,10 @@ Route::prefix('guarantor')->name('guarantor.portal.')->middleware('throttle:30,1
 });
 
 // Public landlord approval portal — no login required, secured by one-time token
-Route::prefix('landlord/approve')->name('landlord.public.')->middleware('throttle:20,1')->group(function () {
-    Route::get('/{token}', [LandlordPublicApprovalController::class, 'show'])->name('approval');
-    Route::get('/{token}/document', [LandlordPublicApprovalController::class, 'document'])->name('document');
-    Route::post('/{token}', [LandlordPublicApprovalController::class, 'action'])->name('action');
+Route::prefix('landlord/approve')->name('landlord.public.')->group(function () {
+    Route::get('/{token}', [LandlordPublicApprovalController::class, 'show'])->name('approval')->middleware('throttle:30,1');
+    Route::get('/{token}/document', [LandlordPublicApprovalController::class, 'document'])->name('document')->middleware('throttle:60,1'); // iframe loads repeatedly
+    Route::post('/{token}', [LandlordPublicApprovalController::class, 'action'])->name('action')->middleware('throttle:10,1'); // separate bucket from GET requests
 });
 
 // Landlord approval portal routes (for landlord app integration)
