@@ -60,6 +60,19 @@ return [
             'report' => false,
         ],
 
+        // DigitalOcean Spaces (S3-compatible) — used in production when FILESYSTEM_DISK=spaces
+        'spaces' => [
+            'driver' => 's3',
+            'key' => env('DO_SPACES_KEY'),
+            'secret' => env('DO_SPACES_SECRET'),
+            'region' => env('DO_SPACES_REGION', 'fra1'),
+            'bucket' => env('DO_SPACES_BUCKET'),
+            'endpoint' => env('DO_SPACES_ENDPOINT', 'https://fra1.digitaloceanspaces.com'),
+            'use_path_style_endpoint' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*
