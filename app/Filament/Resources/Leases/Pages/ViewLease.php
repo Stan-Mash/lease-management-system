@@ -11,10 +11,10 @@ use App\Models\DigitalSignature;
 use App\Models\Lawyer;
 use App\Models\LeaseLawyerTracking;
 use App\Models\LeaseWitness;
-use App\Services\PdfOverlayService;
 use App\Notifications\LeaseSentToLawyerNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
+use App\Services\PdfOverlayService;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -217,44 +217,28 @@ class ViewLease extends ViewRecord
                         && $this->record->signing_mode === 'digital',
                 )
                 ->modalHeading('Send Signing Link to Tenant')
-                ->modalDescription(function () {
-                    $hours = (int) config('lease.signing.link_expiry_hours', 14 * 24);
-                    $days = max(1, (int) round($hours / 24));
-
-                    return 'The tenant will receive a secure link to digitally sign their lease (valid '
-                        . $days
-                        . ' day' . ($days !== 1 ? 's' : '') . '). '
-                        . 'They will open the link, request a 6-digit OTP, verify it, and draw their signature.';
-                })
+                ->modalDescription(
+                    fn () => 'The tenant will receive a secure link to digitally sign their lease (valid 72 hours). '
+                        . 'They will open the link, request a 6-digit OTP, verify it, and draw their signature.',
+                )
                 ->modalSubmitActionLabel('Send Now')
                 /** @phpstan-ignore-next-line */
                 ->schema([
                     Select::make('send_method')
                         ->label('Send Via')
                         ->options(function () {
-                            $options = [];
-                            if ($this->record->tenant?->mobile_number) {
-                                $options['sms'] = '📱 SMS — ' . ($this->record->tenant->mobile_number);
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                $options['email'] = '✉️ Email — ' . ($this->record->tenant->email_address);
-                            }
-                            if (count($options) === 2) {
-                                $options['both'] = '📱 + ✉️ Both SMS & Email';
-                            }
+                            $phone = $this->record->tenant?->mobile_number
+                                ?: config('services.sms_redirect_to', '');
+                            $email = $this->record->tenant?->email_address
+                                ?: config('mail.redirect_to', '');
 
-                            return $options;
+                            return [
+                                'sms'   => '📱 SMS' . ($phone ? ' — ' . $phone : ''),
+                                'email' => '✉️ Email' . ($email ? ' — ' . $email : ''),
+                                'both'  => '📱 + ✉️ Both SMS & Email',
+                            ];
                         })
-                        ->default(function () {
-                            if ($this->record->tenant?->mobile_number) {
-                                return 'sms';
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                return 'email';
-                            }
-
-                            return 'both';
-                        })
+                        ->default('both')
                         ->required()
                         ->helperText('Choose how to send the signing link to the tenant'),
                 ])
@@ -302,29 +286,18 @@ class ViewLease extends ViewRecord
                     Select::make('send_method')
                         ->label('Send Via')
                         ->options(function () {
-                            $options = [];
-                            if ($this->record->tenant?->mobile_number) {
-                                $options['sms'] = '📱 SMS — ' . ($this->record->tenant->mobile_number);
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                $options['email'] = '✉️ Email — ' . ($this->record->tenant->email_address);
-                            }
-                            if (count($options) === 2) {
-                                $options['both'] = '📱 + ✉️ Both SMS & Email';
-                            }
+                            $phone = $this->record->tenant?->mobile_number
+                                ?: config('services.sms_redirect_to', '');
+                            $email = $this->record->tenant?->email_address
+                                ?: config('mail.redirect_to', '');
 
-                            return $options;
+                            return [
+                                'sms'   => '📱 SMS' . ($phone ? ' — ' . $phone : ''),
+                                'email' => '✉️ Email' . ($email ? ' — ' . $email : ''),
+                                'both'  => '📱 + ✉️ Both SMS & Email',
+                            ];
                         })
-                        ->default(function () {
-                            if ($this->record->tenant?->mobile_number) {
-                                return 'sms';
-                            }
-                            if ($this->record->tenant?->email_address) {
-                                return 'email';
-                            }
-
-                            return 'sms';
-                        })
+                        ->default('both')
                         ->required(),
                 ])
                 ->action(function (array $data) {
@@ -352,14 +325,92 @@ class ViewLease extends ViewRecord
                     }
                 }),
 
-            // ── SEND TO LAWYER (tenant_signed → with_lawyer) ─────────────────
+            // ── ASSIGN & SEND TO ADVOCATE (pending_advocate → with_lawyer) ───
+            Action::make('assignAndSendToAdvocate')
+                ->label('Assign & Send to Advocate')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('primary')
+                ->visible(
+                    fn () => $this->record->workflow_state === 'pending_advocate'
+                        && auth()->user()?->can('send_to_lawyer'),
+                )
+                ->modalHeading('Assign & Send to Advocate')
+                ->modalDescription('Select the advocate and add any instructions. They will receive an email with a secure link to download the lease and upload the stamped copy.')
+                ->modalSubmitActionLabel('Send')
+                /** @phpstan-ignore-next-line */
+                ->schema([
+                    Select::make('lawyer_id')
+                        ->label('Advocate')
+                        ->options(fn () => Lawyer::active()->orderBy('name')->pluck('name', 'id'))
+                        ->searchable()
+                        ->required(),
+                    Textarea::make('advocate_instructions')
+                        ->label('Instructions for advocate (optional)')
+                        ->placeholder('e.g. Please witness Section 7 and return by Friday...')
+                        ->rows(3)
+                        ->maxLength(500),
+                ])
+                ->action(function (array $data) {
+                    $lawyer = Lawyer::find($data['lawyer_id']);
+                    if (! $lawyer) {
+                        Notification::make()->danger()->title('Invalid advocate')->send();
+                        return;
+                    }
+                    $notes = $data['advocate_instructions'] ?? null;
+
+                    $tracking = LeaseLawyerTracking::create([
+                        'lease_id' => $this->record->id,
+                        'lawyer_id' => $lawyer->id,
+                        'sent_method' => 'email',
+                        'sent_by' => auth()->id(),
+                        'sent_notes' => $notes,
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                    ]);
+
+                    $token = LeaseLawyerTracking::generateToken();
+                    $tracking->update([
+                        'lawyer_link_token' => $token,
+                        'lawyer_link_expires_at' => now()->addDays(14),
+                        'sent_via_portal_link' => true,
+                    ]);
+
+                    try {
+                        \Illuminate\Support\Facades\Notification::route('mail', $lawyer->email)
+                            ->notify(new LeaseSentToLawyerNotification(
+                                $this->record,
+                                $lawyer,
+                                $tracking->fresh(),
+                                false,
+                            ));
+                    } catch (Exception $e) {
+                        report($e);
+                        Notification::make()->warning()
+                            ->title('Sent to advocate')
+                            ->body('Tracking recorded, but email could not be sent: ' . $e->getMessage())
+                            ->send();
+                    }
+
+                    $this->record->transitionTo(LeaseWorkflowState::WITH_LAWYER);
+
+                    Notification::make()->success()
+                        ->title('Sent to Advocate')
+                        ->body('Lease assigned to ' . $lawyer->name . ($lawyer->firm ? " ({$lawyer->firm})" : '') . '. They have been emailed a secure portal link for download and upload.')
+                        ->send();
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                }),
+
+            // ── SEND TO LAWYER (tenant_signed / pending_advocate / pending_witness → with_lawyer) ───
             Action::make('sendToLawyer')
                 ->label('Send to Lawyer')
                 ->icon('heroicon-o-scale')
                 ->color('gray')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'tenant_signed'
-                        && auth()->user()?->can('send_to_lawyer'),
+                    fn () => in_array($this->record->workflow_state, [
+                        'tenant_signed',    // direct path (if state lands here)
+                        'pending_advocate', // commercial: next after tenant signs
+                        'pending_witness',  // residential_major: next after tenant signs
+                    ]) && auth()->user()?->can('send_to_lawyer'),
                 )
                 ->modalHeading('Send Lease to Lawyer')
                 ->modalDescription('Select the advocate and how to send the lease. They can receive the PDF by email or a secure link to download and upload the stamped copy.')
@@ -605,7 +656,7 @@ class ViewLease extends ViewRecord
                         ->label('LSK Number (if advocate)')
                         ->placeholder('e.g. LSK/2024/01234')
                         ->maxLength(50)
-                        ->visible(fn ($get) => $get('witness_type') === 'advocate'),
+                        ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('witness_type') === 'advocate'),
 
                     Textarea::make('notes')
                         ->label('Notes (optional)')
@@ -650,7 +701,12 @@ class ViewLease extends ViewRecord
                 ->icon('heroicon-o-check-badge')
                 ->color('success')
                 ->visible(
-                    fn () => in_array($this->record->workflow_state, ['tenant_signed', 'pending_deposit', 'pending_landlord_pm'], true)
+                    fn () => in_array($this->record->workflow_state, [
+                        'tenant_signed',
+                        'pending_upload',   // lawyer returned signed copy via portal
+                        'pending_deposit',
+                        'pending_landlord_pm',
+                    ], true)
                         && auth()->user()?->canManageLeases(),
                 )
                 ->modalHeading('Countersign & Activate Lease')
@@ -806,26 +862,6 @@ HTML
                         ->default(false)
                         ->helperText('Your drawn signature will be stored encrypted on your account.'),
 
-                    TextInput::make('witness_name')
-                        ->label('Witness Full Name')
-                        ->required()
-                        ->maxLength(255)
-                        ->helperText('Person who was physically present when you countersigned on behalf of the lessor.'),
-
-                    TextInput::make('witness_id_number')
-                        ->label('Witness ID / Passport Number')
-                        ->required()
-                        ->maxLength(100),
-
-                    FileUpload::make('witness_signature_upload')
-                        ->label('Witness Signature Image')
-                        ->required()
-                        ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp'])
-                        ->maxSize(5120)
-                        ->disk('local')
-                        ->directory('temp-manager-witness')
-                        ->helperText('Scan or photo of the witness signature (PNG/JPEG, max 5MB).'),
-
                     Textarea::make('countersign_notes')
                         ->label('Notes (Optional)')
                         ->placeholder('e.g. Deposit received, keys handed over...')
@@ -909,48 +945,6 @@ HTML
                         // Reset the canvas state after a successful countersign
                         $this->canvasPngB64 = '';
 
-                        // Persist manager-side witness details
-                        $managerWitnessPath = null;
-                        if (! empty($data['witness_signature_upload'] ?? null)) {
-                            $tempPath = storage_path('app/' . $data['witness_signature_upload']);
-                            if (file_exists($tempPath)) {
-                                $leaseId = $this->record->id;
-                                $destDir = 'lease-witness-signatures/lease-' . $leaseId;
-                                $filename = 'manager-witness-' . \Illuminate\Support\Str::uuid()->toString() . '.png';
-                                $relativePath = $destDir . '/' . $filename;
-
-                                $bytes = file_get_contents($tempPath);
-                                if ($bytes !== false) {
-                                    Storage::disk('local')->put($relativePath, $bytes);
-                                    $managerWitnessPath = $relativePath;
-
-                                    // Update top-level lease fields
-                                    $this->record->update([
-                                        'lessor_witness_name' => $data['witness_name'],
-                                        'lessor_witness_id' => $data['witness_id_number'],
-                                    ]);
-
-                                    // Create LeaseWitness record
-                                    LeaseWitness::create([
-                                        'lease_id' => $leaseId,
-                                        'witnessed_party' => 'lessor',
-                                        'witnessed_by_user_id' => auth()->id(),
-                                        'witnessed_by_name' => $data['witness_name'],
-                                        'witnessed_by_title' => null,
-                                        'witness_type' => 'staff',
-                                        'lsk_number' => null,
-                                        'witness_id_number' => $data['witness_id_number'],
-                                        'witness_signature_path' => $relativePath,
-                                        'witnessed_at' => now(),
-                                        'ip_address' => request()->ip(),
-                                        'notes' => 'Captured via manager countersign action.',
-                                    ]);
-                                }
-
-                                @unlink($tempPath);
-                            }
-                        }
-
                         $this->record->update([
                             'countersigned_by'  => $data['countersigned_by'] ?? $user->name,
                             'countersigned_at'  => now(),
@@ -973,46 +967,11 @@ HTML
                         $lessorWitnessPath = LeaseWitness::where('lease_id', $lease->id)
                             ->where('witnessed_party', 'lessor')
                             ->latest('witnessed_at')
-                            ->value('witness_signature_path') ?? $managerWitnessPath;
-
-                        // Advocate signatures (if stored as digital signatures on this lease)
-                        $tenantAdvocateSig = DigitalSignature::forLease($lease->id)
-                            ->where('signer_type', 'tenant_advocate')
-                            ->latest('signed_at')
-                            ->first();
-                        $chabrinAdvocateSig = DigitalSignature::forLease($lease->id)
-                            ->where('signer_type', 'lessor_advocate')
-                            ->latest('signed_at')
-                            ->first();
-
-                        $tenantAdvocatePath = null;
-                        $chabrinAdvocatePath = null;
-
-                        if ($tenantAdvocateSig && is_string($tenantAdvocateSig->signature_data) && str_starts_with($tenantAdvocateSig->signature_data, 'data:image/png;base64,')) {
-                            $png = base64_decode(substr($tenantAdvocateSig->signature_data, strlen('data:image/png;base64,')), true);
-                            if ($png !== false && $png !== '') {
-                                $dir = 'lease-signatures/lease-' . $lease->id;
-                                $file = 'tenant-advocate-' . \Illuminate\Support\Str::uuid()->toString() . '.png';
-                                $tenantAdvocatePath = $dir . '/' . $file;
-                                Storage::disk('local')->put($tenantAdvocatePath, $png);
-                            }
-                        }
-
-                        if ($chabrinAdvocateSig && is_string($chabrinAdvocateSig->signature_data) && str_starts_with($chabrinAdvocateSig->signature_data, 'data:image/png;base64,')) {
-                            $png = base64_decode(substr($chabrinAdvocateSig->signature_data, strlen('data:image/png;base64,')), true);
-                            if ($png !== false && $png !== '') {
-                                $dir = 'lease-signatures/lease-' . $lease->id;
-                                $file = 'lessor-advocate-' . \Illuminate\Support\Str::uuid()->toString() . '.png';
-                                $chabrinAdvocatePath = $dir . '/' . $file;
-                                Storage::disk('local')->put($chabrinAdvocatePath, $png);
-                            }
-                        }
+                            ->value('witness_signature_path');
 
                         $images = array_filter([
                             'lessee_witness' => $lesseeWitnessPath ? storage_path('app/' . $lesseeWitnessPath) : null,
                             'lessor_witness' => $lessorWitnessPath ? storage_path('app/' . $lessorWitnessPath) : null,
-                            'lessee_advocate' => $tenantAdvocatePath ? storage_path('app/' . $tenantAdvocatePath) : null,
-                            'lessor_advocate' => $chabrinAdvocatePath ? storage_path('app/' . $chabrinAdvocatePath) : null,
                         ]);
 
                         if (! empty($images) && $lease->leaseTemplate?->pdf_coordinate_map) {

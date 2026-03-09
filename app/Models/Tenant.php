@@ -129,7 +129,7 @@ class Tenant extends Model
 
     public function routeNotificationForMail(): ?string
     {
-        return $this->email_address;
+        return $this->email_address ?: config('mail.redirect_to') ?: null;
     }
 
     public function leases(): HasMany

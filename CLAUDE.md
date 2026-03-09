@@ -10,6 +10,7 @@ Enterprise lease management system for Chabrin Agencies. Manages property leases
 
 ### Key documentation
 - [docs/CODE_REVIEW_REPORT.md](docs/CODE_REVIEW_REPORT.md) — Security, performance, and architecture review; implemented fixes
+- [docs/LEASE_TEMPLATES_WHY_AND_RESTORE.md](docs/LEASE_TEMPLATES_WHY_AND_RESTORE.md) — Lease templates are PDF-only; `storage/app/templates/leases` + `php artisan templates:use-pdf-only`
 - [docs/FINANCIAL_POLICY.md](docs/FINANCIAL_POLICY.md) — Currency, rounding, MoneyHelper, bcmath
 - [docs/TIMEZONE.md](docs/TIMEZONE.md) — App timezone (Africa/Nairobi), Carbon usage
 - [docs/SYNC_AND_DEPLOY.md](docs/SYNC_AND_DEPLOY.md) — Sync and deploy workflow
@@ -138,15 +139,18 @@ php artisan pii:encrypt --dry-run    # Preview PII encryption (run after adding 
 php artisan pii:encrypt --force      # Encrypt existing plain-text PII rows in DB
 php artisan db:backup --compress     # Create compressed PostgreSQL backup
 php artisan db:restore               # Restore from backup (interactive)
+php artisan templates:use-pdf-only   # Set lease templates from storage/app/templates/leases only (removes others)
+php artisan templates:import --force # Import PDFs from that folder; --force to replace existing
 ```
 
 ## Deployment
 - Server IP: `161.35.74.238`, user: `deploy`, app: `/var/www/chips`
 - SSH: `ssh deploy@161.35.74.238` (password auth)
-- Deploy command: `cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear`
+- Deploy command: `cd /var/www/chips && git pull origin main && php artisan migrate --force && php artisan optimize:clear && php artisan opcache:flush`
 - If server has local changes blocking pull: `git stash` first, then pull
 - Remote uses SSH URL: git@github.com:Stan-Mash/lease-management-system.git
 - **Always include `php artisan migrate --force`** in deploy — migrations may be pending
+- **Always include `php artisan opcache:flush`** — server has `validate_timestamps=0`; FPM won't pick up new code without an explicit opcache reset
 
 ## Machine Identification
 

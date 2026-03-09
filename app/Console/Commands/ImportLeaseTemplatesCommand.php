@@ -72,9 +72,11 @@ class ImportLeaseTemplatesCommand extends Command
                     $existing->delete();
                 }
 
-                // Copy PDF to public storage for reference
+                // Copy PDF to public storage for reference (relative path for portability)
                 $storagePath = 'templates/leases/' . $filename;
                 Storage::disk('public')->put($storagePath, file_get_contents($pdfPath));
+
+                $publicPath = Storage::disk('public')->path($storagePath);
 
                 // Extract and create template
                 $metadata = [
@@ -83,10 +85,14 @@ class ImportLeaseTemplatesCommand extends Command
                     'template_type' => $templateType,
                 ];
 
-                $publicPath = Storage::disk('public')->path($storagePath);
                 $template = $this->extractionService->extractFromPdf($publicPath, $metadata);
 
-                // Mark as active and default for its type if no other default exists
+                // Store relative path so PDF resolution works across environments (LeasePdfService, PickLeaseTemplateCoordinates)
+                $template->update([
+                    'source_pdf_path' => $storagePath,
+                    'is_active' => true,
+                ]);
+
                 $hasDefault = LeaseTemplate::where('template_type', $templateType)
                     ->where('is_default', true)
                     ->where('id', '!=', $template->id)
@@ -95,8 +101,6 @@ class ImportLeaseTemplatesCommand extends Command
                 if (! $hasDefault) {
                     $template->update(['is_default' => true]);
                 }
-
-                $template->update(['is_active' => true]);
 
                 $this->info("  ✓ Created template: {$templateName} (ID: {$template->id})");
                 $this->info("    Type: {$templateType}");

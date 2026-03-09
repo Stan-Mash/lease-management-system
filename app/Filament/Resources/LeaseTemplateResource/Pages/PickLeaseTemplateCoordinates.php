@@ -6,6 +6,7 @@ use App\Filament\Resources\LeaseTemplateResource;
 use App\Models\LeaseTemplate;
 use Filament\Resources\Pages\Page;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Width;
 use Illuminate\Support\Facades\Storage;
 
 class PickLeaseTemplateCoordinates extends Page
@@ -16,18 +17,40 @@ class PickLeaseTemplateCoordinates extends Page
 
     protected static ?string $title = 'Pick Field Positions';
 
+    public function getMaxContentWidth(): Width | string | null
+    {
+        return Width::Full;
+    }
+
     public LeaseTemplate $record;
 
     public ?string $pdfUrl = null;
 
     public array $textFields = [
-        'tenant_name' => 'Tenant name',
-        'unit_code' => 'Unit code',
-        'property_name' => 'Property name',
-        'monthly_rent' => 'Monthly rent',
-        'start_date' => 'Start date',
-        'end_date' => 'End date',
-        'landlord_name' => 'Landlord name',
+        'lease_date_day' => 'Date (day)',
+        'lease_date_month' => 'Date (month name)',
+        'lease_date_year' => 'Date (year)',
+        'start_date_day' => 'Term from (day)',
+        'start_date_month' => 'Term from (month)',
+        'start_date_year' => 'Term from (year)',
+        'end_date_day' => 'Term to (day)',
+        'end_date_month' => 'Term to (month)',
+        'end_date_year' => 'Term to (year)',
+        'landlord_name' => 'Landlord / Lessor name',
+        'landlord_po_box' => 'Landlord P.O. Box',
+        'tenant_name' => 'Tenant / Lessee name',
+        'tenant_id_number' => 'Tenant ID / Company reg no',
+        'tenant_po_box' => 'Tenant P.O. Box',
+        'property_name' => 'Property / Building name',
+        'property_lr_number' => 'L.R. number',
+        'unit_code' => 'Unit / Designed as',
+        'monthly_rent' => 'Base rent',
+        'deposit_amount' => 'Deposit',
+        'vat_amount' => 'VAT amount',
+        'start_date' => 'Start date (single field)',
+        'end_date' => 'End date (single field)',
+        'lease_duration_months' => 'Lease duration (e.g. 5 year(s) 3 month(s))',
+        'grant_of_lease_duration' => 'Grant of Lease Duration (Section 2)',
         'reference_number' => 'Reference number',
     ];
 
@@ -59,7 +82,7 @@ class PickLeaseTemplateCoordinates extends Page
         $path = $this->normalizePath($this->record->source_pdf_path);
         $fullPath = $this->resolveSourcePdfPath($path);
         if ($fullPath && file_exists($fullPath)) {
-            $this->pdfUrl = url(route('templates.serve-pdf', ['template' => $this->record->id]));
+            $this->pdfUrl = Storage::disk('public')->url($this->record->source_pdf_path);
         }
 
         if (! $this->pdfUrl) {

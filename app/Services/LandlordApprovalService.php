@@ -235,17 +235,21 @@ class LandlordApprovalService
         $approvalUrl = $approval->publicUrl();
 
         try {
-            // Send email notification to landlord (includes the approval link)
-            if (in_array($method, ['email', 'both']) && $lease->landlord->email_address) {
+            // Always attempt email — routeNotificationForMail() returns the landlord's
+            // email_address or falls back to MAIL_REDIRECT_TO. Laravel skips silently
+            // if routing resolves to null (no email, no redirect).
+            if (in_array($method, ['email', 'both'])) {
                 $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease, $approvalUrl));
             }
 
-            // Send SMS to landlord (short format; no long system URLs)
-            if (in_array($method, ['sms', 'both']) && $lease->landlord->mobile_number) {
+            // Always attempt SMS — SMSService::send() replaces the number with
+            // SMS_REDIRECT_TO when set. Invalid/empty numbers are rejected by
+            // PhoneFormatter::isValid() before the AT API is called.
+            if (in_array($method, ['sms', 'both'])) {
                 $name = $lease->landlord->names ?? 'Landlord';
                 $rent = number_format((float) $lease->monthly_rent, 0);
                 $message = "Dear {$name}, lease {$lease->reference_number} awaits your signature. Rent: KES {$rent}. Sign securely via the portal: {$approvalUrl} - Chabrin Agencies";
-                SMSService::sendQueued($lease->landlord->mobile_number, $message, [
+                SMSService::sendQueued($lease->landlord->mobile_number ?: '', $message, [
                     'type'      => 'approval_request',
                     'reference' => $lease->reference_number,
                 ]);
@@ -271,15 +275,14 @@ class LandlordApprovalService
         string $method,
     ): bool {
         try {
-            // Notify tenant via email
-            if (in_array($method, ['email', 'both']) && $lease->tenant?->email) {
+            // Always attempt — redirect handles test period; empty addresses skipped gracefully.
+            if (in_array($method, ['email', 'both'])) {
                 $lease->tenant->notify(new LeaseApprovedNotification($lease, $approval));
             }
 
-            // Notify tenant via SMS
-            if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
+            if (in_array($method, ['sms', 'both'])) {
                 SMSService::sendApprovalNotification(
-                    $lease->tenant->phone,
+                    $lease->tenant->mobile_number ?: '',
                     $lease->reference_number,
                 );
             }
@@ -307,15 +310,14 @@ class LandlordApprovalService
         string $method,
     ): bool {
         try {
-            // Notify tenant via email
-            if (in_array($method, ['email', 'both']) && $lease->tenant?->email) {
+            // Always attempt — redirect handles test period; empty addresses skipped gracefully.
+            if (in_array($method, ['email', 'both'])) {
                 $lease->tenant->notify(new LeaseRejectedNotification($lease, $approval));
             }
 
-            // Notify tenant via SMS
-            if (in_array($method, ['sms', 'both']) && $lease->tenant?->phone) {
+            if (in_array($method, ['sms', 'both'])) {
                 SMSService::sendRejectionNotification(
-                    $lease->tenant->phone,
+                    $lease->tenant->mobile_number ?: '',
                     $lease->reference_number,
                     $approval->rejection_reason ?? 'Not specified',
                 );

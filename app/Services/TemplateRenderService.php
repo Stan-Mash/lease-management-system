@@ -47,9 +47,8 @@ class TemplateRenderService
                 <hr>
                 <p style='text-align: left;'><strong>To fix this:</strong></p>
                 <ol style='text-align: left;'>
-                    <li>Ensure the file <code>database/seeders/ExactLeaseTemplateSeeder.php</code> exists.</li>
-                    <li>Run: <code>composer dump-autoload</code></li>
-                    <li>Run: <code>php artisan db:seed --class=ExactLeaseTemplateSeeder</code></li>
+                    <li>Add lease PDFs to <code>storage/app/templates/leases</code>.</li>
+                    <li>Run: <code>php artisan templates:use-pdf-only</code> to create templates from those PDFs.</li>
                 </ol>
             </div>";
         }

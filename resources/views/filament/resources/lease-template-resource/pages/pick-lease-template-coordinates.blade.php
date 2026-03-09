@@ -18,16 +18,15 @@
                 </p>
             </div>
 
-            <div class="p-4 flex flex-col lg:flex-row gap-4" x-data="coordinatePicker()">
+            <div class="p-4 flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-8rem)]" x-data="coordinatePicker()">
                 {{-- Field list --}}
-                <div class="lg:w-64 flex-shrink-0 space-y-2">
+                <div class="lg:w-64 flex-shrink-0 space-y-2 overflow-y-auto max-h-[calc(100vh-10rem)]">
                     <p class="text-xs font-semibold text-gray-500 uppercase">Text fields</p>
                     @foreach ($textFields as $key => $label)
                         <button type="button"
                                 @click="selectField('{{ $key }}', false)"
                                 :class="{ 'ring-2 ring-primary-500': selectedField === '{{ $key }}' }"
-                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                                x-show="!coordinates['{{ $key }}'] || selectedField === '{{ $key }}'">
+                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                             <span class="font-medium">{{ $label }}</span>
                             <span class="block text-xs text-gray-500" x-show="coordinates['{{ $key }}']">
                                 Page <span x-text="coordinates['{{ $key }}']?.page || 1"></span>,
@@ -41,8 +40,7 @@
                         <button type="button"
                                 @click="selectField('{{ $key }}', true)"
                                 :class="{ 'ring-2 ring-primary-500': selectedField === '{{ $key }}' }"
-                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                                x-show="!coordinates['{{ $key }}'] || selectedField === '{{ $key }}'">
+                                class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                             <span class="font-medium">{{ $label }}</span>
                             <span class="block text-xs text-gray-500" x-show="coordinates['{{ $key }}']">
                                 Page <span x-text="coordinates['{{ $key }}']?.page || 1"></span>,
@@ -64,18 +62,18 @@
                 </div>
 
                 {{-- PDF display --}}
-                <div class="flex-1 min-w-0">
-                    <div class="flex gap-2 mb-2">
+                <div class="flex-1 min-w-0 flex flex-col min-h-0">
+                    <div class="flex gap-2 mb-2 flex-shrink-0">
                         <button type="button" @click="prevPage()" :disabled="currentPage <= 1"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">← Prev</button>
                         <span class="py-1 text-sm" x-text="'Page ' + currentPage + ' of ' + totalPages"></span>
                         <button type="button" @click="nextPage()" :disabled="currentPage >= totalPages"
                                 class="px-3 py-1 text-sm border rounded disabled:opacity-50">Next →</button>
                     </div>
-                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 flex items-start justify-center" style="min-height: 70vh; max-height: 70vh;">
+                    <div id="pdf-container" class="border border-gray-300 rounded-lg overflow-auto bg-gray-100 dark:bg-gray-800 min-h-[calc(100vh-12rem)] flex-1 flex justify-center">
                         <canvas id="pdf-canvas"
                                 @click="onCanvasClick($event)"
-                                class="cursor-crosshair block mx-auto"
+                                class="cursor-crosshair block"
                                 :style="selectedField ? 'cursor: crosshair;' : 'cursor: default;'"></canvas>
                     </div>
                     <p class="mt-2 text-xs text-gray-500" x-show="selectedField">
@@ -139,21 +137,23 @@
                     async renderPage() {
                         if (!pdfDocRef) return;
                         const page = await pdfDocRef.getPage(this.currentPage);
-                        const container = document.getElementById('pdf-container');
-                        const baseViewport = page.getViewport({ scale: 1 });
-                        const containerW = container ? container.clientWidth : 800;
-                        const containerH = container ? container.clientHeight : 700;
-                        const scaleW = containerW / baseViewport.width;
-                        const scaleH = containerH / baseViewport.height;
-                        const scale = Math.min(scaleW, scaleH, 2);
-                        const fitScale = Math.max(0.5, scale);
-                        viewportRef = page.getViewport({ scale: fitScale });
-                        this.viewportSize = { width: viewportRef.width, height: viewportRef.height };
+                        const scale = 1.5;
+                        const viewport = page.getViewport({ scale: scale });
+                        viewportRef = viewport;
+
+                        this.viewportSize = { width: viewport.width, height: viewport.height };
+
                         const canvas = document.getElementById('pdf-canvas');
                         const ctx = canvas.getContext('2d');
-                        canvas.height = viewportRef.height;
-                        canvas.width = viewportRef.width;
-                        await page.render({ canvasContext: ctx, viewport: viewportRef }).promise;
+
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+
+                        const renderContext = {
+                            canvasContext: ctx,
+                            viewport: viewport
+                        };
+                        await page.render(renderContext).promise;
                     },
 
                     async prevPage() {
@@ -183,13 +183,13 @@
                         const scaleY = canvas.height / rect.height;
                         const canvasX = (ev.clientX - rect.left) * scaleX;
                         const canvasY = (ev.clientY - rect.top) * scaleY;
-                        const pdfX = (canvasX / canvas.width) * this.viewportSize.width;
-                        const pdfY = this.viewportSize.height - (canvasY / canvas.height) * this.viewportSize.height;
+                        const finalX = canvasX * (25.4 / 72);
+                        const finalY = canvasY * (25.4 / 72);
 
                         this.coordinates[this.selectedField] = {
                             page: this.currentPage,
-                            x: Math.round(pdfX),
-                            y: Math.round(pdfY)
+                            x: Math.round(finalX * 100) / 100,
+                            y: Math.round(finalY * 100) / 100
                         };
                         if (this.isSignature) {
                             this.coordinates[this.selectedField].width = 80;

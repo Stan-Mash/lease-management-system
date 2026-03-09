@@ -103,13 +103,99 @@ class LeasePdfService
         $signatureImagePath = $tenantSigPath;
 
         try {
-            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures.
-            // Only used when a coordinate map has been configured; without coordinates the stamping
-            // produces a blank template with no lease data, so we fall through to Strategy 1 instead.
             $template = $lease->leaseTemplate;
             $coordinates = $template?->pdf_coordinate_map ?? [];
             $hasCoordinates = is_array($coordinates) && count($coordinates) > 0;
 
+            // Strategy 0a: Lawyer-stamped document as base.
+            // When the advocate has uploaded via the portal, their signature AND stamp are already
+            // baked into the stored lawyer_stamped PDF. Use it as the base and overlay only the
+            // remaining signatures (manager, witness) on top — the advocate stamp is preserved.
+            $lawyerStampedDoc = $lease->documents()->where('document_type', 'lawyer_stamped')->latest()->first();
+            if ($lawyerStampedDoc) {
+                $lawyerDocPath = \Illuminate\Support\Facades\Storage::disk('local')->path($lawyerStampedDoc->file_path);
+                if (file_exists($lawyerDocPath)) {
+                    try {
+                        $outDir = storage_path('app/lease-pdf-overlay');
+                        if (! is_dir($outDir)) {
+                            mkdir($outDir, 0755, true);
+                        }
+                        $baseName = 'lease-' . $lease->id . '-ls-' . uniqid();
+                        $current  = $lawyerDocPath;
+
+                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature && is_array($coordinates) && isset($coordinates['manager_signature'])) {
+                            $coord = $coordinates['manager_signature'];
+                            $next  = $outDir . '/' . $baseName . '-mgr.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $managerSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 260),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                (string) ($coord['anchor'] ?? 'above'),
+                            );
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        if ($witnessSigPath && file_exists($witnessSigPath) && is_array($coordinates) && isset($coordinates['witness_signature'])) {
+                            $coord = $coordinates['witness_signature'];
+                            $next  = $outDir . '/' . $baseName . '-witness.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $witnessSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 235),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                'default',
+                            );
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        if ($tenantSignature && $managerSignature) {
+                            $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
+                            $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $auditPath;
+                        }
+
+                        $binary = file_get_contents($current);
+                        foreach (glob($outDir . '/' . $baseName . '*.pdf') ?: [] as $f) {
+                            if (file_exists($f)) {
+                                @unlink($f);
+                            }
+                        }
+
+                        if ($binary !== false) {
+                            Log::info('LeasePdfService: Strategy 0a (lawyer-stamped base) succeeded', ['lease_id' => $lease->id]);
+
+                            return $binary;
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('LeasePdfService: Strategy 0a failed, falling back', [
+                            'lease_id' => $lease->id,
+                            'error'    => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures.
+            // Only used when a coordinate map has been configured; without coordinates the stamping
+            // produces a blank template with no lease data, so we fall through to Strategy 1 instead.
             if ($template && $template->source_pdf_path && $hasCoordinates) {
                 $sourcePath = storage_path('app/' . $template->source_pdf_path);
                 if (! file_exists($sourcePath)) {
@@ -487,10 +573,22 @@ class LeasePdfService
         $rent      = $lease->monthly_rent ? (float) $lease->monthly_rent : null;
         $deposit   = $lease->deposit_amount ? (float) $lease->deposit_amount : null;
 
+        $sd = $startDate ? (is_object($startDate) ? $startDate : \Carbon\Carbon::parse($startDate)) : \Carbon\Carbon::parse('2026-03-07');
+        $ed = $endDate ? (is_object($endDate) ? $endDate : \Carbon\Carbon::parse($endDate)) : \Carbon\Carbon::parse('2027-03-07');
+
         return [
-            'lease_date_day'   => $startDate ? (is_string($startDate) ? date('j', strtotime($startDate)) : $startDate->format('j')) : '5',
-            'lease_date_month' => $startDate ? (is_string($startDate) ? date('F', strtotime($startDate)) : $startDate->format('F')) : 'March',
-            'lease_date_year'  => $startDate ? (is_string($startDate) ? date('Y', strtotime($startDate)) : $startDate->format('Y')) : date('Y'),
+            'lease_date_day'   => $sd->format('d'),
+            'lease_date_month' => $sd->format('F'),
+            'lease_date_year'  => $sd->format('Y'),
+            'start_date_day'   => $sd->format('d'),
+            'start_date_month' => $sd->format('m'),
+            'start_date_year'  => $sd->format('y'),   // 2-digit year fits the small box on the form
+            'end_date_day'     => $ed->format('d'),
+            'end_date_month'   => $ed->format('m'),
+            'end_date_year'    => $ed->format('Y'),
+            // Lease term duration for "The Term" tiny boxes (years and months count)
+            'lease_years'  => '1',
+            'lease_months' => '0',
             'landlord_name'   => $landlord->names ?? $landlord->name ?? 'Creek View Limited',
             'landlord_po_box' => $landlord->po_box ?? '',
             'tenant_name'     => $tenant->names ?? $tenant->full_name ?? 'John Doe',
@@ -499,12 +597,13 @@ class LeasePdfService
             'property_name'      => $property->property_name ?? $property->name ?? 'Sample Building',
             'property_lr_number' => $property->lr_number ?? 'LR/12345/678',
             'unit_code'          => $unit->unit_code ?? $unit->unit_number ?? 'A-101',
-            'start_date'            => $startDate ? (is_string($startDate) ? $startDate : $startDate->format('d/m/Y')) : '01/01/2026',
-            'end_date'              => $endDate ? (is_string($endDate) ? $endDate : $endDate->format('d/m/Y')) : '31/03/2031',
+            'start_date'            => $sd->format('d-m-Y'),
+            'end_date'              => $ed->format('d-m-Y'),
             'lease_duration_months' => '5 year(s) 3 month(s)',
-            'monthly_rent'   => $rent ? number_format($rent, 2) : '50,000.00',
-            'deposit_amount' => $deposit ? number_format($deposit, 2) : '100,000.00',
-            'vat_amount'     => $rent ? number_format($rent * 0.16, 2) : '8,000.00',
+            'grant_of_lease_duration' => '5 year(s) 3 month(s)',
+            'monthly_rent'   => $rent !== null ? number_format((float) $rent, 2) : '50,000.00',
+            'deposit_amount' => $deposit !== null ? number_format((float) $deposit, 2) : '100,000.00',
+            'vat_amount'     => $rent !== null ? number_format((float) $rent * 0.16, 2) : '8,000.00',
             'rent_review_years' => '1',
             'rent_review_rate'  => '5.0',
             'reference_number' => $lease->reference_number ?? 'CH-COM-SAMPLE-2026',
@@ -535,9 +634,13 @@ class LeasePdfService
 
         // Lease duration label
         $durationLabel = '';
+        $leaseYears  = '';
+        $leaseMonths = '';
         if ($termMonths) {
             $years  = intdiv((int) $termMonths, 12);
             $months = (int) $termMonths % 12;
+            $leaseYears  = (string) $years;
+            $leaseMonths = (string) $months;
             if ($years && $months) {
                 $durationLabel = "{$years} year(s) {$months} month(s)";
             } elseif ($years) {
@@ -545,13 +648,31 @@ class LeasePdfService
             } else {
                 $durationLabel = "{$months} month(s)";
             }
+        } elseif ($startDate && $endDate) {
+            // Compute from date diff when term_months not set
+            $diff = $startDate->diff($endDate);
+            $leaseYears  = (string) $diff->y;
+            $leaseMonths = (string) $diff->m;
         }
 
         return [
-            // Date fields (split for precise placement on date line)
-            'lease_date_day'   => $startDate ? $startDate->format('j') : '',
+            // Date at top: "dated the __ day on the month of __ in the year __" (no slashes; document has its own separators)
+            'lease_date_day'   => $startDate ? $startDate->format('d') : '',
             'lease_date_month' => $startDate ? $startDate->format('F') : '',
             'lease_date_year'  => $startDate ? $startDate->format('Y') : '',
+
+            // Term "from __ / __ / __ To __ / __ / __" — separate day/month/year so slashes stay on the form
+            // start_date_year uses 2-digit format ('y') to fit the small box printed on the commercial lease form
+            'start_date_day'   => $startDate ? $startDate->format('d') : '',
+            'start_date_month' => $startDate ? $startDate->format('m') : '',
+            'start_date_year'  => $startDate ? $startDate->format('y') : '',
+            'end_date_day'     => $endDate ? $endDate->format('d') : '',
+            'end_date_month'   => $endDate ? $endDate->format('m') : '',
+            'end_date_year'    => $endDate ? $endDate->format('Y') : '',
+
+            // Lease term duration numbers for "The Term" section tiny boxes
+            'lease_years'  => $leaseYears,
+            'lease_months' => $leaseMonths,
 
             // Parties
             'landlord_name'   => $lease->landlord?->names ?? '',
@@ -565,15 +686,16 @@ class LeasePdfService
             'property_lr_number' => $lease->property?->lr_number ?? '',
             'unit_code'          => $lease->unit_code ?? $lease->unit?->unit_code ?? '',
 
-            // Term
-            'start_date'            => $startDate?->format('d/m/Y') ?? '',
-            'end_date'              => $endDate?->format('d/m/Y') ?? '',
+            // Term (single-field fallback: no slashes; document may already show separators)
+            'start_date'            => $startDate ? $startDate->format('d-m-Y') : '',
+            'end_date'              => $endDate ? $endDate->format('d-m-Y') : '',
             'lease_duration_months' => $durationLabel,
+            'grant_of_lease_duration' => $durationLabel,
 
-            // Financials
-            'monthly_rent'     => $rent ? number_format($rent, 2) : '',
-            'deposit_amount'   => $deposit ? number_format($deposit, 2) : '',
-            'vat_amount'       => $vatAmount ? number_format($vatAmount, 2) : '',
+            // Financials (number_format for clean display e.g. 279,270.00)
+            'monthly_rent'     => $rent !== null ? number_format((float) $rent, 2) : '',
+            'deposit_amount'   => $deposit !== null ? number_format((float) $deposit, 2) : '',
+            'vat_amount'       => $vatAmount !== null ? number_format((float) $vatAmount, 2) : '',
 
             // Rent review (optional — set on lease when creating)
             'rent_review_years' => $lease->rent_review_years ? (string) $lease->rent_review_years : '',

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\LeaseTemplateResource\Pages;
 
 use App\Filament\Resources\LeaseTemplateResource;
 use Filament\Actions;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
@@ -47,6 +48,55 @@ class EditLeaseTemplate extends EditRecord
                 ->modalWidth('7xl')
                 ->slideOver()
                 ->tooltip('View template code and structure'),
+
+            Actions\Action::make('restoreFromVersion')
+                ->label('Restore from version')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->modalHeading('Restore template to a previous version')
+                ->modalDescription('This restores the template text, styles, and variables from the selected version. It does not restore the uploaded PDF or coordinate map (those are not stored in version history).')
+                ->form([
+                    Select::make('version_number')
+                        ->label('Version to restore')
+                        ->options(function () {
+                            $versions = $this->record->versions()->orderByDesc('version_number')->get();
+                            if ($versions->isEmpty()) {
+                                return [];
+                            }
+                            return $versions->mapWithKeys(function ($v) {
+                                $label = sprintf(
+                                    'v%d — %s — %s',
+                                    $v->version_number,
+                                    $v->created_at->format('Y-m-d H:i'),
+                                    $v->change_summary ?? 'No summary'
+                                );
+                                return [$v->version_number => $label];
+                            })->all();
+                        })
+                        ->required()
+                        ->searchable()
+                        ->native(false),
+                ])
+                ->action(function (array $data) {
+                    $num = (int) $data['version_number'];
+                    $ok = $this->record->restoreFromVersion($num);
+                    if ($ok) {
+                        Notification::make()
+                            ->success()
+                            ->title('Template restored')
+                            ->body("Restored to version {$num}. Reloading form.")
+                            ->send();
+                        $this->redirect(LeaseTemplateResource::getUrl('edit', ['record' => $this->record]));
+                    } else {
+                        Notification::make()
+                            ->danger()
+                            ->title('Restore failed')
+                            ->body("Version {$num} not found.")
+                            ->send();
+                    }
+                })
+                ->visible(fn () => $this->record->versions()->exists())
+                ->tooltip('Restore template content from a previous version (Blade, CSS, variables only)'),
 
             Actions\Action::make('version_history')
                 ->label('Version History')

@@ -11,32 +11,83 @@ use setasign\Fpdi\Fpdi;
 
 /**
  * Stamp text and images onto an existing PDF (e.g. landlord-provided lease).
- * Uses FPDI to import the source PDF and FPDF API to draw at (x, y) coordinates.
- * Coordinates are in mm; font size in pt.
+ * Uses FPDI (setasign/Fpdi) to import the source PDF and FPDF API to draw at (x, y) coordinates.
+ * Coordinates are in mm; font size 12pt; font Century Gothic Bold; color pure red (#FF0000).
+ * Per-field optional keys: size, color, width (mm), align (L|C|R).
+ * Use width so text stays within the printed box; align controls horizontal alignment within that width.
  *
- * Font notes:
- *   Default overlay font is Helvetica (built-in FPDF). To use Century Gothic:
- *   1. Copy C:\Windows\Fonts\GOTHIC.TTF to storage/app/fonts/CenturyGothic.ttf
- *   2. Run: php artisan tinker -r "FPDF_AddFont_Helper::make()"  (or use the MakeFont utility)
- *   3. This generates storage/app/fonts/centurygothic.php + centurygothic.z
- *   4. Set OVERLAY_FONT=centurygothic in .env  (optional - falls back to Helvetica)
- *
- * Default fill color is dark red (#C00000) so filled values are clearly distinct
- * from the template's black text. Override per-field via the 'color' key in coordinates.
+ * Font: TrueType at storage_path('fonts/centurygothic_bold.ttf'). FPDF requires converted .php/.z;
+ * generate with: php vendor/setasign/fpdf/makefont/makefont.php storage/fonts/centurygothic_bold.ttf
+ * and place centurygothic_bold.php (and .z if present) in storage/fonts/. Falls back to Helvetica Bold if missing.
  */
 class PdfOverlayService
 {
-    /** Default color for stamped text — dark red for clear visual distinction */
-    private const DEFAULT_COLOR = 'C00000';
+    /** Text color for stamped values — pure red (R:255, G:0, B:0). */
+    private const DEFAULT_COLOR = 'FF0000';
+
+    /** Font size in pt for all overlay text. */
+    private const OVERLAY_FONT_SIZE = 12;
+
+    /** Y-offset in mm applied only to fields that sit above their baseline (selective alignment). */
+    private const Y_OFFSET_FOR_BASELINE_MM = 1;
+
+    /** Field keys that receive the selective Y-offset; all others use coordinates as-is. */
+    private const FIELDS_WITH_Y_OFFSET = [
+        'lease_date_day',
+        'lease_date_month',
+        'lease_date_year',
+        'landlord_name',
+        'landlord_po_box',
+        'tenant_name',
+        'tenant_id_number',
+        'tenant_po_box',
+        'start_date_day',
+        'start_date_month',
+        'start_date_year',
+        'end_date_day',
+        'end_date_month',
+        'end_date_year',
+        'lease_years',
+        'lease_months',
+        'lease_duration_months',
+        'grant_of_lease_duration',
+        'monthly_rent',
+        'deposit_amount',
+        'vat_amount',
+        'rent_review_years',
+        'rent_review_rate',
+        'property_name',
+        'property_lr_number',
+        'unit_code',
+        'start_date',
+        'end_date',
+        'reference_number',
+    ];
 
     public function __construct()
     {
-        // FPDF reads FPDF_FONTPATH in its constructor, so the constant must be defined
-        // before any Fpdi instance is created. Define it here, at service construction time.
-        $fontDir  = storage_path('app/fonts');
-        $fontFile = $fontDir . '/centurygothic.php';
+        $fontDir = storage_path('fonts');
+        $fontFile = $fontDir . '/centurygothic_bold.php';
+        if (! file_exists($fontFile)) {
+            $fontDir = storage_path('app/fonts');
+            $fontFile = $fontDir . '/centurygothic.php';
+        }
         if (file_exists($fontFile) && ! defined('FPDF_FONTPATH')) {
             define('FPDF_FONTPATH', $fontDir . '/');
+
+            // FPDF_FONTPATH overrides the search path for ALL fonts including core fonts
+            // (helvetica, courier, times). If those .php descriptors are absent from the
+            // custom font dir, any SetFont('Helvetica') call will fail with an include error.
+            // Copy missing core font descriptors from the FPDF vendor bundle on first use.
+            $vendorFontDir = base_path('vendor/setasign/fpdf/font');
+            if (is_dir($vendorFontDir)) {
+                foreach (glob($vendorFontDir . '/*.php') ?: [] as $vendorFont) {
+                    $dest = $fontDir . '/' . basename($vendorFont);
+                    if (! file_exists($dest)) {
+                        @copy($vendorFont, $dest);
+                    }
+                }
+            }
         }
     }
 
@@ -54,6 +105,9 @@ class PdfOverlayService
         string $outputPath,
     ): string {
         $pdf = new Fpdi();
+        // Disable auto-page-break so an out-of-bounds y coordinate in the map never
+        // silently inserts extra blank pages into the generated document.
+        $pdf->SetAutoPageBreak(false);
         $this->loadFont($pdf);
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
@@ -73,11 +127,16 @@ class PdfOverlayService
                 if ($value === '') {
                     continue;
                 }
-                $x        = (float) ($config['x'] ?? 0);
-                $y        = (float) ($config['y'] ?? 0);
-                $fontSize = (int) ($config['size'] ?? 10);
-                $color    = $config['color'] ?? self::DEFAULT_COLOR;
-                $this->writeText($pdf, $value, $x, $y, $fontSize, $color);
+                $x = (float) ($config['x'] ?? 0);
+                $y = (float) ($config['y'] ?? 0);
+                if (in_array((string) $fieldKey, self::FIELDS_WITH_Y_OFFSET, true)) {
+                    $y += self::Y_OFFSET_FOR_BASELINE_MM;
+                }
+                $fontSize = self::OVERLAY_FONT_SIZE;
+                $color    = self::DEFAULT_COLOR;
+                $widthMm  = isset($config['width']) ? (float) $config['width'] : null;
+                $align    = $config['align'] ?? 'L';
+                $this->writeText($pdf, $value, $x, $y, $fontSize, $color, $widthMm, $align);
             }
         }
 
@@ -109,7 +168,8 @@ class PdfOverlayService
             $y = $y - $height;
         }
 
-        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
@@ -119,6 +179,60 @@ class PdfOverlayService
             $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
             if ($pageNo === $page) {
                 $pdf->Image($signaturePngPath, $x, $y, $width, $height);
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+
+        return $outputPath;
+    }
+
+    /**
+     * Apply advocate signature and optional stamp (e.g. Commissioner for Oaths) to the PDF.
+     * Stamp is drawn first (slightly left of the signature box), then the signature.
+     *
+     * @param  array{page: int, x: float, y: float, width: float, height: float, anchor?: string}  $advocateCoord  From template pdf_coordinate_map['advocate_signature']
+     */
+    public function applyAdvocateSignatureAndStamp(
+        string $sourcePdfPath,
+        string $signaturePath,
+        ?string $stampPath,
+        array $advocateCoord,
+        string $outputPath,
+    ): string {
+        if (! file_exists($signaturePath)) {
+            throw new InvalidArgumentException("Signature file not found: {$signaturePath}");
+        }
+
+        $pageNum = (int) ($advocateCoord['page'] ?? 1);
+        $x       = (float) ($advocateCoord['x'] ?? 160);
+        $y       = (float) ($advocateCoord['y'] ?? 250);
+        $width   = (float) ($advocateCoord['width'] ?? 45);
+        $height  = (float) ($advocateCoord['height'] ?? 18);
+        $anchor  = (string) ($advocateCoord['anchor'] ?? 'beside');
+
+        if ($anchor === 'above') {
+            $y = $y - $height;
+        }
+
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            if ($pageNo === $pageNum) {
+                if ($stampPath !== null && $stampPath !== '' && file_exists($stampPath)) {
+                    $stampWidth  = min(25, $width * 0.6);
+                    $stampHeight = min(20, $height * 1.1);
+                    $stampX      = $x - $stampWidth - 5;
+                    $pdf->Image($stampPath, $stampX, $y, $stampWidth, $stampHeight);
+                }
+                $pdf->Image($signaturePath, $x, $y, $width, $height);
             }
         }
 
@@ -140,6 +254,7 @@ class PdfOverlayService
         string $outputPath,
     ): string {
         $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf->SetAutoPageBreak(false);
         $pageCount = $pdf->setSourceFile($sourcePdfPath);
 
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
@@ -200,6 +315,7 @@ class PdfOverlayService
         $block = implode("\n", $lines);
 
         $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
         $pageCount = $pdf->setSourceFile($pdfPath);
         $lastPage  = $pageCount;
 
@@ -222,23 +338,23 @@ class PdfOverlayService
     }
 
     /**
-     * Load the overlay font. Uses Century Gothic if pre-generated font files exist in
-     * storage/app/fonts/; otherwise falls back to Helvetica.
-     *
-     * To set up Century Gothic:
-     *   cp "C:\Windows\Fonts\GOTHIC.TTF" storage/app/fonts/
-     *   php vendor/setasign/fpdf/makefont/makefont.php storage/app/fonts/GOTHIC.TTF cp1252
-     *   mv centurygothic.* storage/app/fonts/
+     * Load overlay font: Century Gothic Bold from storage_path('fonts/centurygothic_bold.php').
+     * That file is generated from storage_path('fonts/centurygothic_bold.ttf') via FPDF makefont.
+     * Falls back to storage/app/fonts (centurygothic.php / centurygothicb.php) then Helvetica Bold.
      */
     private function loadFont(Fpdi $pdf): void
     {
-        $fontDir  = storage_path('app/fonts');
-        $fontFile = $fontDir . '/centurygothic.php';
+        $fontDirBold = storage_path('fonts');
+        $fontFileBold = $fontDirBold . '/centurygothic_bold.php';
 
+        if (file_exists($fontFileBold)) {
+            $pdf->AddFont('CenturyGothic', 'B', 'centurygothic_bold.php', $fontDirBold . '/');
+            return;
+        }
+
+        $fontDir = storage_path('app/fonts');
+        $fontFile = $fontDir . '/centurygothic.php';
         if (file_exists($fontFile)) {
-            // Pass $dir explicitly so FPDF uses our storage path regardless of
-            // whether FPDF_FONTPATH is defined (it's a PHP constant — unreliable
-            // across FPM workers/requests if not set before first Fpdi construction).
             $pdf->AddFont('CenturyGothic', '', 'centurygothic.php', $fontDir . '/');
             if (file_exists($fontDir . '/centurygothicb.php')) {
                 $pdf->AddFont('CenturyGothic', 'B', 'centurygothicb.php', $fontDir . '/');
@@ -246,22 +362,56 @@ class PdfOverlayService
             return;
         }
 
-        // Helvetica is always available as FPDF built-in
-        // (visually similar at small sizes; Century Gothic setup documented above)
+        // Helvetica Bold is always available as FPDF built-in
     }
 
-    private function writeText(Fpdi $pdf, string $text, float $x, float $y, int $fontSize, string $colorHex): void
-    {
+    /**
+     * Write text at (x,y). Century Gothic Bold, 12pt, pure red. Optional width (mm) and align (L/C/R).
+     */
+    private function writeText(
+        Fpdi $pdf,
+        string $text,
+        float $x,
+        float $y,
+        int $fontSize,
+        string $colorHex,
+        ?float $widthMm = null,
+        string $align = 'L',
+    ): void {
         $r = (int) hexdec(substr($colorHex, 0, 2));
         $g = (int) hexdec(substr($colorHex, 2, 2));
         $b = (int) hexdec(substr($colorHex, 4, 2));
 
-        $fontDir  = storage_path('app/fonts');
-        $fontName = file_exists($fontDir . '/centurygothic.php') ? 'CenturyGothic' : 'Helvetica';
+        $fontDirBold   = storage_path('fonts');
+        $hasCGBoldNew  = file_exists($fontDirBold . '/centurygothic_bold.php');
+        $fontDir       = storage_path('app/fonts');
+        $hasCG         = file_exists($fontDir . '/centurygothic.php');
+        $hasCGBoldOld  = file_exists($fontDir . '/centurygothicb.php');
 
-        $pdf->SetFont($fontName, '', $fontSize);
+        if ($hasCGBoldNew) {
+            $fontName  = 'CenturyGothic';
+            $fontStyle = 'B';
+        } elseif ($hasCG && $hasCGBoldOld) {
+            $fontName  = 'CenturyGothic';
+            $fontStyle = 'B';
+        } else {
+            $fontName  = 'Helvetica';
+            $fontStyle = 'B';
+        }
+
+        $pdf->SetFont($fontName, $fontStyle, $fontSize);
         $pdf->SetTextColor($r, $g, $b);
         $pdf->SetXY($x, $y);
-        $pdf->Cell(0, 5, $text);
+
+        $align = strtoupper($align);
+        if (! in_array($align, ['L', 'C', 'R'], true)) {
+            $align = 'L';
+        }
+
+        if ($widthMm !== null && $widthMm > 0) {
+            $pdf->Cell($widthMm, 5, $text, 0, 0, $align);
+        } else {
+            $pdf->Cell(0, 5, $text, 0, 0, $align);
+        }
     }
 }
