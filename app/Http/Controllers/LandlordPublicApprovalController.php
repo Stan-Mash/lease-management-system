@@ -28,7 +28,7 @@ class LandlordPublicApprovalController extends Controller
     /**
      * Show the public approval page.
      */
-    public function show(string $token): View|\Illuminate\Http\RedirectResponse
+    public function show(string $token): View|\Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
     {
         $approval = $this->findValidApproval($token);
 
