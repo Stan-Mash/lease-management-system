@@ -33,7 +33,7 @@ class TenantSigningController extends Controller
     /**
      * Display the signing portal for a tenant.
      */
-    public function show(Request $request, Lease $lease): View
+    public function show(Request $request, Lease $lease): View|Response
     {
         $this->verifySignedUrlAndTenant($request, $lease);
 
