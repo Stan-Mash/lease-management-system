@@ -378,13 +378,13 @@
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
                     <div style="display:flex;flex-direction:column;gap:4px;">
                         <label for="lessor-witness-name" class="field-label">Witness Full Name</label>
-                        <input id="lessor-witness-name" type="text"
+                        <input id="lessor-witness-name" name="lessor_witness_name" type="text"
                                style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;color:#111827;"
                                placeholder="Full name of witness">
                     </div>
                     <div style="display:flex;flex-direction:column;gap:4px;">
                         <label for="lessor-witness-id" class="field-label">Witness ID / Passport No.</label>
-                        <input id="lessor-witness-id" type="text"
+                        <input id="lessor-witness-id" name="lessor_witness_id" type="text"
                                style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;color:#111827;"
                                placeholder="National ID or Passport number">
                     </div>
