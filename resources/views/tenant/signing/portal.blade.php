@@ -693,13 +693,21 @@
                         longitude: userLocation?.longitude
                     })
                 });
+                const data = await response.json();
+                // 409 already_signed means a previous attempt succeeded — treat as success
+                if (response.status === 409 && data.error === 'already_signed') {
+                    updateStepIndicator(3, 'completed');
+                    showMessage('signature-message', 'success', '✅ Lease already signed. Proceeding...');
+                    btn.disabled = true;
+                    setTimeout(() => goToStep(4), 1800);
+                    return;
+                }
                 if (!response.ok && response.status !== 400) {
                     showMessage('signature-message', 'error', 'Server error (' + response.status + '). Please try again.', true);
                     btn.disabled = false;
                     btn.textContent = 'Submit Signature';
                     return;
                 }
-                const data = await response.json();
                 if (data.success) {
                     updateStepIndicator(3, 'completed');
                     showMessage('signature-message', 'success', '✅ Lease signed! Now please upload your ID copy.');
