@@ -496,12 +496,14 @@ function initLandlordPads() {
     }
 
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const landlordW = landlordCanvas.offsetWidth || 600;
+    const witnessW  = witnessCanvas.offsetWidth  || 600;
 
-    landlordCanvas.width = landlordCanvas.offsetWidth * ratio;
+    landlordCanvas.width = landlordW * ratio;
     landlordCanvas.height = 160 * ratio;
     landlordCanvas.getContext('2d').scale(ratio, ratio);
 
-    witnessCanvas.width = witnessCanvas.offsetWidth * ratio;
+    witnessCanvas.width = witnessW * ratio;
     witnessCanvas.height = 160 * ratio;
     witnessCanvas.getContext('2d').scale(ratio, ratio);
 
@@ -549,17 +551,24 @@ function updateApproveState() {
 }
 
 document.getElementById('btnApprove')?.addEventListener('click', function () {
-    setTimeout(initLandlordPads, 150);
+    setTimeout(initLandlordPads, 400);
 });
 
 document.getElementById('approve-form')?.addEventListener('submit', function (e) {
-    if (!landlordSigPad || landlordSigPad.isEmpty() || !witnessSigPad || witnessSigPad.isEmpty()) {
+    // Populate hidden fields first so data is always sent
+    if (landlordSigPad && !landlordSigPad.isEmpty()) {
+        document.getElementById('signature_data').value = landlordSigPad.toDataURL('image/png');
+    }
+    if (witnessSigPad && !witnessSigPad.isEmpty()) {
+        document.getElementById('witness_signature_data').value = witnessSigPad.toDataURL('image/png');
+    }
+    // Then validate
+    const sigData = document.getElementById('signature_data').value;
+    const witData = document.getElementById('witness_signature_data').value;
+    if (!sigData || !witData) {
         e.preventDefault();
         alert('Please sign as landlord and ask your in-person witness to sign before confirming.');
-        return;
     }
-    document.getElementById('signature_data').value = landlordSigPad.toDataURL('image/png');
-    document.getElementById('witness_signature_data').value = witnessSigPad.toDataURL('image/png');
 });
 
 window.addEventListener('pageshow', function(event) {
