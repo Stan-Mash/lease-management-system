@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <!-- Transparent background -->
+  <rect width="400" height="400" fill="none"/>
+
+  <!-- Outer ring -->
+  <circle cx="200" cy="200" r="188" fill="none" stroke="#003366" stroke-width="7"/>
+
+  <!-- Inner ring -->
+  <circle cx="200" cy="200" r="160" fill="none" stroke="#003366" stroke-width="3"/>
+
+  <!-- Top arc text: COMMISSIONER FOR OATHS -->
+  <path id="topArc" d="M 42,200 A 158,158 0 0,1 358,200" fill="none"/>
+  <text fill="#003366" font-family="Arial, sans-serif" font-size="22" font-weight="bold" letter-spacing="3">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">COMMISSIONER FOR OATHS</textPath>
+  </text>
+
+  <!-- Bottom arc text: REPUBLIC OF KENYA -->
+  <path id="bottomArc" d="M 42,200 A 158,158 0 0,0 358,200" fill="none"/>
+  <text fill="#003366" font-family="Arial, sans-serif" font-size="22" font-weight="bold" letter-spacing="3">
+    <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">REPUBLIC OF KENYA</textPath>
+  </text>
+
+  <!-- Horizontal divider lines -->
+  <line x1="55" y1="165" x2="345" y2="165" stroke="#003366" stroke-width="2"/>
+  <line x1="55" y1="235" x2="345" y2="235" stroke="#003366" stroke-width="2"/>
+
+  <!-- Center content -->
+  <text x="200" y="158" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#003366" letter-spacing="2">ADMITTED ADVOCATE</text>
+
+  <text x="200" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#003366">CHABRIN</text>
+  <text x="200" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#003366" letter-spacing="1">AGENCIES LTD</text>
+
+  <text x="200" y="250" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#003366" letter-spacing="1">LSK NO: 2024/09876</text>
+
+  <!-- Decorative stars on divider lines -->
+  <text x="57" y="170" font-family="Arial" font-size="14" fill="#003366">✦</text>
+  <text x="333" y="170" font-family="Arial" font-size="14" fill="#003366">✦</text>
+  <text x="57" y="233" font-family="Arial" font-size="14" fill="#003366">✦</text>
+  <text x="333" y="233" font-family="Arial" font-size="14" fill="#003366">✦</text>
+
+  <!-- Center star top -->
+  <text x="194" y="115" font-family="Arial" font-size="22" fill="#003366">★</text>
+</svg>
