@@ -518,4 +518,25 @@ class EndToEndLeaseWorkflowTest extends TestCase
         // Mail::fake() ensures this is a clean no-op.
         Mail::assertNothingSent();
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers — PNG generation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Generate a highly visible solid colored PNG for visual PDF verification.
+     */
+    protected function testPng(int $width = 200, int $height = 100, int $r = 0, int $g = 122, int $b = 255): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+        $color = imagecolorallocate($image, $r, $g, $b);
+        imagefilledrectangle($image, 0, 0, $width, $height, $color);
+
+        ob_start();
+        imagepng($image);
+        $imageData = ob_get_clean();
+        imagedestroy($image);
+
+        return 'data:image/png;base64,' . base64_encode($imageData);
+    }
 }
