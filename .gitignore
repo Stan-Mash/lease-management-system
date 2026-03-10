@@ -58,6 +58,11 @@ yarn-error.log
 .phpunit.result.cache
 coverage/
 .phpunit.cache/
+/visual-masterpiece.pdf
+
+# FPDF core font descriptors (auto-copied from vendor by PdfOverlayService on first run)
+/storage/fonts/*.php
+/storage/fonts/*.z
 
 # Build artifacts
 /public/build/
