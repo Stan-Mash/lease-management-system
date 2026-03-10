@@ -23,9 +23,9 @@ class UnitFactory extends Factory
         return [
             'property_id' => Property::factory(),
             'unit_number' => $this->faker->numerify('###'),
-            'status' => $this->faker->randomElement(['VACANT', 'OCCUPIED', 'MAINTENANCE']),
+            'status_legacy' => $this->faker->randomElement(['VACANT', 'OCCUPIED', 'MAINTENANCE']),
             'type' => $this->faker->randomElement(['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom']),
-            'market_rent' => $this->faker->numberBetween(10000, 50000),
+            'rent_amount' => $this->faker->numberBetween(10000, 50000),
             'deposit_required' => $this->faker->numberBetween(10000, 50000),
         ];
     }

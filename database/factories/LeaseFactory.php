@@ -31,7 +31,7 @@ class LeaseFactory extends Factory
             'source' => $this->faker->randomElement(['chabrin', 'landlord']),
             'lease_type' => $this->faker->randomElement(['commercial', 'residential_micro', 'residential_standard']),
             'signing_mode' => $this->faker->randomElement(['digital', 'physical']),
-            'workflow_state' => $this->faker->randomElement(['DRAFT', 'PENDING_SIGNATURE', 'ACTIVE', 'EXPIRED']),
+            'workflow_state' => $this->faker->randomElement(['draft', 'pending_deposit', 'active', 'expired']),
             'tenant_id' => Tenant::factory(),
             'unit_id' => Unit::factory(),
             'property_id' => Property::factory(),

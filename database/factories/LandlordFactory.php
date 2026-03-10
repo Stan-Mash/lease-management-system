@@ -20,12 +20,12 @@ class LandlordFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->name(),
-            'email' => $this->faker->unique()->safeEmail(),
-            'phone' => '0' . $this->faker->numerify('#########'),
-            'id_number' => $this->faker->unique()->numerify('########'),
-            'kra_pin' => $this->faker->numerify('########'),
-            'landlord_code' => 'LL-' . $this->faker->unique()->numerify('####'),
+            'names' => $this->faker->name(),
+            'email_address' => $this->faker->unique()->safeEmail(),
+            'mobile_number' => '0' . $this->faker->numerify('#########'),
+            'national_id' => $this->faker->unique()->numerify('########'),
+            'pin_number' => $this->faker->numerify('########'),
+            'lan_id' => 'LL-' . $this->faker->unique()->numerify('####'),
             'bank_name' => $this->faker->company(),
             'account_number' => $this->faker->bankAccountNumber(),
             'is_active' => true,

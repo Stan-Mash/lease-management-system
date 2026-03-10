@@ -22,11 +22,11 @@ class PropertyFactory extends Factory
     {
         return [
             'landlord_id' => Landlord::factory(),
-            'name' => $this->faker->streetName() . ' Building',
-            'property_code' => $this->faker->unique()->bothify('###?'),
-            'location' => $this->faker->address(),
+            'property_name' => $this->faker->streetName() . ' Building',
+            'reference_number' => $this->faker->unique()->bothify('###?'),
+            'description' => $this->faker->address(),
             'zone' => $this->faker->randomElement(['A', 'B', 'C', 'D', 'E']),
-            'management_commission' => $this->faker->numberBetween(5, 15),
+            'commission' => $this->faker->numberBetween(5, 15),
         ];
     }
 }
