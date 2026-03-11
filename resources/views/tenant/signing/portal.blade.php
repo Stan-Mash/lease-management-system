@@ -680,7 +680,11 @@
                 const url = new URL(window.location.href);
                 const response = await fetch(`/tenant/sign/${leaseId}/submit-signature${url.search}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
                     body: JSON.stringify({
                         signature_data: signatureData,
                         witness_signature_data: witnessSignatureData,
@@ -690,10 +694,21 @@
                         tenant_advocate_name: advocateSelection === 'own_advocate' ? ownAdvocateName : null,
                         tenant_advocate_email: advocateSelection === 'own_advocate' ? ownAdvocateEmail : null,
                         latitude:  userLocation?.latitude,
-                        longitude: userLocation?.longitude
-                    })
+                        longitude: userLocation?.longitude,
+                    }),
                 });
-                const data = await response.json();
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    const text = await response.text();
+                    showMessage('signature-message', 'error', 'Unexpected server response. Please try again or contact support.', true);
+                    console.error('Non-JSON response from submit-signature:', text);
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Signature';
+                    return;
+                }
                 // 409 already_signed means a previous attempt succeeded — treat as success
                 if (response.status === 409 && data.error === 'already_signed') {
                     updateStepIndicator(3, 'completed');
