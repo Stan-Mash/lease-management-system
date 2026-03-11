@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\LeaseApproval;
+use App\Models\User;
 use App\Models\LeaseWitness;
 use App\Services\LandlordApprovalService;
 use App\Services\LeasePdfService;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Filament\Notifications\Notification as FilamentNotification;
 
 /**
  * Public landlord approval portal — no login required.
@@ -301,6 +303,28 @@ class LandlordPublicApprovalController extends Controller
                 $validated['comments'] ?? null,
                 'both',
             );
+
+            // Notify internal staff that landlord has approved this lease
+            $recipients = collect();
+            $zoneManager = $lease->assignedZone?->zoneManager;
+            if ($zoneManager instanceof User) {
+                $recipients->push($zoneManager);
+            } else {
+                $recipients = User::whereIn('role', ['super_admin', 'admin'])->get();
+            }
+
+            if ($recipients->isNotEmpty()) {
+                FilamentNotification::make()
+                    ->title('Landlord Approved Lease')
+                    ->body(sprintf(
+                        'Landlord %s approved lease %s for %s. Review and proceed with digital signing / countersigning.',
+                        $lease->landlord?->names ?? 'Landlord',
+                        $lease->reference_number ?? ('#' . $lease->id),
+                        $lease->tenant?->names ?? 'Tenant',
+                    ))
+                    ->success()
+                    ->sendToDatabase($recipients);
+            }
 
             $approval->update(['token' => null, 'token_expires_at' => null]);
 

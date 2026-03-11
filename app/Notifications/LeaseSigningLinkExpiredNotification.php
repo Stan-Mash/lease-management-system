@@ -31,15 +31,12 @@ class LeaseSigningLinkExpiredNotification extends Notification implements Should
     {
         $reference = $this->lease->reference_number ?? 'N/A';
         $tenantName = $this->lease->tenant?->names ?? 'Tenant';
-        $leaseUrl = url('/admin/leases/' . $this->lease->id);
-
         return (new MailMessage)
             ->subject("Signing link expired — Lease {$reference}")
             ->greeting('Hello,')
             ->line("The 72-hour signing link for lease **{$reference}** ({$tenantName}) has expired without the tenant completing the signature process.")
             ->line('')
-            ->line('You can resend a new signing link from the lease view page.')
-            ->action('View Lease', $leaseUrl)
+            ->line('You can resend a new signing link from the lease view page in the Chabrin admin system.')
             ->line('')
             ->salutation('Chabrin Lease Management System');
     }

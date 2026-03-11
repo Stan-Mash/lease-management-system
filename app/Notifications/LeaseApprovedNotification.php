@@ -61,7 +61,6 @@ class LeaseApprovedNotification extends Notification implements ShouldQueue
             ->line('2. Review and sign the lease agreement')
             ->line('3. Pay the security deposit')
             ->line('4. Your lease will then become active')
-            ->action('View Lease Details', url('/admin/leases/' . $this->lease->id))
             ->salutation('Regards, Chabrin Agencies — Email: info@chabrinagencies.co.ke | Phones: +254720854389, +254745912688');
 
         return $mail;

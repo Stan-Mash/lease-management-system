@@ -60,7 +60,6 @@ class LeaseRejectedNotification extends Notification implements ShouldQueue
             ->line('1. Review the landlord\'s feedback above')
             ->line('2. Contact us to discuss required changes: info@chabrinagencies.co.ke | +254720854389, +254745912688')
             ->line('3. We will revise the lease and resubmit for approval')
-            ->action('View Lease', url('/admin/leases/' . $this->lease->id))
             ->salutation('Regards, Chabrin Agencies');
 
         return $mail;

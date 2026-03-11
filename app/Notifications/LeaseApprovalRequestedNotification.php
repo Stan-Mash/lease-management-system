@@ -44,7 +44,7 @@ class LeaseApprovalRequestedNotification extends Notification
         $tenantName   = $this->lease->tenant->names ?? $this->lease->tenant->name ?? 'Unknown';
         $rent         = 'KES ' . number_format((float) $this->lease->monthly_rent);
         $period       = $this->lease->start_date->format('d M Y') . ' to ' . $this->lease->end_date->format('d M Y');
-        $actionUrl    = $this->approvalUrl ?: url('/admin/leases/' . $this->lease->id);
+        $actionUrl    = $this->approvalUrl;
 
         return (new MailMessage)
             ->subject('[Action Required] Lease ' . $this->lease->reference_number . ' needs your approval')
@@ -54,8 +54,7 @@ class LeaseApprovalRequestedNotification extends Notification
             ->line('**Tenant:** ' . $tenantName)
             ->line('**Monthly Rent:** ' . $rent)
             ->line('**Lease Period:** ' . $period)
-            ->action('Approve or Reject This Lease', $actionUrl)
-            ->line('The link above opens a secure page — **no login or password needed**. You can approve or reject directly from your phone or computer.')
+            ->line('To approve or reject this lease, use the secure landlord approval link that was sent to you by SMS/email from Chabrin Agencies.')
             ->line('This link expires in 7 days. If you have questions, contact us at ' . config('mail.from.address') . '.');
     }
 

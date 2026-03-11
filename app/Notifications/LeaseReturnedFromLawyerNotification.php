@@ -37,8 +37,6 @@ class LeaseReturnedFromLawyerNotification extends Notification implements Should
         $lawyerName   = $this->tracking->lawyer?->name ?? 'the advocate';
         $adminName    = $notifiable->name ?? 'Manager';
 
-        $leaseUrl = url('/admin/leases/' . $this->lease->id);
-
         return (new MailMessage)
             ->subject("Advocate has returned the signed lease — {$ref}")
             ->greeting("Dear {$adminName},")
@@ -48,8 +46,7 @@ class LeaseReturnedFromLawyerNotification extends Notification implements Should
             ->line("**Tenant:** {$tenantName}")
             ->line("**Property:** {$propertyName}")
             ->line('')
-            ->line('The signed document has been saved to the Document Vault. Please open the lease, verify the document, and countersign to activate the lease.')
-            ->action('Open Lease in Admin', $leaseUrl)
+            ->line('The signed document has been saved to the Document Vault. Please log in to the Chabrin admin system, open the lease, verify the document, and countersign to activate the lease.')
             ->line('')
             ->salutation('Regards, Chabrin Agencies');
     }

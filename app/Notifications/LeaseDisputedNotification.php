@@ -68,7 +68,6 @@ class LeaseDisputedNotification extends Notification implements ShouldQueue
         $mail->line('**Current Lease Terms:**')
             ->line('Monthly Rent: **KES ' . number_format($this->lease->monthly_rent, 2) . '**')
             ->line('Lease Period: **' . $this->lease->start_date->format('d M Y') . ' - ' . $this->lease->end_date->format('d M Y') . '**')
-            ->action('Review & Resolve Dispute', url('/admin/leases/' . $this->lease->id))
             ->line('Please review the dispute and take appropriate action to resolve it.')
             ->line('You can edit the lease terms and re-send it to the tenant for signature.');
 

@@ -53,7 +53,7 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
             ->line("**Monthly Rent:** KES {$monthlyRent}")
             ->line("**Start Date:** {$startDate}")
             ->line('')
-            ->action('Sign Lease Now', $this->signingLink)
+            ->line('To sign your lease, use the secure digital signing link sent to your registered phone or email by Chabrin Agencies.')
             ->line('This link is valid for **72 hours**. When you open it, you will be asked to:')
             ->line('1. Request a 6-digit OTP code sent to your phone')
             ->line('2. Verify the OTP and review the full lease')

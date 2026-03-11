@@ -78,13 +78,12 @@ class LawyerPortalController extends Controller
         }
 
         $lease = $tracking->lease;
-        $phone = $tracking->lawyer?->phone
-            ?: config('services.sms_redirect_to');
+        $phone = $tracking->lawyer?->phone;
 
-        if (! $phone) {
+        if (empty($phone)) {
             return response()->json([
                 'success' => false,
-                'message' => 'No mobile number is available for this advocate. Please contact Chabrin Agencies.',
+                'message' => 'Advocate phone number is missing from the system.',
             ], 400);
         }
 

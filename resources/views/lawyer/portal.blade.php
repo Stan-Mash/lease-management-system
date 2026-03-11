@@ -84,14 +84,16 @@
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
                     <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
                         <h2 class="font-semibold text-gray-900">1. Review lease document</h2>
-                        <a href="{{ $downloadUrl }}"
-                           class="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                            Download PDF
-                        </a>
+                        @if($lease->signing_mode !== 'digital')
+                            <a href="{{ $downloadUrl }}"
+                               class="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                Download PDF
+                            </a>
+                        @endif
                     </div>
                     <iframe
                         src="{{ route('lawyer.portal.view', ['token' => $token]) }}"
@@ -165,25 +167,27 @@
                     </form>
                 </div>
 
-                {{-- Option B: Upload stamped PDF --}}
-                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <h2 class="font-semibold text-gray-900 mb-2">2b. Or upload your stamped PDF</h2>
-                    <p class="text-sm text-gray-600 mb-4">If you stamped the lease offline, upload the PDF here.</p>
-                    <form action="{{ route('lawyer.portal.upload', ['token' => $token]) }}" method="post" enctype="multipart/form-data" class="space-y-4" id="lawyer-upload-form">
-                        @csrf
-                        <div>
-                            <input type="file" name="stamped_pdf" accept=".pdf"
-                                class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            @error('stamped_pdf')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <button type="submit" name="submit_mode" value="upload_pdf" id="lawyer-upload-submit-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            Upload stamped lease
-                        </button>
-                    </form>
-                </div>
+                {{-- Option B: Upload stamped PDF (physical / non-digital only) --}}
+                @if($lease->signing_mode !== 'digital')
+                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h2 class="font-semibold text-gray-900 mb-2">2b. Or upload your stamped PDF</h2>
+                        <p class="text-sm text-gray-600 mb-4">If you stamped the lease offline, upload the PDF here.</p>
+                        <form action="{{ route('lawyer.portal.upload', ['token' => $token]) }}" method="post" enctype="multipart/form-data" class="space-y-4" id="lawyer-upload-form">
+                            @csrf
+                            <div>
+                                <input type="file" name="stamped_pdf" accept=".pdf"
+                                    class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                                @error('stamped_pdf')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <button type="submit" name="submit_mode" value="upload_pdf" id="lawyer-upload-submit-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                Upload stamped lease
+                            </button>
+                        </form>
+                    </div>
+                @endif
 
                 @endif {{-- end @else (tracking not yet returned) --}}
 
