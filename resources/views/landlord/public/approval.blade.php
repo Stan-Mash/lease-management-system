@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Lease Approval — {{ $approval->lease->reference_number }}</title>
     <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     <style>
@@ -323,7 +324,40 @@
         </div>
     </div>
 
-    {{-- Action buttons (disabled until checkbox ticked) --}}
+    {{-- OTP verification for landlord approval --}}
+    @php
+        $landlordPhone = $approval->landlord?->mobile_number;
+        $phoneSuffix = $landlordPhone ? substr($landlordPhone, -4) : null;
+    @endphp
+    @if (! $otpVerified)
+        <div class="section" id="otp-section" style="margin-top:16px;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;">
+            <div class="section-title">Phone Verification</div>
+            <p style="font-size:13px;color:#374151;margin-bottom:10px;">
+                For security, please verify your phone before approving this lease.
+                @if($phoneSuffix)
+                    A 6-digit code will be sent to your number ending in <strong>{{ $phoneSuffix }}</strong>.
+                @endif
+            </p>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+                <button type="button" id="otp-request-btn"
+                        style="padding:10px 12px;border-radius:8px;border:none;background:#1d4ed8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+                    Send verification code
+                </button>
+                <div id="otp-input-row" style="display:none;align-items:center;gap:8px;">
+                    <input type="text" id="otp-code-input" maxlength="6"
+                           style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:14px;letter-spacing:0.3em;text-align:center;"
+                           placeholder="000000">
+                    <button type="button" id="otp-verify-btn"
+                            style="padding:9px 14px;border-radius:8px;border:none;background:#16a34a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+                        Verify
+                    </button>
+                </div>
+                <p id="otp-message" style="display:none;font-size:12px;margin-top:4px;"></p>
+            </div>
+        </div>
+    @endif
+
+    {{-- Action buttons (Approve additionally requires OTP) --}}
     <div class="actions">
         <button class="btn btn-approve" id="btnApprove" onclick="openSheet('approve')" disabled>
             ✅ Approve This Lease
@@ -456,6 +490,7 @@
 </div>
 
 <script nonce="{{ $cspNonce }}">
+let landlordOtpVerified = "{{ $otpVerified ? 'true' : 'false' }}" === 'true';
 function openSheet(type) {
     document.getElementById(type + 'Sheet').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -466,9 +501,18 @@ function closeSheet(type) {
 }
 function toggleButtons() {
     const checked = document.getElementById('readCheck').checked;
-    document.getElementById('btnApprove').disabled = !checked;
-    document.getElementById('btnChanges').disabled = !checked;
-    document.getElementById('btnReject').disabled  = !checked;
+    const approveBtn = document.getElementById('btnApprove');
+    const changesBtn = document.getElementById('btnChanges');
+    const rejectBtn = document.getElementById('btnReject');
+    if (approveBtn) {
+        approveBtn.disabled = !checked || !landlordOtpVerified;
+    }
+    if (changesBtn) {
+        changesBtn.disabled = !checked;
+    }
+    if (rejectBtn) {
+        rejectBtn.disabled = !checked;
+    }
 }
 
 // Close on overlay click
@@ -573,6 +617,95 @@ document.getElementById('approve-form')?.addEventListener('submit', function (e)
 
 window.addEventListener('pageshow', function(event) {
     if (event.persisted) { window.location.reload(); }
+});
+
+// ── OTP JS ──
+document.addEventListener('DOMContentLoaded', function () {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const requestBtn = document.getElementById('otp-request-btn');
+    const verifyBtn = document.getElementById('otp-verify-btn');
+    const codeInput = document.getElementById('otp-code-input');
+    const msgEl = document.getElementById('otp-message');
+    const rowEl = document.getElementById('otp-input-row');
+
+    if (!requestBtn || !csrf) {
+        return;
+    }
+
+    function showOtpMessage(kind, text) {
+        if (!msgEl) return;
+        msgEl.style.display = 'block';
+        msgEl.style.color = kind === 'success' ? '#166534' : '#b91c1c';
+        msgEl.textContent = text;
+    }
+
+            requestBtn.addEventListener('click', async function () {
+        requestBtn.disabled = true;
+        requestBtn.textContent = 'Sending...';
+        showOtpMessage('info', '');
+            try {
+                const resp = await fetch("{{ route('landlord.public.request-otp', $approval->token) }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                if (rowEl) rowEl.style.display = 'flex';
+                requestBtn.textContent = 'Resend code';
+                showOtpMessage('success', data.message || 'Code sent.');
+            } else {
+                requestBtn.disabled = false;
+                requestBtn.textContent = 'Send verification code';
+                showOtpMessage('error', data.message || 'Could not send code.');
+            }
+        } catch (e) {
+            requestBtn.disabled = false;
+            requestBtn.textContent = 'Send verification code';
+            showOtpMessage('error', 'Network error. Please try again.');
+        }
+    });
+
+    if (verifyBtn && codeInput) {
+        verifyBtn.addEventListener('click', async function () {
+            const code = codeInput.value.trim();
+            if (code.length !== 6) {
+                showOtpMessage('error', 'Enter the 6-digit code sent to your phone.');
+                return;
+            }
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'Verifying...';
+            try {
+                const resp = await fetch("{{ route('landlord.public.verify-otp', $approval->token) }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    landlordOtpVerified = true;
+                    const otpSection = document.getElementById('otp-section');
+                    if (otpSection) otpSection.style.display = 'none';
+                    showOtpMessage('success', data.message || 'Phone verified.');
+                    toggleButtons();
+                } else {
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = 'Verify';
+                    showOtpMessage('error', data.message || 'Invalid code.');
+                }
+            } catch (e) {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = 'Verify';
+                showOtpMessage('error', 'Network error. Please try again.');
+            }
+        });
+    }
 });
 
 </script>

@@ -499,6 +499,7 @@ class ViewLease extends ViewRecord
                 ->color('success')
                 ->visible(
                     fn () => $this->record->workflow_state === 'with_lawyer'
+                        && $this->record->signing_mode !== 'digital'
                         && $this->record->lawyerTrackings()->where('status', 'sent')->exists()
                         && auth()->user()?->can('receive_from_lawyer'),
                 )
@@ -704,9 +705,9 @@ class ViewLease extends ViewRecord
                     fn () => in_array($this->record->workflow_state, [
                         'tenant_signed',
                         'pending_upload',   // lawyer returned signed copy via portal
-                        'pending_deposit',
                         'pending_landlord_pm',
                     ], true)
+                        && ! $this->record->countersigned_at
                         && auth()->user()?->canManageLeases(),
                 )
                 ->modalHeading('Countersign & Activate Lease')

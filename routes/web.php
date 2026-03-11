@@ -56,6 +56,12 @@ Route::prefix('lawyer/lease')->name('lawyer.portal')->middleware('throttle:30,1'
     Route::get('/{token}', [LawyerPortalController::class, 'show'])->name('');
     Route::get('/{token}/view', [LawyerPortalController::class, 'viewDocument'])->name('.view');
     Route::get('/{token}/download', [LawyerPortalController::class, 'download'])->name('.download');
+    Route::post('/{token}/request-otp', [LawyerPortalController::class, 'requestOtp'])
+        ->middleware('throttle:5,1')
+        ->name('.request-otp');
+    Route::post('/{token}/verify-otp', [LawyerPortalController::class, 'verifyOtp'])
+        ->middleware('throttle:10,1')
+        ->name('.verify-otp');
     Route::post('/{token}/upload', [LawyerPortalController::class, 'upload'])->name('.upload');
 });
 
@@ -80,6 +86,12 @@ Route::prefix('guarantor')->name('guarantor.portal.')->middleware('throttle:30,1
 Route::prefix('landlord/approve')->name('landlord.public.')->group(function () {
     Route::get('/{token}', [LandlordPublicApprovalController::class, 'show'])->name('approval')->middleware('throttle:30,1');
     Route::get('/{token}/document', [LandlordPublicApprovalController::class, 'document'])->name('document')->middleware('throttle:60,1'); // iframe loads repeatedly
+    Route::post('/{token}/request-otp', [LandlordPublicApprovalController::class, 'requestOtp'])
+        ->middleware('throttle:5,1')
+        ->name('request-otp');
+    Route::post('/{token}/verify-otp', [LandlordPublicApprovalController::class, 'verifyOtp'])
+        ->middleware('throttle:10,1')
+        ->name('verify-otp');
     Route::post('/{token}', [LandlordPublicApprovalController::class, 'action'])->name('action')->middleware('throttle:10,1'); // separate bucket from GET requests
 });
 

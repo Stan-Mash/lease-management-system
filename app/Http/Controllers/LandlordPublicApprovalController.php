@@ -8,6 +8,7 @@ use App\Models\LeaseApproval;
 use App\Models\LeaseWitness;
 use App\Services\LandlordApprovalService;
 use App\Services\LeasePdfService;
+use App\Services\OTPService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -50,12 +51,113 @@ class LandlordPublicApprovalController extends Controller
         }
 
         $documentUrl = route('landlord.public.document', $token);
+        $otpVerified = session("otp_verified_{$token}") === true;
 
         return response()
-            ->view('landlord.public.approval', compact('approval', 'documentUrl'))
+            ->view('landlord.public.approval', compact('approval', 'documentUrl', 'otpVerified'))
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
+    }
+
+    /**
+     * Request OTP for landlord approval.
+     */
+    public function requestOtp(Request $request, string $token): \Illuminate\Http\JsonResponse
+    {
+        $approval = LeaseApproval::where('token', $token)
+            ->with(['lease', 'landlord'])
+            ->first();
+
+        if (! $approval || ! $approval->tokenIsValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This approval link is invalid or has expired.',
+            ], 404);
+        }
+
+        $lease = $approval->lease;
+        $phone = $approval->landlord?->mobile_number;
+
+        if (! $phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No mobile number is available for this landlord. Please contact Chabrin Agencies.',
+            ], 400);
+        }
+
+        try {
+            OTPService::generateAndSend($lease, $phone);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'A verification code has been sent to your phone.',
+                'expires_in_minutes' => config('lease.otp.expiry_minutes', 10),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Landlord portal OTP request failed', [
+                'lease_id' => $lease->id,
+                'approval_id' => $approval->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not send OTP. Please try again later.',
+            ], 400);
+        }
+    }
+
+    /**
+     * Verify OTP for landlord approval.
+     */
+    public function verifyOtp(Request $request, string $token): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string'],
+        ]);
+
+        $approval = LeaseApproval::where('token', $token)
+            ->with(['lease'])
+            ->first();
+
+        if (! $approval || ! $approval->tokenIsValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This approval link is invalid or has expired.',
+            ], 404);
+        }
+
+        $lease = $approval->lease;
+
+        try {
+            $verified = OTPService::verify($lease, $data['code'], $request->ip());
+
+            if (! $verified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid or expired code. Please request a new OTP.',
+                ], 400);
+            }
+
+            session()->put("otp_verified_{$token}", true);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Phone number verified. You can now approve the lease.',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Landlord portal OTP verification failed', [
+                'lease_id' => $lease->id,
+                'approval_id' => $approval->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification failed. Please try again.',
+            ], 400);
+        }
     }
 
     /**
@@ -117,6 +219,10 @@ class LandlordPublicApprovalController extends Controller
         }
 
         $action = $request->input('action');
+
+        if ($action === 'approve' && ! session("otp_verified_{$token}")) {
+            abort(403, 'Unauthorized.');
+        }
 
         if ($action === 'approve') {
             $validated = $request->validate([

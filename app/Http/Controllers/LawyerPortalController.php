@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\LeaseReturnedFromLawyerNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LeasePdfService;
+use App\Services\OTPService;
 use App\Services\PdfOverlayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -45,7 +46,8 @@ class LawyerPortalController extends Controller
         $tracking->load(['lease.tenant', 'lease.property', 'lawyer']);
         $lease = $tracking->lease;
         $alreadyProcessed = $tracking->status === 'returned'
-            || ($lease->workflow_state !== null && $lease->workflow_state !== 'with_lawyer');
+            || ($lease->workflow_state !== null
+                && ! in_array($lease->workflow_state, ['pending_advocate', 'with_lawyer'], true));
 
         return response()->view('lawyer.portal', [
             'tracking' => $tracking,
@@ -54,10 +56,107 @@ class LawyerPortalController extends Controller
             'alreadyProcessed' => $alreadyProcessed,
             'downloadUrl' => route('lawyer.portal.download', ['token' => $token]),
             'expiresAt' => $tracking->lawyer_link_expires_at,
+            'otpVerified' => session("otp_verified_{$token}") === true,
         ])
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
+    }
+
+    /**
+     * Request OTP for advocate portal.
+     */
+    public function requestOtp(Request $request, string $token): \Illuminate\Http\JsonResponse
+    {
+        $tracking = LeaseLawyerTracking::findByToken($token);
+
+        if (! $tracking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This link is invalid or has expired.',
+            ], 404);
+        }
+
+        $lease = $tracking->lease;
+        $phone = $tracking->lawyer?->phone;
+
+        if (! $phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No mobile number is available for this advocate. Please contact Chabrin Agencies.',
+            ], 400);
+        }
+
+        try {
+            OTPService::generateAndSend($lease, $phone);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'A verification code has been sent to your phone.',
+                'expires_in_minutes' => config('lease.otp.expiry_minutes', 10),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Lawyer portal OTP request failed', [
+                'lease_id' => $lease->id,
+                'tracking_id' => $tracking->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not send OTP. Please try again later.',
+            ], 400);
+        }
+    }
+
+    /**
+     * Verify OTP for advocate portal.
+     */
+    public function verifyOtp(Request $request, string $token): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string'],
+        ]);
+
+        $tracking = LeaseLawyerTracking::findByToken($token);
+
+        if (! $tracking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This link is invalid or has expired.',
+            ], 404);
+        }
+
+        $lease = $tracking->lease;
+
+        try {
+            $verified = OTPService::verify($lease, $data['code'], $request->ip());
+
+            if (! $verified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid or expired code. Please request a new OTP.',
+                ], 400);
+            }
+
+            session()->put("otp_verified_{$token}", true);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Phone number verified. You can now submit the signed document.',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Lawyer portal OTP verification failed', [
+                'lease_id' => $lease->id,
+                'tracking_id' => $tracking->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification failed. Please try again.',
+            ], 400);
+        }
     }
 
     /**
@@ -77,7 +176,7 @@ class LawyerPortalController extends Controller
         }
 
         $lease = $tracking->lease;
-        if ($lease->workflow_state !== 'with_lawyer') {
+        if (! in_array($lease->workflow_state, ['pending_advocate', 'with_lawyer'], true)) {
             abort(403, 'This document has already been processed and is no longer accessible via this secure link.');
         }
 
@@ -110,7 +209,7 @@ class LawyerPortalController extends Controller
         }
 
         $lease = $tracking->lease;
-        if ($lease->workflow_state !== 'with_lawyer') {
+        if (! in_array($lease->workflow_state, ['pending_advocate', 'with_lawyer'], true)) {
             abort(403, 'This document has already been processed and is no longer accessible via this secure link.');
         }
 
@@ -141,6 +240,10 @@ class LawyerPortalController extends Controller
 
             return redirect()->route('lawyer.portal', $token)
                 ->with('error', 'This link is invalid or has expired.');
+        }
+
+        if (! session("otp_verified_{$token}")) {
+            abort(403, 'Unauthorized.');
         }
 
         // Guard against re-submission — findByToken() no longer blocks returned status

@@ -32,6 +32,44 @@
                     </div>
                 @endif
 
+                @php
+                    $lawyerPhone = $tracking->lawyer?->phone;
+                    $lawyerPhoneSuffix = $lawyerPhone ? substr($lawyerPhone, -4) : null;
+                @endphp
+
+                @if (! $otpVerified)
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3">
+                        <div class="mt-0.5">📱</div>
+                        <div class="flex-1">
+                            <p class="font-semibold mb-1">Verify your phone to proceed</p>
+                            <p class="mb-2">
+                                For security, please verify your mobile number before signing or uploading the stamped lease.
+                                @if($lawyerPhoneSuffix)
+                                    A 6‑digit code will be sent to the number ending in <strong>{{ $lawyerPhoneSuffix }}</strong>.
+                                @endif
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                                <button id="lawyer-request-otp-btn"
+                                        type="button"
+                                        class="inline-flex items-center px-3 py-1.5 rounded-md bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700">
+                                    Send verification code
+                                </button>
+                                <div id="lawyer-otp-input-row" class="flex items-center gap-2 hidden">
+                                    <input id="lawyer-otp-code" type="text" maxlength="6"
+                                           class="w-24 px-2 py-1 border border-gray-300 rounded-md text-center tracking-[0.3em] text-sm"
+                                           placeholder="000000">
+                                    <button id="lawyer-verify-otp-btn"
+                                            type="button"
+                                            class="inline-flex items-center px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
+                                        Verify
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="lawyer-otp-message" class="mt-2 text-xs hidden"></p>
+                        </div>
+                    </div>
+                @endif
+
                 @if($alreadyProcessed ?? $tracking->status === 'returned')
                     <div class="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-green-800">
                         <p class="font-semibold text-base mb-1">✅ Document already processed</p>
@@ -120,7 +158,7 @@
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
 
-                        <button type="submit" name="submit_mode" value="sign_stamp" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                        <button type="submit" name="submit_mode" value="sign_stamp" id="lawyer-sign-submit-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Apply signature &amp; submit
                         </button>
@@ -131,7 +169,7 @@
                 <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h2 class="font-semibold text-gray-900 mb-2">2b. Or upload your stamped PDF</h2>
                     <p class="text-sm text-gray-600 mb-4">If you stamped the lease offline, upload the PDF here.</p>
-                    <form action="{{ route('lawyer.portal.upload', ['token' => $token]) }}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    <form action="{{ route('lawyer.portal.upload', ['token' => $token]) }}" method="post" enctype="multipart/form-data" class="space-y-4" id="lawyer-upload-form">
                         @csrf
                         <div>
                             <input type="file" name="stamped_pdf" accept=".pdf"
@@ -140,7 +178,7 @@
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
-                        <button type="submit" name="submit_mode" value="upload_pdf" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
+                        <button type="submit" name="submit_mode" value="upload_pdf" id="lawyer-upload-submit-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                             Upload stamped lease
                         </button>
@@ -157,6 +195,105 @@
 
     </div>
 
+    <script nonce="{{ $cspNonce }}">
+        (function () {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            const csrf = meta ? meta.content : null;
+            let otpVerified = "{{ $otpVerified ? 'true' : 'false' }}" === 'true';
+
+            function updateOtpDependentUi() {
+                const signBtn = document.getElementById('lawyer-sign-submit-btn');
+                const uploadBtn = document.getElementById('lawyer-upload-submit-btn');
+                if (signBtn) signBtn.disabled = !otpVerified;
+                if (uploadBtn) uploadBtn.disabled = !otpVerified;
+            }
+
+            updateOtpDependentUi();
+
+            const requestBtn = document.getElementById('lawyer-request-otp-btn');
+            const inputRow = document.getElementById('lawyer-otp-input-row');
+            const codeInput = document.getElementById('lawyer-otp-code');
+            const verifyBtn = document.getElementById('lawyer-verify-otp-btn');
+            const msgEl = document.getElementById('lawyer-otp-message');
+
+            function showMsg(kind, text) {
+                if (!msgEl) return;
+                msgEl.classList.remove('hidden');
+                msgEl.textContent = text;
+                msgEl.className = 'mt-2 text-xs ' + (kind === 'success' ? 'text-emerald-700' : 'text-red-700');
+            }
+
+            if (requestBtn && csrf) {
+                requestBtn.addEventListener('click', async function () {
+                    requestBtn.disabled = true;
+                    requestBtn.textContent = 'Sending...';
+                    try {
+                        const resp = await fetch("{{ route('lawyer.portal.request-otp', ['token' => $token]) }}", {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json'
+                            }
+                        });
+                        const data = await resp.json();
+                        if (data.success) {
+                            if (inputRow) inputRow.classList.remove('hidden');
+                            requestBtn.textContent = 'Resend code';
+                            requestBtn.disabled = false;
+                            showMsg('success', data.message || 'Code sent.');
+                        } else {
+                            requestBtn.disabled = false;
+                            requestBtn.textContent = 'Send verification code';
+                            showMsg('error', data.message || 'Could not send code.');
+                        }
+                    } catch (e) {
+                        requestBtn.disabled = false;
+                        requestBtn.textContent = 'Send verification code';
+                        showMsg('error', 'Network error. Please try again.');
+                    }
+                });
+            }
+
+            if (verifyBtn && codeInput && csrf) {
+                verifyBtn.addEventListener('click', async function () {
+                    const code = codeInput.value.trim();
+                    if (code.length !== 6) {
+                        showMsg('error', 'Enter the 6-digit code sent to your phone.');
+                        return;
+                    }
+                    verifyBtn.disabled = true;
+                    verifyBtn.textContent = 'Verifying...';
+                    try {
+                        const resp = await fetch("{{ route('lawyer.portal.verify-otp', ['token' => $token]) }}", {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ code })
+                        });
+                        const data = await resp.json();
+                        if (data.success) {
+                            otpVerified = true;
+                            updateOtpDependentUi();
+                            const otpBox = requestBtn?.closest('.rounded-lg.border-amber-200');
+                            if (otpBox) otpBox.classList.add('hidden');
+                            showMsg('success', data.message || 'Phone verified. You can now submit the lease.');
+                        } else {
+                            verifyBtn.disabled = false;
+                            verifyBtn.textContent = 'Verify';
+                            showMsg('error', data.message || 'Invalid or expired code.');
+                        }
+                    } catch (e) {
+                        verifyBtn.disabled = false;
+                        verifyBtn.textContent = 'Verify';
+                        showMsg('error', 'Network error. Please try again.');
+                    }
+                });
+            }
+        })();
+    </script>
     <script nonce="{{ $cspNonce }}">
     (function () {
         var canvas = document.getElementById('signature-pad');

@@ -83,9 +83,25 @@ class LeasePdfService
         $managerSignature = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
         $managerSigPath = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
 
-        // Witness & Advocate — from DigitalSignature when signer_type is set
+        // Witness & Advocate — witness may come from DigitalSignature OR LeaseWitness model
+        $witnessTempSigPath = null;
+        $witnessSigPath = null;
         $witnessSignature = $lease->digitalSignatures->where('signer_type', 'witness')->sortByDesc('created_at')->first();
-        $witnessSigPath = $witnessSignature ? $this->writeSignatureTempFile($witnessSignature) : null;
+        if ($witnessSignature) {
+            $witnessTempSigPath = $this->writeSignatureTempFile($witnessSignature);
+            $witnessSigPath = $witnessTempSigPath;
+        } else {
+            $witnessModelPath = $lease->witnesses
+                ->where('witnessed_party', 'tenant')
+                ->sortByDesc('witnessed_at')
+                ->value('witness_signature_path');
+            if ($witnessModelPath) {
+                $fullPath = storage_path('app/' . $witnessModelPath);
+                if (file_exists($fullPath)) {
+                    $witnessSigPath = $fullPath;
+                }
+            }
+        }
         $advocateSignature = $lease->digitalSignatures->where('signer_type', 'advocate')->sortByDesc('created_at')->first();
         $advocateSigPath = $advocateSignature ? $this->writeSignatureTempFile($advocateSignature) : null;
 
@@ -385,7 +401,7 @@ class LeasePdfService
                 'Assign a template to this lease or mark one as default for this lease type.'
             );
         } finally {
-            foreach (array_filter([$tenantSigPath, $managerSigPath, $witnessSigPath ?? null, $advocateSigPath ?? null]) as $p) {
+            foreach (array_filter([$tenantSigPath, $managerSigPath, $witnessTempSigPath ?? null, $advocateSigPath ?? null]) as $p) {
                 if ($p && file_exists($p)) {
                     @unlink($p);
                 }
