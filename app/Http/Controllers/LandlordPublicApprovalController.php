@@ -77,7 +77,8 @@ class LandlordPublicApprovalController extends Controller
         }
 
         $lease = $approval->lease;
-        $phone = $approval->landlord?->mobile_number;
+        $phone = $approval->landlord?->mobile_number
+            ?: config('services.sms_redirect_to');
 
         if (! $phone) {
             return response()->json([
