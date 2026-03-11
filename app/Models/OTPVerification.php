@@ -268,7 +268,7 @@ class OTPVerification extends Model
             return 0;
         }
 
-        return now()->diffInMinutes($this->expires_at, false);
+        return (int) now()->diffInMinutes($this->expires_at, false);
     }
 
     /**
