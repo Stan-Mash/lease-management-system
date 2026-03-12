@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\LeaseTemplateResource\Pages;
 
 use App\Filament\Resources\LeaseTemplateResource;
-use App\Services\TemplateExtractionService;
+use App\Services\TemplateSanitizer;
 use Exception;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 
 class CreateLeaseTemplate extends CreateRecord
 {
@@ -18,9 +20,6 @@ class CreateLeaseTemplate extends CreateRecord
         if (! empty($data['source_pdf_path']) && $data['source_type'] === 'uploaded_pdf') {
             $pdfPath = Storage::disk('public')->path($data['source_pdf_path']);
 
-            // Use extraction service to convert PDF to Blade
-            $extractionService = app(TemplateExtractionService::class);
-
             try {
                 // Extract content from PDF
                 $pdf = (new \Smalot\PdfParser\Parser)->parseFile($pdfPath);
@@ -28,6 +27,11 @@ class CreateLeaseTemplate extends CreateRecord
 
                 // Convert to Blade
                 $bladeContent = $this->convertTextToBlade($textContent, $data['template_type']);
+
+                // IMPORTANT: mutateFormDataBeforeCreate runs after Filament validation.
+                // Any Blade content we set here must be re-validated to avoid bypassing SafeTemplateRule.
+                app(TemplateSanitizer::class)->assertSafe($bladeContent);
+
                 $data['blade_content'] = $bladeContent;
 
                 // Extract variables
@@ -40,6 +44,13 @@ class CreateLeaseTemplate extends CreateRecord
                     'title' => $pdf->getDetails()['Title'] ?? null,
                     'author' => $pdf->getDetails()['Author'] ?? null,
                     'extracted_at' => now()->toISOString(),
+                ];
+            } catch (InvalidArgumentException $e) {
+                // Sanitizer rejected extracted content
+                $data['blade_content'] = $this->getEmptyTemplate($data['template_type']);
+                $data['extraction_metadata'] = [
+                    'extraction_failed' => true,
+                    'error' => $e->getMessage(),
                 ];
             } catch (Exception $e) {
                 // If extraction fails, provide empty template
@@ -56,8 +67,8 @@ class CreateLeaseTemplate extends CreateRecord
 
         // Set initial version
         $data['version_number'] = 1;
-        $data['created_by'] = auth()->id();
-        $data['updated_by'] = auth()->id();
+        $data['created_by'] = Auth::id();
+        $data['updated_by'] = Auth::id();
 
         // If marked as default, unset other defaults for this type
         if (! empty($data['is_default'])) {
@@ -89,9 +100,9 @@ class CreateLeaseTemplate extends CreateRecord
             '/Flat\s*no[:\s]+([\w\-]+)/i' => 'Flat no: {{ $unit->unit_number }}',
 
             // Financial
-            '/Kshs?[\s\.]+([\d,]+\.?\d*)/' => 'Kshs {{ number_format($lease->monthly_rent, 2) }}',
-            '/rent[:\s]+Kshs?[\s\.]+([\d,]+)/i' => 'rent: Kshs {{ number_format($lease->monthly_rent, 2) }}',
-            '/deposit[:\s]+Kshs?[\s\.]+([\d,]+)/i' => 'deposit: Kshs {{ number_format($lease->deposit_amount, 2) }}',
+            '/Kshs?[\s\.]+([\d,]+\.?\d*)/' => '{{ \\App\\Helpers\\Money::format((string) $lease->monthly_rent, \'Kshs\') }}',
+            '/rent[:\s]+Kshs?[\s\.]+([\d,]+)/i' => 'rent: {{ \\App\\Helpers\\Money::format((string) $lease->monthly_rent, \'Kshs\') }}',
+            '/deposit[:\s]+Kshs?[\s\.]+([\d,]+)/i' => 'deposit: {{ \\App\\Helpers\\Money::format((string) $lease->deposit_amount, \'Kshs\') }}',
 
             // Dates
             '/\d{1,2}\/\d{1,2}\/\d{2,4}/' => '{{ $lease->start_date->format(\'d/m/Y\') }}',
@@ -200,8 +211,8 @@ BLADE;
         <div class="section-title">LEASE TERMS</div>
         <p><strong>Start Date:</strong> {{ \$lease->start_date->format('d/m/Y') }}</p>
         <p><strong>End Date:</strong> {{ \$lease->end_date->format('d/m/Y') }}</p>
-        <p><strong>Monthly Rent:</strong> Kshs {{ number_format(\$lease->monthly_rent, 2) }}</p>
-        <p><strong>Deposit:</strong> Kshs {{ number_format(\$lease->deposit_amount, 2) }}</p>
+        <p><strong>Monthly Rent:</strong> {{ \\App\\Helpers\\Money::format((string) \$lease->monthly_rent, 'Kshs') }}</p>
+        <p><strong>Deposit:</strong> {{ \\App\\Helpers\\Money::format((string) \$lease->deposit_amount, 'Kshs') }}</p>
     </div>
 
     <div class="section">

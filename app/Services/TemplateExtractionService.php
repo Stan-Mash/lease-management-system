@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LeaseTemplate;
+use Illuminate\Support\Facades\Auth;
 use Smalot\PdfParser\Parser as PdfParser;
 
 /**
@@ -59,7 +60,7 @@ class TemplateExtractionService
             'source_pdf_path' => $pdfPath,
             'extraction_metadata' => $pdfMetadata,
             'available_variables' => $variables,
-            'created_by' => auth()->id(),
+            'created_by' => Auth::id(),
             'version_number' => 1,
         ]);
     }
@@ -86,8 +87,8 @@ class TemplateExtractionService
             '/Flat\s*no[:\s]+([\w\-]+)/i' => 'Flat no: {{ $unit->unit_number }}',
 
             // Financial
-            '/Kshs?[\s\.]+([\d,]+\.?\d*)/' => 'Kshs {{ number_format($lease->monthly_rent, 2) }}',
-            '/rent[:\s]+Kshs?[\s\.]+([\d,]+)/i' => 'rent: Kshs {{ number_format($lease->monthly_rent, 2) }}',
+            '/Kshs?[\s\.]+([\d,]+\.?\d*)/' => '{{ \\App\\Helpers\\Money::format((string) $lease->monthly_rent, \'Kshs\') }}',
+            '/rent[:\s]+Kshs?[\s\.]+([\d,]+)/i' => 'rent: {{ \\App\\Helpers\\Money::format((string) $lease->monthly_rent, \'Kshs\') }}',
 
             // Dates
             '/\d{1,2}\/\d{1,2}\/\d{2,4}/' => '{{ $lease->start_date->format(\'d/m/Y\') }}',

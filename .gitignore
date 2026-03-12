@@ -112,5 +112,15 @@ import_wrapper.sql
 # Claude Code worktrees
 .claude/worktrees/
 
+# AI Tool Agent Files — DO NOT push to production
+# These are local-only AI agent personas from github.com/msitarzewski/agency-agents
+# Each developer installs their own; they must never reach the server.
+.cursor/rules/
+.opencode/
+.windsurfrules
+CONVENTIONS.md
+.aider*
+.claude/agents/
+
 # Windows null device artifact
 nul
