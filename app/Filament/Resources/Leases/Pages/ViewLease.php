@@ -805,6 +805,7 @@ class ViewLease extends ViewRecord
                         'tenant_signed',
                         'pending_upload',   // lawyer returned signed copy via portal
                         'pending_landlord_pm',
+                        'pending_deposit',  // after advocate signs (commercial/residential_major flow)
                     ], true)
                         && ! $this->record->countersigned_at
                         && auth()->user()?->canManageLeases(),
