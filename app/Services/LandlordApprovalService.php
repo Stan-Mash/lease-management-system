@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\LeaseApprovalException;
+use App\Helpers\Money;
 use App\Models\Lease;
 use App\Models\LeaseApproval;
 use App\Notifications\LeaseApprovalRequestedNotification;
@@ -247,7 +248,7 @@ class LandlordApprovalService
             // PhoneFormatter::isValid() before the AT API is called.
             if (in_array($method, ['sms', 'both'])) {
                 $name = $lease->landlord->names ?? 'Landlord';
-                $rent = number_format((float) $lease->monthly_rent, 0);
+                $rent = Money::format((string) ($lease->monthly_rent ?? '0'), 'KES');
                 $message = "Dear {$name}, lease {$lease->reference_number} awaits your signature. Rent: KES {$rent}. Sign securely via the portal: {$approvalUrl} - Chabrin Agencies";
                 SMSService::sendQueued($lease->landlord->mobile_number ?: '', $message, [
                     'type'      => 'approval_request',

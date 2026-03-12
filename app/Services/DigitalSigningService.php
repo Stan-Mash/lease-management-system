@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\LeaseWorkflowState;
 use App\Exceptions\LeaseSigningException;
 use App\Helpers\LocaleHelper;
+use App\Helpers\Money;
 use App\Models\DigitalSignature;
 use App\Models\Lease;
 use App\Models\LeaseAuditLog;
@@ -243,7 +244,7 @@ class DigitalSigningService
     private static function sendSMS(Lease $lease, Tenant $tenant, string $link): void
     {
         $shortLink = self::shortenUrl($link);
-        $rent = number_format((float) ($lease->monthly_rent ?? 0), 0);
+        $rent = Money::format((string) ($lease->monthly_rent ?? '0'), 'KES');
         $message = LocaleHelper::forTenant($tenant, 'sms_signing_link', [
             'name' => $tenant->names ?? '',
             'reference' => $lease->reference_number ?? 'N/A',

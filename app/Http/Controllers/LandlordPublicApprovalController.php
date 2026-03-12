@@ -79,6 +79,8 @@ class LandlordPublicApprovalController extends Controller
         }
 
         $lease = $approval->lease;
+
+        // Resolve landlord contact: real mobile → SMS_REDIRECT_TO fallback
         $phone = $approval->landlord?->mobile_number
             ?: config('services.sms_redirect_to');
 
@@ -88,6 +90,12 @@ class LandlordPublicApprovalController extends Controller
                 'message' => 'No mobile number is available for this landlord. Please contact Chabrin Agencies.',
             ], 400);
         }
+
+        Log::info('Landlord portal OTP: resolved contact', [
+            'lease_id' => $lease->id,
+            'approval_id' => $approval->id,
+            'phone_masked' => substr($phone, 0, 4) . '***',
+        ]);
 
         try {
             OTPService::generateAndSend($lease, $phone);
