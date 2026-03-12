@@ -360,6 +360,18 @@ class LeasePdfService
 
                         return $binary;
                     }
+                } else {
+                    // Template expects a PDF upload but nothing is present on disk — do NOT fall back
+                    // to HTML strategies, as that would show an incorrect "ghost" template.
+                    $dbPath = $template->source_pdf_path
+                        ?? $template->getAttribute('file_path')
+                        ?? $template->getAttribute('pdf_path');
+
+                    throw new Exception(
+                        'Base PDF template file not found on server for lease template '
+                        . $template->id
+                        . ' at DB path: ' . (string) $dbPath
+                    );
                 }
             }
 
@@ -554,17 +566,54 @@ class LeasePdfService
         }
 
         foreach ($candidates as $path) {
+            $original = $path;
             $path = str_replace('\\', '/', $path);
 
             // If already absolute and exists, use it
             if (str_starts_with($path, '/') || preg_match('/^[A-Za-z]:\\//', $path) === 1) {
-                if (file_exists($path)) {
+                $exists = file_exists($path);
+                Log::warning('LeasePdfService.resolveTemplateSourcePdfPath absolute candidate', [
+                    'template_id' => $template->id,
+                    'db_path' => $original,
+                    'absolute' => $path,
+                    'exists' => $exists,
+                ]);
+
+                if ($exists) {
                     return $path;
                 }
                 continue;
             }
 
-            // Typical storage locations
+            // Resolve via Storage disks first (Filament uploads usually use disks)
+            foreach (['public', 'local'] as $disk) {
+                try {
+                    if (Storage::disk($disk)->exists($path)) {
+                        $full = Storage::disk($disk)->path($path);
+                        $exists = file_exists($full);
+                        Log::warning('LeasePdfService.resolveTemplateSourcePdfPath disk candidate', [
+                            'template_id' => $template->id,
+                            'db_path' => $original,
+                            'disk' => $disk,
+                            'absolute' => $full,
+                            'exists' => $exists,
+                        ]);
+
+                        if ($exists) {
+                            return $full;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('LeasePdfService.resolveTemplateSourcePdfPath disk error', [
+                        'template_id' => $template->id,
+                        'disk' => $disk,
+                        'db_path' => $original,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Fallback: typical storage locations relative to storage_path
             $localCandidates = [
                 storage_path('app/' . $path),
                 storage_path('app/public/' . $path),
@@ -572,33 +621,24 @@ class LeasePdfService
             ];
 
             foreach ($localCandidates as $full) {
-                if (file_exists($full)) {
+                $exists = file_exists($full);
+                Log::warning('LeasePdfService.resolveTemplateSourcePdfPath storage-path candidate', [
+                    'template_id' => $template->id,
+                    'db_path' => $original,
+                    'absolute' => $full,
+                    'exists' => $exists,
+                ]);
+
+                if ($exists) {
                     return $full;
                 }
             }
-
-            // Disk-resolved path (public/local)
-            try {
-                if (Storage::disk('public')->exists($path)) {
-                    $full = Storage::disk('public')->path($path);
-                    if (file_exists($full)) {
-                        return $full;
-                    }
-                }
-            } catch (\Throwable) {
-                // ignore
-            }
-            try {
-                if (Storage::disk('local')->exists($path)) {
-                    $full = Storage::disk('local')->path($path);
-                    if (file_exists($full)) {
-                        return $full;
-                    }
-                }
-            } catch (\Throwable) {
-                // ignore
-            }
         }
+
+        Log::warning('LeasePdfService.resolveTemplateSourcePdfPath failed to resolve PDF', [
+            'template_id' => $template->id,
+            'candidates' => $candidates,
+        ]);
 
         return null;
     }

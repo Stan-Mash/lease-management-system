@@ -60,7 +60,12 @@ class LeaseApprovedNotification extends Notification implements ShouldQueue
             ->line('1. You will receive a digital signing link shortly')
             ->line('2. Review and sign the lease agreement')
             ->line('3. Pay the security deposit')
-            ->line('4. Your lease will then become active')
+            ->line('4. Your lease will then become active');
+
+        // Internal managers should get a direct dashboard link when this notification is used internally.
+        // For tenants, this still reads fine; the action simply opens the lease in the admin UI if they have access.
+        $leaseUrl = \App\Filament\Resources\Leases\LeaseResource::getUrl('view', ['record' => $this->lease]);
+        $mail->action('View Lease in Dashboard', $leaseUrl)
             ->salutation('Regards, Chabrin Agencies — Email: info@chabrinagencies.co.ke | Phones: +254720854389, +254745912688');
 
         return $mail;

@@ -27,20 +27,12 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $tenantName = $notifiable->names ?? 'Tenant';
-        $reference = $this->lease->reference_number ?? 'N/A';
-
-        Log::info('LeaseSigningLinkNotification::toMail called', [
-            'lease_id'       => $this->lease->id,
-            'reference'      => $reference,
-            'notifiable_id'  => $notifiable->id ?? null,
-            'notifiable_email' => $notifiable->email_address ?? $notifiable->email ?? 'none',
-            'mail_redirect'  => config('mail.redirect_to') ?? 'not set',
-        ]);
-        $propertyName = $this->lease->property?->property_name ?? 'N/A';
-        $unitNumber = $this->lease->unit?->unit_number ?? 'N/A';
-        $monthlyRent = number_format((float) ($this->lease->monthly_rent ?? 0), 2);
-        $startDate = $this->lease->start_date?->format('d/m/Y') ?? 'N/A';
+        $tenantName = $this->lease->tenant->names ?? $this->lease->tenant->name ?? 'Tenant';
+        $reference = $this->lease->reference_number;
+        $propertyName = $this->lease->property->name ?? 'N/A';
+        $unitNumber = $this->lease->unit->unit_code ?? 'N/A';
+        $monthlyRent = number_format($this->lease->monthly_rent, 2);
+        $startDate = $this->lease->start_date->format('d/m/Y');
 
         return (new MailMessage)
             ->subject("Your Lease is Ready to Sign — {$reference}")
@@ -53,7 +45,8 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
             ->line("**Monthly Rent:** KES {$monthlyRent}")
             ->line("**Start Date:** {$startDate}")
             ->line('')
-            ->line('To sign your lease, use the secure digital signing link sent to your registered phone or email by Chabrin Agencies.')
+            ->action('Review and Sign Lease', $this->signingLink)
+            ->line('')
             ->line('This link is valid for **72 hours**. When you open it, you will be asked to:')
             ->line('1. Request a 6-digit OTP code sent to your phone')
             ->line('2. Verify the OTP and review the full lease')

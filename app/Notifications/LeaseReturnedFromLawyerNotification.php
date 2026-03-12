@@ -37,7 +37,7 @@ class LeaseReturnedFromLawyerNotification extends Notification implements Should
         $lawyerName   = $this->tracking->lawyer?->name ?? 'the advocate';
         $adminName    = $notifiable->name ?? 'Manager';
 
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject("Advocate has returned the signed lease — {$ref}")
             ->greeting("Dear {$adminName},")
             ->line("The signed/stamped lease has been returned by {$lawyerName} via the lawyer portal and is ready for your review.")
@@ -46,9 +46,15 @@ class LeaseReturnedFromLawyerNotification extends Notification implements Should
             ->line("**Tenant:** {$tenantName}")
             ->line("**Property:** {$propertyName}")
             ->line('')
-            ->line('The signed document has been saved to the Document Vault. Please log in to the Chabrin admin system, open the lease, verify the document, and countersign to activate the lease.')
+            ->line('The signed document has been saved to the Document Vault. Please log in to the Chabrin admin system, open the lease, verify the document, and countersign to activate the lease.');
+
+        // Internal staff should get a direct dashboard link to the lease record.
+        $leaseUrl = \App\Filament\Resources\Leases\LeaseResource::getUrl('view', ['record' => $this->lease]);
+        $mail->action('View Lease in Dashboard', $leaseUrl)
             ->line('')
             ->salutation('Regards, Chabrin Agencies');
+
+        return $mail;
     }
 
     public function toArray(object $notifiable): array

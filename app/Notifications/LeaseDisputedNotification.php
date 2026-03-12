@@ -71,6 +71,10 @@ class LeaseDisputedNotification extends Notification implements ShouldQueue
             ->line('Please review the dispute and take appropriate action to resolve it.')
             ->line('You can edit the lease terms and re-send it to the tenant for signature.');
 
+        // Internal staff convenience link to Filament dashboard
+        $leaseUrl = \App\Filament\Resources\Leases\LeaseResource::getUrl('view', ['record' => $this->lease]);
+        $mail->action('View Lease in Dashboard', $leaseUrl);
+
         return $mail;
     }
 
