@@ -6,6 +6,7 @@ use App\Jobs\SendSignedConfirmationsJob;
 use App\Models\Lease;
 use App\Models\User;
 use App\Notifications\LeaseTenantSignedNotification;
+use App\Models\LeaseTemplate;
 use App\Services\DashboardStatsService;
 use App\Services\QRCodeService;
 use App\Services\SerialNumberService;
@@ -26,6 +27,24 @@ class LeaseObserver
             $unit = \App\Models\Unit::find($lease->unit_id);
             if ($unit?->unit_code) {
                 $lease->unit_code = $unit->unit_code;
+            }
+        }
+
+        // Auto-assign default template when none is set (prevents NULL lease_template_id)
+        if (empty($lease->lease_template_id) && $lease->lease_type) {
+            $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
+                ->where('is_active', true)
+                ->where('is_default', true)
+                ->first();
+
+            if ($defaultTemplate) {
+                $lease->lease_template_id = $defaultTemplate->id;
+
+                Log::info('Default template auto-assigned to lease', [
+                    'lease_type' => $lease->lease_type,
+                    'template_id' => $defaultTemplate->id,
+                    'template_name' => $defaultTemplate->name,
+                ]);
             }
         }
 
