@@ -139,8 +139,11 @@ class LeasePdfService
                         $baseName = 'lease-' . $lease->id . '-ls-' . uniqid();
                         $current  = $lawyerDocPath;
 
-                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature && is_array($coordinates) && isset($coordinates['manager_signature'])) {
-                            $coord = $coordinates['manager_signature'];
+                        // Manager signature — use coordinate map or sensible defaults
+                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature) {
+                            $coord = is_array($coordinates) && isset($coordinates['manager_signature'])
+                                ? $coordinates['manager_signature']
+                                : ['page' => 2, 'x' => 140, 'y' => 280, 'width' => 80, 'height' => 30, 'anchor' => 'above'];
                             $next  = $outDir . '/' . $baseName . '-mgr.pdf';
                             $this->pdfOverlay->stampSignature(
                                 $current,
@@ -159,20 +162,39 @@ class LeasePdfService
                             $current = $next;
                         }
 
-                        if ($witnessSigPath && file_exists($witnessSigPath) && is_array($coordinates) && isset($coordinates['witness_signature'])) {
-                            $coord = $coordinates['witness_signature'];
+                        // Witness signature — use coordinate map or sensible defaults
+                        if ($witnessSigPath && file_exists($witnessSigPath)) {
+                            $coord = is_array($coordinates) && isset($coordinates['witness_signature'])
+                                ? $coordinates['witness_signature']
+                                : ['page' => 2, 'x' => 20, 'y' => 260, 'width' => 50, 'height' => 20];
                             $next  = $outDir . '/' . $baseName . '-witness.pdf';
                             $this->pdfOverlay->stampSignature(
                                 $current,
                                 $witnessSigPath,
                                 (int) ($coord['page'] ?? 1),
-                                (float) ($coord['x'] ?? 140),
-                                (float) ($coord['y'] ?? 235),
+                                (float) ($coord['x'] ?? 20),
+                                (float) ($coord['y'] ?? 260),
                                 (float) ($coord['width'] ?? 50),
                                 (float) ($coord['height'] ?? 20),
                                 $next,
                                 'default',
                             );
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        // ── Date texts next to each signature ──────────────────
+                        $dateEntries = $this->buildSignatureDateEntries(
+                            $lease, $coordinates,
+                            $tenantSignature, $managerSignature,
+                            $witnessSignature ?? null,
+                            $advocateSignature ?? null,
+                        );
+                        if (! empty($dateEntries)) {
+                            $next = $outDir . '/' . $baseName . '-dates.pdf';
+                            $this->pdfOverlay->stampDateTexts($current, $dateEntries, $next);
                             if ($current !== $lawyerDocPath) {
                                 @unlink($current);
                             }
@@ -291,15 +313,18 @@ class LeasePdfService
                             }
                             $current = $step4;
                         }
-                        if ($witnessSigPath && file_exists($witnessSigPath) && is_array($coordinates) && isset($coordinates['witness_signature'])) {
-                            $coord = $coordinates['witness_signature'];
+                        // Witness signature — use coordinate map or defaults
+                        if ($witnessSigPath && file_exists($witnessSigPath)) {
+                            $coord = is_array($coordinates) && isset($coordinates['witness_signature'])
+                                ? $coordinates['witness_signature']
+                                : ['page' => 2, 'x' => 20, 'y' => 260, 'width' => 50, 'height' => 20];
                             $next = $outDir . '/' . $baseName . '-witness.pdf';
                             $this->pdfOverlay->stampSignature(
                                 $current,
                                 $witnessSigPath,
                                 (int) ($coord['page'] ?? 1),
-                                (float) ($coord['x'] ?? 140),
-                                (float) ($coord['y'] ?? 235),
+                                (float) ($coord['x'] ?? 20),
+                                (float) ($coord['y'] ?? 260),
                                 (float) ($coord['width'] ?? 50),
                                 (float) ($coord['height'] ?? 20),
                                 $next,
@@ -330,6 +355,23 @@ class LeasePdfService
                             }
                             $current = $next;
                         }
+
+                        // ── Date texts next to each signature ──────────────────
+                        $dateEntries = $this->buildSignatureDateEntries(
+                            $lease, $coordinates,
+                            $tenantSignature, $managerSignature,
+                            $witnessSignature ?? null,
+                            $advocateSignature ?? null,
+                        );
+                        if (! empty($dateEntries)) {
+                            $next = $outDir . '/' . $baseName . '-dates.pdf';
+                            $this->pdfOverlay->stampDateTexts($current, $dateEntries, $next);
+                            if ($current !== $step1 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
                         $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
                         if ($tenantSignature && $managerSignature) {
                             $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
@@ -363,7 +405,13 @@ class LeasePdfService
             // Strategy 1: Assigned custom template
             if ($lease->lease_template_id && $lease->leaseTemplate) {
                 try {
-                    $html = $this->renderTemplate($lease->leaseTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
+                    $html = $this->renderTemplate(
+                        $lease->leaseTemplate, $lease,
+                        $tenantSignature, $tenantSigPath,
+                        $managerSignature, $managerSigPath,
+                        $witnessSignature ?? null, $witnessSigPath,
+                        $advocateSignature ?? null, $advocateSigPath,
+                    );
                     if ($needsDraft) {
                         $html = $this->injectDraftWatermark($html);
                     }
@@ -386,7 +434,13 @@ class LeasePdfService
                 ->first();
 
             if ($defaultTemplate) {
-                $html = $this->renderTemplate($defaultTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
+                $html = $this->renderTemplate(
+                    $defaultTemplate, $lease,
+                    $tenantSignature, $tenantSigPath,
+                    $managerSignature, $managerSigPath,
+                    $witnessSignature ?? null, $witnessSigPath,
+                    $advocateSignature ?? null, $advocateSigPath,
+                );
                 if ($needsDraft) {
                     $html = $this->injectDraftWatermark($html);
                 }
@@ -459,6 +513,10 @@ class LeasePdfService
         ?string $tenantSigPath = null,
         ?\App\Models\DigitalSignature $managerSignature = null,
         ?string $managerSigPath = null,
+        ?\App\Models\DigitalSignature $witnessSignature = null,
+        ?string $witnessSigPath = null,
+        ?\App\Models\DigitalSignature $advocateSignature = null,
+        ?string $advocateSigPath = null,
     ): string {
         $html = $this->templateRenderer->render($template, $lease);
 
@@ -467,50 +525,126 @@ class LeasePdfService
         }
 
         // Build the signature block to inject before </body>.
-        // We render both parties side-by-side if both have signed,
-        // or just the tenant if the manager hasn't countersigned yet.
+        // Main parties side-by-side (top row), then witness + advocate below.
         $sigBlock = '';
 
-        $hasTenant = $tenantSigPath && file_exists($tenantSigPath) && $tenantSignature;
-        $hasManager = $managerSigPath && file_exists($managerSigPath) && $managerSignature;
+        $hasTenant   = $tenantSigPath && file_exists($tenantSigPath) && $tenantSignature;
+        $hasManager  = $managerSigPath && file_exists($managerSigPath) && $managerSignature;
+        $hasWitness  = $witnessSigPath && file_exists($witnessSigPath);
+        $hasAdvocate = $advocateSigPath && file_exists($advocateSigPath) && $advocateSignature;
 
-        if ($hasTenant || $hasManager) {
+        // Also check LeaseWitness model when no DigitalSignature witness exists
+        $witnessModelPath = null;
+        $witnessModelDate = null;
+        if (! $hasWitness) {
+            $witnessModel = $lease->witnesses
+                ->where('witnessed_party', 'tenant')
+                ->sortByDesc('witnessed_at')
+                ->first();
+            if ($witnessModel?->witness_signature_path) {
+                $fullPath = storage_path('app/' . $witnessModel->witness_signature_path);
+                if (file_exists($fullPath)) {
+                    $witnessModelPath = $fullPath;
+                    $witnessModelDate = $witnessModel->witnessed_at?->format('d M Y, h:i A') ?? '';
+                    $hasWitness = true;
+                }
+            }
+        }
+
+        if ($hasTenant || $hasManager || $hasWitness || $hasAdvocate) {
             $sigBlock .= '<div style="margin-top:24px;padding:12px 0;border-top:2px solid #c8a020;">';
             $sigBlock .= '<table style="width:100%;border-collapse:collapse;">';
-            $sigBlock .= '<tr>';
 
-            // ── Tenant signature cell ──
-            $sigBlock .= '<td style="width:50%;vertical-align:top;padding-right:12px;">';
-            $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>TENANT SIGNATURE</strong></p>';
-            if ($hasTenant) {
-                $tenantSignedAt = $tenantSignature->created_at?->format('d M Y, h:i A') ?? '';
-                $tenantIp = htmlspecialchars($tenantSignature->ip_address ?? 'N/A');
-                $sigBlock .= '<img src="' . $tenantSigPath . '" alt="Tenant Signature"
-                    style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
-                $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">Signed: ' . $tenantSignedAt . '<br>IP: ' . $tenantIp . '</p>';
-            } else {
-                $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
-                $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Not yet signed</p>';
+            // ── Row 1: Tenant + Manager ──
+            if ($hasTenant || $hasManager) {
+                $sigBlock .= '<tr>';
+
+                // Tenant cell
+                $sigBlock .= '<td style="width:50%;vertical-align:top;padding-right:12px;padding-bottom:12px;">';
+                $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>TENANT / LESSEE SIGNATURE</strong></p>';
+                if ($hasTenant) {
+                    $tenantSignedAt = ($tenantSignature->signed_at ?? $tenantSignature->created_at)?->format('d M Y, h:i A') ?? '';
+                    $tenantIp = htmlspecialchars($tenantSignature->ip_address ?? 'N/A');
+                    $sigBlock .= '<img src="' . $tenantSigPath . '" alt="Tenant Signature" style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
+                    $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">Date: ' . $tenantSignedAt . '<br>IP: ' . $tenantIp . '</p>';
+                } else {
+                    $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
+                    $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Not yet signed</p>';
+                }
+                $sigBlock .= '</td>';
+
+                // Manager cell
+                $sigBlock .= '<td style="width:50%;vertical-align:top;padding-left:12px;padding-bottom:12px;border-left:1px solid #e0e0e0;">';
+                $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>PROPERTY MANAGER SIGNATURE</strong></p>';
+                if ($hasManager) {
+                    $mgrSignedAt = ($managerSignature->signed_at ?? $managerSignature->created_at)?->format('d M Y, h:i A') ?? '';
+                    $mgrName = htmlspecialchars($managerSignature->signed_by_name ?? 'Property Manager');
+                    $mgrIp = htmlspecialchars($managerSignature->ip_address ?? 'N/A');
+                    $sigBlock .= '<img src="' . $managerSigPath . '" alt="Manager Signature" style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
+                    $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">' . $mgrName . '<br>Date: ' . $mgrSignedAt . '<br>IP: ' . $mgrIp . '</p>';
+                } else {
+                    $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
+                    $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Pending countersignature</p>';
+                }
+                $sigBlock .= '</td>';
+
+                $sigBlock .= '</tr>';
             }
-            $sigBlock .= '</td>';
 
-            // ── Manager countersignature cell ──
-            $sigBlock .= '<td style="width:50%;vertical-align:top;padding-left:12px;border-left:1px solid #e0e0e0;">';
-            $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>PROPERTY MANAGER SIGNATURE</strong></p>';
-            if ($hasManager) {
-                $mgrSignedAt = $managerSignature->created_at?->format('d M Y, h:i A') ?? '';
-                $mgrName = htmlspecialchars($managerSignature->signed_by_name ?? 'Property Manager');
-                $mgrIp = htmlspecialchars($managerSignature->ip_address ?? 'N/A');
-                $sigBlock .= '<img src="' . $managerSigPath . '" alt="Manager Signature"
-                    style="max-width:200px;max-height:70px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
-                $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">' . $mgrName . '<br>Signed: ' . $mgrSignedAt . '<br>IP: ' . $mgrIp . '</p>';
-            } else {
-                $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
-                $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Pending countersignature</p>';
+            // ── Row 2: Witness + Advocate ──
+            if ($hasWitness || $hasAdvocate) {
+                $sigBlock .= '<tr style="border-top:1px dashed #ddd;">';
+
+                // Witness cell
+                $sigBlock .= '<td style="width:50%;vertical-align:top;padding-right:12px;padding-top:8px;">';
+                $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>WITNESS SIGNATURE</strong></p>';
+                if ($hasWitness) {
+                    $witnessImgPath = $witnessSigPath ?? $witnessModelPath;
+                    if ($witnessSignature) {
+                        $witnessDate = ($witnessSignature->signed_at ?? $witnessSignature->created_at)?->format('d M Y, h:i A') ?? '';
+                    } else {
+                        $witnessDate = $witnessModelDate ?? '';
+                    }
+                    $witnessModel2 = $lease->witnesses->where('witnessed_party', 'tenant')->sortByDesc('witnessed_at')->first();
+                    $witnessName = htmlspecialchars($witnessModel2?->witnessed_by_name ?? '');
+                    $witnessId   = htmlspecialchars($witnessModel2?->witness_id_number ?? '');
+                    $sigBlock .= '<img src="' . $witnessImgPath . '" alt="Witness Signature" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
+                    $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">';
+                    if ($witnessName) {
+                        $sigBlock .= 'Name: ' . $witnessName . '<br>';
+                    }
+                    if ($witnessId) {
+                        $sigBlock .= 'ID: ' . $witnessId . '<br>';
+                    }
+                    $sigBlock .= 'Date: ' . $witnessDate . '</p>';
+                } else {
+                    $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
+                    $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">No witness recorded</p>';
+                }
+                $sigBlock .= '</td>';
+
+                // Advocate cell
+                $sigBlock .= '<td style="width:50%;vertical-align:top;padding-left:12px;padding-top:8px;border-left:1px solid #e0e0e0;">';
+                $sigBlock .= '<p style="font-size:9pt;color:#333;margin:0 0 4px 0;"><strong>ADVOCATE / COMMISSIONER FOR OATHS</strong></p>';
+                if ($hasAdvocate) {
+                    $advDate = ($advocateSignature->signed_at ?? $advocateSignature->created_at)?->format('d M Y, h:i A') ?? '';
+                    $advName = htmlspecialchars($advocateSignature->signed_by_name ?? '');
+                    $sigBlock .= '<img src="' . $advocateSigPath . '" alt="Advocate Signature" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;display:block;margin-bottom:4px;">';
+                    $sigBlock .= '<p style="font-size:8pt;color:#555;margin:0;">';
+                    if ($advName) {
+                        $sigBlock .= 'Name: ' . $advName . '<br>';
+                    }
+                    $sigBlock .= 'Date: ' . $advDate . '</p>';
+                } else {
+                    $sigBlock .= '<div style="border-bottom:1px solid #000;height:50px;margin-bottom:4px;"></div>';
+                    $sigBlock .= '<p style="font-size:8pt;color:#aaa;margin:0;">Pending advocate stamp</p>';
+                }
+                $sigBlock .= '</td>';
+
+                $sigBlock .= '</tr>';
             }
-            $sigBlock .= '</td>';
 
-            $sigBlock .= '</tr></table></div>';
+            $sigBlock .= '</table></div>';
         }
 
         if ($sigBlock !== '') {
@@ -740,5 +874,85 @@ class LeasePdfService
         }
 
         return $html;
+    }
+
+    /**
+     * Build date text entries for all available signatures.
+     * Each entry is placed just below the corresponding signature's coordinate position.
+     *
+     * @return array<array{text: string, page: int, x: float, y: float}>
+     */
+    private function buildSignatureDateEntries(
+        Lease $lease,
+        array $coordinates,
+        ?\App\Models\DigitalSignature $tenantSig,
+        ?\App\Models\DigitalSignature $managerSig,
+        ?\App\Models\DigitalSignature $witnessSig,
+        ?\App\Models\DigitalSignature $advocateSig,
+    ): array {
+        $entries = [];
+
+        // Tenant date
+        if ($tenantSig) {
+            $coord = $coordinates['tenant_signature'] ?? ['page' => 2, 'x' => 140, 'y' => 240, 'height' => 30];
+            $entries[] = [
+                'text' => 'Date: ' . ($tenantSig->signed_at ?? $tenantSig->created_at)?->format('d/m/Y'),
+                'page' => (int) ($coord['page'] ?? 2),
+                'x'    => (float) ($coord['x'] ?? 140),
+                'y'    => (float) ($coord['y'] ?? 240) + (float) ($coord['height'] ?? 30) + 2,
+            ];
+        }
+
+        // Manager date
+        if ($managerSig) {
+            $coord = $coordinates['manager_signature'] ?? ['page' => 2, 'x' => 140, 'y' => 280, 'height' => 30];
+            $sigY = (float) ($coord['y'] ?? 280);
+            $anchor = (string) ($coord['anchor'] ?? 'above');
+            $height = (float) ($coord['height'] ?? 30);
+            // When anchor is 'above', the image is placed above the y — date goes at y + 2
+            $dateY = ($anchor === 'above') ? $sigY + 2 : $sigY + $height + 2;
+            $entries[] = [
+                'text' => 'Date: ' . ($managerSig->signed_at ?? $managerSig->created_at)?->format('d/m/Y'),
+                'page' => (int) ($coord['page'] ?? 2),
+                'x'    => (float) ($coord['x'] ?? 140),
+                'y'    => $dateY,
+            ];
+        }
+
+        // Witness date — from DigitalSignature or LeaseWitness
+        $witnessDate = null;
+        if ($witnessSig) {
+            $witnessDate = ($witnessSig->signed_at ?? $witnessSig->created_at)?->format('d/m/Y');
+        } else {
+            $witnessModel = $lease->witnesses
+                ->where('witnessed_party', 'tenant')
+                ->sortByDesc('witnessed_at')
+                ->first();
+            if ($witnessModel?->witnessed_at) {
+                $witnessDate = $witnessModel->witnessed_at->format('d/m/Y');
+            }
+        }
+        if ($witnessDate) {
+            $coord = $coordinates['witness_signature'] ?? ['page' => 2, 'x' => 20, 'y' => 260, 'height' => 20];
+            $entries[] = [
+                'text' => 'Date: ' . $witnessDate,
+                'page' => (int) ($coord['page'] ?? 2),
+                'x'    => (float) ($coord['x'] ?? 20),
+                'y'    => (float) ($coord['y'] ?? 260) + (float) ($coord['height'] ?? 20) + 2,
+            ];
+        }
+
+        // Advocate date
+        if ($advocateSig) {
+            $coord = $coordinates['advocate_signature'] ?? ['page' => 2, 'x' => 20, 'y' => 280, 'height' => 18];
+            $entries[] = [
+                'text' => 'Date: ' . ($advocateSig->signed_at ?? $advocateSig->created_at)?->format('d/m/Y'),
+                'page' => (int) ($coord['page'] ?? 2),
+                'x'    => (float) ($coord['x'] ?? 20),
+                'y'    => (float) ($coord['y'] ?? 280) + (float) ($coord['height'] ?? 18) + 2,
+            ];
+        }
+
+        return $entries;
     }
 }

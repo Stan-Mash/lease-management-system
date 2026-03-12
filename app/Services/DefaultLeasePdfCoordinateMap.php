@@ -50,8 +50,10 @@ class DefaultLeasePdfCoordinateMap
             'reference_number'=> ['page' => 1, 'x' => 25, 'y' => 35, 'size' => 12, 'width' => 60, 'align' => 'L'],
 
             // Signatures (page 2 placeholder; adjust x,y via Pick positions if needed)
-            'tenant_signature'  => ['page' => 2, 'x' => 140, 'y' => 240, 'width' => 80, 'height' => 30],
-            'manager_signature' => ['page' => 2, 'x' => 140, 'y' => 280, 'width' => 80, 'height' => 30],
+            'tenant_signature'   => ['page' => 2, 'x' => 140, 'y' => 240, 'width' => 80, 'height' => 30],
+            'manager_signature'  => ['page' => 2, 'x' => 140, 'y' => 280, 'width' => 80, 'height' => 30, 'anchor' => 'above'],
+            'witness_signature'  => ['page' => 2, 'x' => 20,  'y' => 260, 'width' => 50, 'height' => 20],
+            'advocate_signature' => ['page' => 2, 'x' => 20,  'y' => 280, 'width' => 45, 'height' => 18, 'anchor' => 'beside'],
         ];
     }
 }

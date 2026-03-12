@@ -292,6 +292,59 @@ class PdfOverlayService
     }
 
     /**
+     * Stamp multiple date texts at specified positions on a PDF (single FPDI pass).
+     * Used to render "Date: dd/mm/yyyy" next to each signature on the execution page.
+     *
+     * @param  array<array{text: string, page: int, x: float, y: float}>  $dateEntries
+     */
+    public function stampDateTexts(
+        string $sourcePdfPath,
+        array $dateEntries,
+        string $outputPath,
+    ): string {
+        if (empty($dateEntries)) {
+            // Nothing to stamp — copy source to output and return
+            copy($sourcePdfPath, $outputPath);
+
+            return $outputPath;
+        }
+
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            foreach ($dateEntries as $entry) {
+                $targetPage = (int) ($entry['page'] ?? 1);
+                if ($targetPage !== $pageNo) {
+                    continue;
+                }
+                $text = $entry['text'] ?? '';
+                if ($text === '') {
+                    continue;
+                }
+                $x = (float) ($entry['x'] ?? 0);
+                $y = (float) ($entry['y'] ?? 0);
+
+                // Small dark text (8pt, dark gray) — distinct from the red field overlay
+                $pdf->SetFont('Helvetica', '', 8);
+                $pdf->SetTextColor(60, 60, 60);
+                $pdf->SetXY($x, $y);
+                $pdf->Cell(50, 4, $text, 0, 0, 'L');
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+
+        return $outputPath;
+    }
+
+    /**
      * Stamp manager countersignature + timestamp + SHA-256 audit stamp.
      */
     public function stampAuditBlock(
