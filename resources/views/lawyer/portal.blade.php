@@ -34,18 +34,26 @@
 
                 @php
                     $lawyerPhone = $tracking->lawyer?->phone;
-                    $lawyerPhoneSuffix = $lawyerPhone ? substr($lawyerPhone, -4) : null;
+                    $lawyerEmail = $tracking->lawyer?->email ?? $lease->tenant_advocate_email;
+                    // Show a masked hint of where the OTP will go
+                    if ($lawyerPhone) {
+                        $contactHint = 'the number ending in <strong>' . substr($lawyerPhone, -4) . '</strong>';
+                    } elseif ($lawyerEmail) {
+                        $contactHint = '<strong>' . substr($lawyerEmail, 0, 3) . '***' . substr($lawyerEmail, strpos($lawyerEmail, '@')) . '</strong>';
+                    } else {
+                        $contactHint = null;
+                    }
                 @endphp
 
                 @if (! $otpVerified)
                     <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3">
                         <div class="mt-0.5">📱</div>
                         <div class="flex-1">
-                            <p class="font-semibold mb-1">Verify your phone to proceed</p>
+                            <p class="font-semibold mb-1">Verify your identity to proceed</p>
                             <p class="mb-2">
-                                For security, please verify your mobile number before signing or uploading the stamped lease.
-                                @if($lawyerPhoneSuffix)
-                                    A 6‑digit code will be sent to the number ending in <strong>{{ $lawyerPhoneSuffix }}</strong>.
+                                For security, please verify your identity before signing or uploading the stamped lease.
+                                @if($contactHint)
+                                    A 6‑digit code will be sent to {!! $contactHint !!}.
                                 @endif
                             </p>
                             <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">

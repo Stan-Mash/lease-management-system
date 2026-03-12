@@ -57,7 +57,7 @@ Route::prefix('lawyer/lease')->name('lawyer.portal')->middleware('throttle:30,1'
     Route::get('/{token}/view', [LawyerPortalController::class, 'viewDocument'])->name('.view');
     Route::get('/{token}/download', [LawyerPortalController::class, 'download'])->name('.download');
     Route::post('/{token}/request-otp', [LawyerPortalController::class, 'requestOtp'])
-        ->middleware('throttle:5,1')
+        ->middleware('throttle:10,1')
         ->name('.request-otp');
     Route::post('/{token}/verify-otp', [LawyerPortalController::class, 'verifyOtp'])
         ->middleware('throttle:10,1')
