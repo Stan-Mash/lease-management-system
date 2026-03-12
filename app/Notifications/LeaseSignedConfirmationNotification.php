@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Helpers\Money;
 use App\Models\Lease;
 use App\Services\LeasePdfService;
 use Exception;
@@ -32,7 +33,7 @@ class LeaseSignedConfirmationNotification extends Notification implements Should
         $reference = $this->lease->reference_number ?? 'N/A';
         $propertyName = $this->lease->property?->property_name ?? 'N/A';
         $unitNumber = $this->lease->unit?->unit_number ?? 'N/A';
-        $monthlyRent = number_format((float) ($this->lease->monthly_rent ?? 0), 2);
+        $monthlyRent = Money::format((string) ($this->lease->monthly_rent ?? '0'), 'KES');
         $startDate = $this->lease->start_date?->format('d M Y') ?? 'N/A';
         $signedAt = now()->format('d M Y, h:i A');
 

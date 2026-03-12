@@ -13,6 +13,7 @@ use App\Support\PhoneFormatter;
 use Exception;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class OTPService
 {
@@ -102,31 +103,57 @@ class OTPService
             DeviceFingerprintService::store('otp', $otp->id, $fingerprint);
         }
 
-        // Send OTP via SMS (plaintext code sent to tenant, NOT stored). Use tenant locale when available.
+        // Send OTP via SMS or email depending on contact format.
+        // Email addresses are detected by the presence of '@'; everything else is treated as a phone number.
+        $isEmail = str_contains($phone, '@');
+
         try {
-            $tenant = $lease->tenant;
-            if ($tenant) {
-                $message = LocaleHelper::forTenant($tenant, 'sms_otp', ['code' => $plaintextCode]);
-                $sent = SMSService::send($phone, $message, ['type' => 'otp', 'reference' => $lease->reference_number]);
-            } else {
-                $sent = SMSService::sendOTP(
-                    $phone,
-                    $plaintextCode,
-                    $lease->reference_number,
-                    $expiryMinutes,
+            if ($isEmail) {
+                // Send OTP via email
+                $ref = $lease->reference_number ?? 'N/A';
+                Mail::raw(
+                    "Your OTP verification code for lease {$ref} is: {$plaintextCode}\n\n"
+                    . "This code expires in {$expiryMinutes} minutes.\n\n"
+                    . "If you did not request this code, please ignore this message.\n\n"
+                    . 'Regards, Chabrin Agencies',
+                    static function ($message) use ($phone, $ref): void {
+                        $message->to($phone)
+                            ->subject("OTP Verification Code — {$ref}");
+                    }
                 );
-            }
 
-            if (! $sent && SMSService::isConfigured()) {
-                throw new Exception('SMS service returned failure');
-            }
+                Log::info('OTP generated and sent via email', [
+                    'lease_id' => $lease->id,
+                    'email_masked' => substr($phone, 0, 3) . '***',
+                    'otp_id' => $otp->id,
+                    'risk_score' => $suspiciousActivity['risk_score'] ?? 0,
+                ]);
+            } else {
+                // Send OTP via SMS (plaintext code sent to tenant, NOT stored). Use tenant locale when available.
+                $tenant = $lease->tenant;
+                if ($tenant) {
+                    $message = LocaleHelper::forTenant($tenant, 'sms_otp', ['code' => $plaintextCode]);
+                    $sent = SMSService::send($phone, $message, ['type' => 'otp', 'reference' => $lease->reference_number]);
+                } else {
+                    $sent = SMSService::sendOTP(
+                        $phone,
+                        $plaintextCode,
+                        $lease->reference_number,
+                        $expiryMinutes,
+                    );
+                }
 
-            Log::info('OTP generated and sent', [
-                'lease_id' => $lease->id,
-                'phone_masked' => PhoneFormatter::mask($phone),
-                'otp_id' => $otp->id,
-                'risk_score' => $suspiciousActivity['risk_score'] ?? 0,
-            ]);
+                if (! $sent && SMSService::isConfigured()) {
+                    throw new Exception('SMS service returned failure');
+                }
+
+                Log::info('OTP generated and sent via SMS', [
+                    'lease_id' => $lease->id,
+                    'phone_masked' => PhoneFormatter::mask($phone),
+                    'otp_id' => $otp->id,
+                    'risk_score' => $suspiciousActivity['risk_score'] ?? 0,
+                ]);
+            }
         } catch (Exception $e) {
             // Mark OTP as expired if sending failed
             $otp->markAsExpired();

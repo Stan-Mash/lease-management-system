@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Helpers\Money;
 use App\Models\Lease;
 use App\Models\LeaseApproval;
 use Illuminate\Bus\Queueable;
@@ -48,7 +49,7 @@ class LeaseApprovedNotification extends Notification implements ShouldQueue
             ->line('**Lease Details:**')
             ->line('Reference: **' . $this->lease->reference_number . '**')
             ->line('Property Type: **' . ucfirst($this->lease->lease_type) . '**')
-            ->line('Monthly Rent: **' . number_format($this->lease->monthly_rent, 2) . ' ' . ($this->lease->currency ?? 'KES') . '**')
+            ->line('Monthly Rent: **' . Money::format((string) ($this->lease->monthly_rent ?? '0'), $this->lease->currency ?? 'KES') . '**')
             ->line('Lease Period: **' . $this->lease->start_date->format('d M Y') . ' - ' . $this->lease->end_date->format('d M Y') . '**');
 
         if ($this->approval->comments) {

@@ -79,12 +79,11 @@ class LawyerPortalController extends Controller
 
         $lease = $tracking->lease;
         $lawyer = $tracking->lawyer;
-        $contact = $lawyer?->phone ?? $lawyer?->email;
 
-        // Developer override for testing (non-production) — route OTPs to the developer
-        if (config('app.env') !== 'production') {
-            $contact = \Illuminate\Support\Facades\Auth::user()->email ?? 'stanely.macharia@chabrinagencies.co.ke';
-        }
+        // Resolve advocate contact: linked lawyer phone/email → guest advocate email from lease
+        $contact = $lawyer?->phone
+            ?? $lawyer?->email
+            ?? $lease->tenant_advocate_email;
 
         if (empty($contact)) {
             return response()->json([
@@ -92,6 +91,13 @@ class LawyerPortalController extends Controller
                 'message' => 'Advocate contact information is missing from the system.',
             ], 400);
         }
+
+        Log::info('Lawyer portal OTP: resolved contact', [
+            'lease_id' => $lease->id,
+            'tracking_id' => $tracking->id,
+            'contact_masked' => substr($contact, 0, 3) . '***',
+            'source' => $lawyer ? 'linked_lawyer' : 'guest_advocate',
+        ]);
 
         try {
             OTPService::generateAndSend($lease, $contact);

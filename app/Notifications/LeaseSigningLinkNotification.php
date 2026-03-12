@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Helpers\Money;
 use App\Models\Lease;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,7 +32,7 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
         $reference = $this->lease->reference_number;
         $propertyName = $this->lease->property->name ?? 'N/A';
         $unitNumber = $this->lease->unit->unit_code ?? 'N/A';
-        $monthlyRent = number_format($this->lease->monthly_rent, 2);
+        $monthlyRent = Money::format((string) ($this->lease->monthly_rent ?? '0'), 'KES');
         $startDate = $this->lease->start_date->format('d/m/Y');
 
         return (new MailMessage)
@@ -42,7 +43,7 @@ class LeaseSigningLinkNotification extends Notification implements ShouldQueue
             ->line("**Lease Reference:** {$reference}")
             ->line("**Property:** {$propertyName}")
             ->line("**Unit:** {$unitNumber}")
-            ->line("**Monthly Rent:** KES {$monthlyRent}")
+            ->line("**Monthly Rent:** {$monthlyRent}")
             ->line("**Start Date:** {$startDate}")
             ->line('')
             ->action('Review and Sign Lease', $this->signingLink)

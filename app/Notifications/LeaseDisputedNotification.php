@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Helpers\Money;
 use App\Models\Lease;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -66,7 +67,7 @@ class LeaseDisputedNotification extends Notification implements ShouldQueue
         }
 
         $mail->line('**Current Lease Terms:**')
-            ->line('Monthly Rent: **KES ' . number_format($this->lease->monthly_rent, 2) . '**')
+            ->line('Monthly Rent: **' . Money::format((string) ($this->lease->monthly_rent ?? '0'), 'KES') . '**')
             ->line('Lease Period: **' . $this->lease->start_date->format('d M Y') . ' - ' . $this->lease->end_date->format('d M Y') . '**')
             ->line('Please review the dispute and take appropriate action to resolve it.')
             ->line('You can edit the lease terms and re-send it to the tenant for signature.');

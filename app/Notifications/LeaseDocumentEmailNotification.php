@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Helpers\Money;
 use App\Models\Lease;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -35,7 +36,7 @@ class LeaseDocumentEmailNotification extends Notification implements ShouldQueue
             ->line('**Lease Reference:** ' . ($this->lease->reference_number ?? 'N/A'))
             ->line('**Property:** ' . ($this->lease->property?->name ?? 'N/A'))
             ->line('**Unit:** ' . ($this->lease->unit?->unit_number ?? 'N/A'))
-            ->line('**Monthly Rent:** KES ' . number_format((float) ($this->lease->monthly_rent ?? 0), 2))
+            ->line('**Monthly Rent:** ' . Money::format((string) ($this->lease->monthly_rent ?? '0'), 'KES'))
             ->line('**Status:** ' . ucwords(str_replace('_', ' ', $this->lease->workflow_state ?? 'N/A')));
 
         if ($this->lease->start_date) {
