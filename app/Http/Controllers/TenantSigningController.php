@@ -227,6 +227,12 @@ class TenantSigningController extends Controller
                 $advocateEmail = $request->validated()['tenant_advocate_email'] ?? null;
 
                 if ($advocateEmail) {
+                // Persist tenant-selected advocate details on the lease for later reuse (e.g. resend link)
+                $lease->update([
+                    'tenant_advocate_name' => $advocateName,
+                    'tenant_advocate_email' => $advocateEmail,
+                ]);
+
                     $tracking = LeaseLawyerTracking::create([
                         'lease_id' => $lease->id,
                         'lawyer_id' => null,

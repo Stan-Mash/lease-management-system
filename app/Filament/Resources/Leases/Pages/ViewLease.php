@@ -355,9 +355,8 @@ class ViewLease extends ViewRecord
                             ]);
 
                             $lawyer = $tracking->lawyer;
-                            // Attempt to find an email from linked lawyer, tracking, or lease (guest advocate)
+                            // Attempt to find an email from linked lawyer or lease (guest advocate)
                             $email = $lawyer?->email
-                                ?? $tracking->getAttribute('advocate_email')
                                 ?? $lease->tenant_advocate_email
                                 ?? null;
 
