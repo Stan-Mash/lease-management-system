@@ -339,7 +339,7 @@ class ViewLease extends ViewRecord
                             return;
                         }
 
-                        // 2. Advocate resend (lawyer portal link)
+                        // 2. Advocate resend (lawyer portal link, supports guest advocates)
                         if (in_array($state, ['pending_advocate', 'with_lawyer'], true)) {
                             $tracking = $lease->lawyerTrackings()
                                 ->withLawyer()
@@ -355,16 +355,28 @@ class ViewLease extends ViewRecord
                             ]);
 
                             $lawyer = $tracking->lawyer;
-                            if (! $lawyer) {
-                                throw new \Exception('Advocate record not linked.');
+                            // Attempt to find an email from linked lawyer, tracking, or lease (guest advocate)
+                            $email = $lawyer?->email
+                                ?? $tracking->getAttribute('advocate_email')
+                                ?? $lease->tenant_advocate_email
+                                ?? null;
+
+                            if (! $email) {
+                                throw new \Exception('No email address found for the advocate (guest or linked).');
                             }
 
-                            $lawyer->notify(new LeaseSentToLawyerNotification(
+                            $notification = new LeaseSentToLawyerNotification(
                                 $lease,
-                                $lawyer,
+                                $lawyer ?? new \App\Models\Lawyer(), // allow null-like, not used for routing when guest
                                 $tracking->fresh(),
                                 false, // portal link (no PDF attachment)
-                            ));
+                            );
+
+                            if ($lawyer) {
+                                $lawyer->notify($notification);
+                            } else {
+                                \Illuminate\Support\Facades\Notification::route('mail', $email)->notify($notification);
+                            }
 
                             Notification::make()->success()
                                 ->title('Link resent to Advocate ✅')
