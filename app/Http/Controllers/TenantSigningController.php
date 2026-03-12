@@ -227,52 +227,38 @@ class TenantSigningController extends Controller
                 $advocateEmail = $request->validated()['tenant_advocate_email'] ?? null;
 
                 if ($advocateEmail) {
-                // Persist tenant-selected advocate details on the lease for later reuse (e.g. resend link)
-                $lease->update([
-                    'tenant_advocate_name' => $advocateName,
-                    'tenant_advocate_email' => $advocateEmail,
-                ]);
+                    // Persist tenant-selected advocate details on the lease for later reuse (e.g. resend link)
+                    $lease->update([
+                        'tenant_advocate_name' => $advocateName,
+                        'tenant_advocate_email' => $advocateEmail,
+                    ]);
 
                     $tracking = LeaseLawyerTracking::create([
-                        'lease_id' => $lease->id,
-                        'lawyer_id' => null,
-                        'sent_method' => 'email',
-                        'sent_by' => null,
+                        'lease_id'   => $lease->id,
+                        'lawyer_id'  => null,
+                        'sent_method'=> 'email',
+                        'sent_by'    => null,
                         'sent_notes' => 'Tenant-selected advocate: ' . ($advocateName ?? '') . ' <' . $advocateEmail . '>',
-                        'status' => 'sent',
-                        'sent_at' => now(),
+                        'status'     => 'sent',
+                        'sent_at'    => now(),
                     ]);
 
                     $token = LeaseLawyerTracking::generateToken();
                     $tracking->update([
-                        'lawyer_link_token' => $token,
-                        'lawyer_link_expires_at' => now()->addDays(14),
-                        'sent_via_portal_link' => true,
+                        'lawyer_link_token'       => $token,
+                        'lawyer_link_expires_at'  => now()->addDays(14),
+                        'sent_via_portal_link'    => true,
                     ]);
 
-                    $portalUrl = route('lawyer.portal', ['token' => $token]);
+                    // Send unified HTML notification to guest advocate via on-demand routing
+                    $notification = new \App\Notifications\LeaseSentToLawyerNotification(
+                        $lease,
+                        new \App\Models\Lawyer(), // dummy model; routing is on-demand
+                        $tracking->fresh(),
+                        false // portal link mode (no PDF attachment)
+                    );
 
-                    try {
-                        Mail::raw(
-                            "Dear Advocate,\n\n"
-                            . 'Your client ' . ($lease->tenant?->names ?? 'Tenant')
-                            . ' has requested that you review and stamp their commercial lease '
-                            . '(' . ($lease->reference_number ?? 'N/A') . '). '
-                            . "Use the secure link below to access the lease portal (valid for 14 days):\n\n"
-                            . $portalUrl . "\n\n"
-                            . "Regards,\nChabrin Agencies – Lease Management System",
-                            static function ($message) use ($advocateEmail, $advocateName) {
-                                $message->to($advocateEmail, $advocateName ?? null)
-                                    ->subject('Lease review request from your client');
-                            }
-                        );
-                    } catch (Exception $e) {
-                        Log::warning('Failed to email tenant-selected advocate', [
-                            'lease_id' => $lease->id,
-                            'email' => $advocateEmail,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
+                    \Illuminate\Support\Facades\Notification::route('mail', $advocateEmail)->notify($notification);
                 }
             }
 
