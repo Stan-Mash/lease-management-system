@@ -181,9 +181,9 @@ class LandlordPublicApprovalController extends Controller
         $filename = 'Lease-' . $lease->reference_number . '.pdf';
 
         try {
-            // Use LeasePdfService which includes Strategy 0 (uploaded PDF overlay) —
-            // the same document the admin sees via the template preview-pdf route.
-            $binary = app(LeasePdfService::class)->generate($lease);
+            // Use LeasePdfService to generate a fresh, fully mapped PDF for the landlord.
+            // Force draft watermark OFF and enforce strict use of the assigned template (no silent default fallback).
+            $binary = app(LeasePdfService::class)->generate($lease, true, true);
 
             return response($binary, 200, [
                 'Content-Type'        => 'application/pdf',

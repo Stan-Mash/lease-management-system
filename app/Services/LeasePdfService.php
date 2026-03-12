@@ -64,10 +64,10 @@ class LeasePdfService
      *
      * @throws Exception If all strategies fail
      */
-    public function generate(Lease $lease): string
+    public function generate(Lease $lease, bool $forceNoDraft = false, bool $strictTemplate = false): string
     {
         $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses', 'guarantors']);
-        $needsDraft = $this->needsDraftWatermark($lease);
+        $needsDraft = $forceNoDraft ? false : $this->needsDraftWatermark($lease);
 
         // Tenant signature — the drawn canvas signature from the signing portal
         $tenantSignature = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first()
@@ -115,6 +115,7 @@ class LeasePdfService
 
         try {
             $template = $lease->leaseTemplate;
+            $hasAssignedTemplate = (bool) $lease->lease_template_id;
             $coordinates = $template?->pdf_coordinate_map ?? [];
             $hasCoordinates = is_array($coordinates) && count($coordinates) > 0;
 
@@ -376,7 +377,7 @@ class LeasePdfService
             }
 
             // Strategy 1: Assigned custom template
-            if ($lease->lease_template_id && $lease->leaseTemplate) {
+            if ($hasAssignedTemplate && $lease->leaseTemplate) {
                 try {
                     $html = $this->renderTemplate($lease->leaseTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
                     if ($needsDraft) {
@@ -387,28 +388,43 @@ class LeasePdfService
 
                     return $pdf->output();
                 } catch (Exception $e) {
+                    if ($strictTemplate) {
+                        throw new Exception(
+                            "Failed to render assigned template for lease {$lease->reference_number}: {$e->getMessage()}",
+                            previous: $e,
+                        );
+                    }
+
                     Log::warning('LeasePdfService: custom template failed, trying default', [
                         'lease_id' => $lease->id,
                         'error' => $e->getMessage(),
                     ]);
                 }
+            } elseif ($hasAssignedTemplate && $strictTemplate) {
+                // Lease has an assigned template ID but relation is missing — treat as hard failure in strict mode.
+                throw new Exception(
+                    "Assigned lease template {$lease->lease_template_id} could not be loaded for lease {$lease->reference_number}."
+                );
             }
 
-            // Strategy 2: Default template for lease type (fallback when assigned template fails)
-            $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
-                ->where('is_active', true)
-                ->where('is_default', true)
-                ->first();
+            // Strategy 2: Default template for lease type (fallback when assigned template fails).
+            // In strict mode, this is only used when NO template is assigned at all.
+            if (! $hasAssignedTemplate || ! $strictTemplate) {
+                $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
+                    ->where('is_active', true)
+                    ->where('is_default', true)
+                    ->first();
 
-            if ($defaultTemplate) {
-                $html = $this->renderTemplate($defaultTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
-                if ($needsDraft) {
-                    $html = $this->injectDraftWatermark($html);
+                if ($defaultTemplate) {
+                    $html = $this->renderTemplate($defaultTemplate, $lease, $tenantSignature, $tenantSigPath, $managerSignature, $managerSigPath);
+                    if ($needsDraft) {
+                        $html = $this->injectDraftWatermark($html);
+                    }
+                    $pdf = Pdf::loadHTML($html);
+                    $this->setPdfMetadata($pdf, $lease);
+
+                    return $pdf->output();
                 }
-                $pdf = Pdf::loadHTML($html);
-                $this->setPdfMetadata($pdf, $lease);
-
-                return $pdf->output();
             }
 
             throw new Exception(
