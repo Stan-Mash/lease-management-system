@@ -42,7 +42,7 @@ class LeaseSentToLawyerNotification extends Notification implements ShouldQueue
         $mail = (new MailMessage)
             ->subject("Lease for review and stamping – {$ref}")
             ->greeting('Dear ' . ($this->lawyer->name ?? 'Advocate') . ',')
-            ->line('Chabrin Agencies has sent you the following lease for legal review and advocate stamping.')
+            ->line('Chabrin Agencies has requested your professional review and stamping of the lease below.')
             ->line('')
             ->line("**Lease reference:** {$ref}")
             ->line("**Tenant:** {$tenantName}")
@@ -50,7 +50,8 @@ class LeaseSentToLawyerNotification extends Notification implements ShouldQueue
 
         if ($this->tracking->sent_notes) {
             $mail->line('')
-                ->line('**Notes:** ' . $this->tracking->sent_notes);
+                ->line('**Instructions from Chabrin:**')
+                ->line($this->tracking->sent_notes);
         }
 
         if ($this->attachPdf) {
@@ -64,21 +65,21 @@ class LeaseSentToLawyerNotification extends Notification implements ShouldQueue
                 $mail->line('')
                     ->line('(The lease PDF could not be attached. Please request it from Chabrin if needed.)');
             }
-        } else {
-            $portalUrl = $this->tracking->lawyer_link_token
-                ? route('lawyer.portal', ['token' => $this->tracking->lawyer_link_token])
-                : null;
-            if ($portalUrl) {
-                $mail->line('')
-                    ->line('Use the link below to download the lease PDF. After stamping, upload the stamped PDF using the same link so it is returned to Chabrin.')
-                    ->action('Open lease portal (download & upload)', $portalUrl)
-                    ->line('This link expires on ' . $this->tracking->lawyer_link_expires_at?->format('d M Y') . '.');
-            }
         }
 
-        $mail->line('')
-            ->salutation('Regards, Chabrin Agencies');
+        $portalUrl = $this->tracking->lawyer_link_token
+            ? route('lawyer.portal', ['token' => $this->tracking->lawyer_link_token])
+            : null;
 
-        return $mail;
+        if ($portalUrl) {
+            $mail->line('')
+                ->line('Use the button below to open your advocate portal. You can download the lease PDF, add your stamp/signature, and upload the stamped copy so it is returned to Chabrin Agencies.')
+                ->action('Open Advocate Portal', $portalUrl)
+                ->line('This link expires on ' . $this->tracking->lawyer_link_expires_at?->format('d M Y') . '.');
+        }
+
+        return $mail
+            ->line('')
+            ->salutation('Regards, Chabrin Agencies');
     }
 }

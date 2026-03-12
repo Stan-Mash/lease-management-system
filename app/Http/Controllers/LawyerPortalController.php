@@ -78,21 +78,27 @@ class LawyerPortalController extends Controller
         }
 
         $lease = $tracking->lease;
-        $phone = $tracking->lawyer?->phone;
+        $lawyer = $tracking->lawyer;
+        $contact = $lawyer?->phone ?? $lawyer?->email;
 
-        if (empty($phone)) {
+        // Developer override for testing (non-production) — route OTPs to the developer
+        if (config('app.env') !== 'production') {
+            $contact = \Illuminate\Support\Facades\Auth::user()->email ?? 'stanely.macharia@chabrinagencies.co.ke';
+        }
+
+        if (empty($contact)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Advocate phone number is missing from the system.',
+                'message' => 'Advocate contact information is missing from the system.',
             ], 400);
         }
 
         try {
-            OTPService::generateAndSend($lease, $phone);
+            OTPService::generateAndSend($lease, $contact);
 
             return response()->json([
                 'success' => true,
-                'message' => 'A verification code has been sent to your phone.',
+                'message' => 'A verification code has been sent.',
                 'expires_in_minutes' => config('lease.otp.expiry_minutes', 10),
             ]);
         } catch (\Throwable $e) {
