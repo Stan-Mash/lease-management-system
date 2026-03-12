@@ -12,6 +12,7 @@ use App\Models\Lawyer;
 use App\Models\LeaseLawyerTracking;
 use App\Models\LeaseWitness;
 use App\Notifications\LeaseSentToLawyerNotification;
+use App\Notifications\LeaseApprovalRequestedNotification;
 use App\Services\DocumentUploadService;
 use App\Services\LandlordApprovalService;
 use App\Services\PdfOverlayService;
@@ -268,18 +269,24 @@ class ViewLease extends ViewRecord
                     }
                 }),
 
-            // ── RESEND SIGNING LINK ──────────────────────────────────────────
+            // ── RESEND LINK (tenant / advocate / landlord) ───────────────────
             Action::make('resendSigningLink')
-                ->label('Resend Signing Link')
+                ->label('Resend Link')
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->visible(
                     fn () => in_array($this->record->workflow_state, [
-                        'sent_digital', 'pending_otp', 'pending_tenant_signature', 'tenant_signed',
+                        'sent_digital',
+                        'pending_otp',
+                        'pending_tenant_signature',
+                        'tenant_signed',
+                        'pending_advocate',
+                        'with_lawyer',
+                        'pending_landlord_pm',
                     ]) && $this->record->signing_mode === 'digital',
                 )
-                ->modalHeading('Resend Signing Link')
-                ->modalDescription('Send a fresh signing link to the tenant. Use this if the link expired or was not received.')
+                ->modalHeading('Resend Link')
+                ->modalDescription('Send a fresh link to the relevant party (tenant, advocate, or landlord). Use this if the link expired or was not received.')
                 ->modalSubmitActionLabel('Resend Now')
                 /** @phpstan-ignore-next-line */
                 ->schema([
@@ -302,25 +309,106 @@ class ViewLease extends ViewRecord
                 ])
                 ->action(function (array $data) {
                     try {
+                        $lease = $this->record;
+                        $state = $lease->workflow_state;
                         $method = $data['send_method'] ?? 'sms';
-                        $this->record->resendDigitalSigningLink($method);
 
-                        $sentTo = match ($method) {
-                            'sms' => 'SMS to ' . ($this->record->tenant?->mobile_number ?? 'tenant'),
-                            'email' => 'email to ' . ($this->record->tenant?->email_address ?? 'tenant'),
-                            'both' => 'SMS & email to ' . ($this->record->tenant?->names ?? 'tenant'),
-                            default => 'tenant',
-                        };
+                        // 1. Tenant resend (digital signing link)
+                        if (in_array($state, [
+                            'sent_digital',
+                            'pending_otp',
+                            'pending_tenant_signature',
+                            'tenant_signed',
+                        ], true)) {
+                            $lease->resendDigitalSigningLink($method);
 
-                        Notification::make()->success()
-                            ->title('Signing Link Resent ✅')
-                            ->body("New link sent via {$sentTo}.")
-                            ->send();
-                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
-                    } catch (Exception $e) {
+                            $sentTo = match ($method) {
+                                'sms'   => 'SMS to ' . ($lease->tenant?->mobile_number ?? 'tenant'),
+                                'email' => 'email to ' . ($lease->tenant?->email_address ?? 'tenant'),
+                                'both'  => 'SMS & email to ' . ($lease->tenant?->names ?? 'tenant'),
+                                default => 'tenant',
+                            };
+
+                            Notification::make()->success()
+                                ->title('Link resent to Tenant ✅')
+                                ->body("New link sent via {$sentTo}.")
+                                ->send();
+
+                            $this->redirect($this->getResource()::getUrl('view', ['record' => $lease]));
+
+                            return;
+                        }
+
+                        // 2. Advocate resend (lawyer portal link)
+                        if (in_array($state, ['pending_advocate', 'with_lawyer'], true)) {
+                            $tracking = $lease->lawyerTrackings()
+                                ->withLawyer()
+                                ->latest('sent_at')
+                                ->first();
+
+                            if (! $tracking) {
+                                throw new \Exception('Advocate tracking record not found.');
+                            }
+
+                            $tracking->update([
+                                'lawyer_link_expires_at' => now()->addDays(3),
+                            ]);
+
+                            $lawyer = $tracking->lawyer;
+                            if (! $lawyer) {
+                                throw new \Exception('Advocate record not linked.');
+                            }
+
+                            $lawyer->notify(new LeaseSentToLawyerNotification(
+                                $lease,
+                                $lawyer,
+                                $tracking->fresh(),
+                                false, // portal link (no PDF attachment)
+                            ));
+
+                            Notification::make()->success()
+                                ->title('Link resent to Advocate ✅')
+                                ->body('A fresh portal link has been emailed to the advocate.')
+                                ->send();
+
+                            $this->redirect($this->getResource()::getUrl('view', ['record' => $lease]));
+
+                            return;
+                        }
+
+                        // 3. Landlord resend (approval portal link)
+                        if (in_array($state, ['pending_landlord_pm', 'pending_landlord_approval'], true)) {
+                            /** @var \App\Models\LeaseApproval|null $approval */
+                            $approval = $lease->approvals()->pending()->latest('created_at')->first();
+                            if (! $approval) {
+                                throw new \Exception('Landlord approval record not found.');
+                            }
+
+                            // Regenerate token + extend expiry
+                            $approval->generateToken();
+
+                            if (! $lease->landlord) {
+                                throw new \Exception('No landlord linked to this lease.');
+                            }
+
+                            $approvalUrl = $approval->publicUrl();
+                            $lease->landlord->notify(new LeaseApprovalRequestedNotification($lease, $approvalUrl));
+
+                            Notification::make()->success()
+                                ->title('Link resent to Landlord ✅')
+                                ->body('A fresh approval link has been emailed to the landlord.')
+                                ->send();
+
+                            $this->redirect($this->getResource()::getUrl('view', ['record' => $lease]));
+
+                            return;
+                        }
+
+                        throw new \Exception("Cannot resend link for current state: {$state}");
+                    } catch (\Exception $e) {
                         Notification::make()->danger()
-                            ->title('Failed to Resend')
-                            ->body('Error: ' . $e->getMessage())
+                            ->title('Failed to resend link')
+                            ->body($e->getMessage())
                             ->send();
                     }
                 }),
