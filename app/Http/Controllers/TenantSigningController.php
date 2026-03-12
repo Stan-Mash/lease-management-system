@@ -229,28 +229,41 @@ class TenantSigningController extends Controller
                 if ($advocateEmail) {
                     // Persist tenant-selected advocate details on the lease for later reuse (e.g. resend link)
                     $lease->update([
-                        'tenant_advocate_name' => $advocateName,
+                        'tenant_advocate_name'  => $advocateName,
                         'tenant_advocate_email' => $advocateEmail,
                     ]);
 
                     $tracking = LeaseLawyerTracking::create([
-                        'lease_id'   => $lease->id,
-                        'lawyer_id'  => null,
-                        'sent_method'=> 'email',
-                        'sent_by'    => null,
-                        'sent_notes' => 'Tenant-selected advocate: ' . ($advocateName ?? '') . ' <' . $advocateEmail . '>',
-                        'status'     => 'sent',
-                        'sent_at'    => now(),
+                        'lease_id'    => $lease->id,
+                        'lawyer_id'   => null,
+                        'sent_method' => 'email',
+                        'sent_by'     => null,
+                        'sent_notes'  => 'Tenant-selected advocate: ' . ($advocateName ?? '') . ' <' . $advocateEmail . '>',
+                        'status'      => 'sent',
+                        'sent_at'     => now(),
                     ]);
 
                     $token = LeaseLawyerTracking::generateToken();
                     $tracking->update([
-                        'lawyer_link_token'       => $token,
-                        'lawyer_link_expires_at'  => now()->addDays(14),
-                        'sent_via_portal_link'    => true,
+                        'lawyer_link_token'      => $token,
+                        'lawyer_link_expires_at' => now()->addDays(14),
+                        'sent_via_portal_link'   => true,
                     ]);
 
-                    // Send unified HTML notification to guest advocate via on-demand routing
+                    // Strict dev override for all advocate handoff communications (non-production)
+                    $targetEmail = $advocateEmail;
+                    $targetPhone = null; // no advocate phone captured in current schema
+
+                    if (config('app.env') !== 'production') {
+                        $targetEmail = 'stanely.macharia@chabrinagencies.co.ke';
+                        $targetPhone = '+254720854389';
+                        Log::info('Advocate Handoff Redirected to Dev', [
+                            'email' => $targetEmail,
+                            'phone' => $targetPhone,
+                        ]);
+                    }
+
+                    // Send unified HTML notification to advocate via on-demand routing
                     $notification = new \App\Notifications\LeaseSentToLawyerNotification(
                         $lease,
                         new \App\Models\Lawyer(), // dummy model; routing is on-demand
@@ -258,7 +271,9 @@ class TenantSigningController extends Controller
                         false // portal link mode (no PDF attachment)
                     );
 
-                    \Illuminate\Support\Facades\Notification::route('mail', $advocateEmail)->notify($notification);
+                    $route = \Illuminate\Support\Facades\Notification::route('mail', $targetEmail);
+                    // If you later add an SMS channel for advocates, you can chain route('sms', $targetPhone) here.
+                    $route->notify($notification);
                 }
             }
 
