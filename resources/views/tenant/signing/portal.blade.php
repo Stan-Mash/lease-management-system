@@ -658,12 +658,12 @@
                 showMessage('signature-message', 'error', 'Please select your legal representation option.', true);
                 return;
             }
-            const ownAdvocateName = document.getElementById(‘tenant-advocate-name’).value.trim();
-            const ownAdvocateEmail = document.getElementById(‘tenant-advocate-email’).value.trim();
-            const ownAdvocatePhone = document.getElementById(‘tenant-advocate-phone’).value.trim();
-            if (advocateSelection === ‘own_advocate’) {
+            const ownAdvocateName = document.getElementById('tenant-advocate-name').value.trim();
+            const ownAdvocateEmail = document.getElementById('tenant-advocate-email').value.trim();
+            const ownAdvocatePhone = document.getElementById('tenant-advocate-phone').value.trim();
+            if (advocateSelection === 'own_advocate') {
                 if (!ownAdvocateName || !ownAdvocateEmail || !ownAdvocatePhone) {
-                    showMessage(‘signature-message’, ‘error’, ‘Please provide your advocate\’s name, email, and phone number.’, true);
+                    showMessage('signature-message', 'error', "Please provide your advocate's name, email, and phone number.", true);
                     return;
                 }
             }
