@@ -58,6 +58,7 @@ class User extends Authenticatable implements FilamentUser
         'otep',
         'requireReset',
         'signature_image_encrypted',
+        'national_id',
     ];
 
     /**

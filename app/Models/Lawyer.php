@@ -15,6 +15,7 @@ class Lawyer extends Model
     protected $fillable = [
         'name',
         'firm',
+        'lsk_number',
         'phone',
         'email',
         'specialization',

@@ -29,8 +29,13 @@ class LeaseLawyerTracking extends Model
         'lawyer_link_expires_at',
         'sent_via_portal_link',
         // Advocate certification (Track 2 — Legal Certification)
+        'side',
         'certification_type',
         'advocate_lsk_number',
+        'advocate_name',
+        'advocate_firm',
+        'advocate_email',
+        'advocate_phone',
         'certified_at',
         'physical_copy_uploaded',
         'physical_copy_document_id',

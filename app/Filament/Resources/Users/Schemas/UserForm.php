@@ -21,6 +21,12 @@ class UserForm
             TextInput::make('username')
                 ->maxLength(255),
 
+            TextInput::make('national_id')
+                ->label('National ID No.')
+                ->maxLength(20)
+                ->helperText('Required for manager signing block on lease documents.')
+                ->placeholder('e.g. 12345678'),
+
             TextInput::make('email')
                 ->email()
                 ->required()

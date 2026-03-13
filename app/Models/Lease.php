@@ -104,6 +104,10 @@ class Lease extends Model
         'lessor_witness_id',
         'tenant_advocate_name',
         'tenant_advocate_email',
+        'lessee_advocate_phone',
+        'lessor_advocate_name',
+        'lessor_advocate_email',
+        'lessor_advocate_phone',
         'signing_route',
         'fully_executed_at',
     ];

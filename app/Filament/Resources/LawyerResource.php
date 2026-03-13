@@ -60,6 +60,12 @@ class LawyerResource extends Resource
                         ->maxLength(255)
                         ->placeholder('e.g. Kariuki & Associates Advocates'),
 
+                    Forms\Components\TextInput::make('lsk_number')
+                        ->label('LSK No.')
+                        ->maxLength(50)
+                        ->placeholder('e.g. 4521/2018')
+                        ->helperText('Law Society of Kenya practicing certificate number. Appears on signed lease documents.'),
+
                     Forms\Components\TextInput::make('email')
                         ->label('Email Address')
                         ->email()
@@ -141,6 +147,10 @@ class LawyerResource extends Resource
 
                         TextEntry::make('firm')
                             ->label('Law Firm')
+                            ->placeholder('—'),
+
+                        TextEntry::make('lsk_number')
+                            ->label('LSK No.')
                             ->placeholder('—'),
 
                         TextEntry::make('specialization')
