@@ -211,6 +211,19 @@ class LeaseForm
                                 ->default('digital')
                                 ->required()
                                 ->helperText('Digital: Tenant signs online. Physical: Field officer delivers printed document.'),
+
+                            Forms\Components\Select::make('signing_route')
+                                ->label('Lessor Route')
+                                ->options([
+                                    'manager'  => '🏢 Manager Countersigns (Chabrin acts as lessor)',
+                                    'landlord' => '🤝 Landlord Signs (property owner acts as lessor)',
+                                ])
+                                ->default('manager')
+                                ->required()
+                                ->helperText(
+                                    'Manager: Chabrin countersigns on behalf of the lessor. ' .
+                                    'Landlord: the property owner signs directly as the lessor party.'
+                                ),
                         ]),
 
                         Forms\Components\Select::make('lease_template_id')

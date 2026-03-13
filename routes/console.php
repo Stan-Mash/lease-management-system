@@ -26,6 +26,12 @@ Schedule::command('leases:send-expiry-alerts')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/lease-expiry-alerts.log'));
 
+// Activate fully-executed leases whose start_date has arrived — runs daily at 5 AM
+Schedule::command('leases:activate-mature')
+    ->dailyAt('05:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/lease-activations.log'));
+
 // Apply rent escalations daily at 6 AM
 Schedule::command('leases:apply-rent-escalations')
     ->dailyAt('06:00')

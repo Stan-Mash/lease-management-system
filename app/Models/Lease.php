@@ -104,6 +104,8 @@ class Lease extends Model
         'lessor_witness_id',
         'tenant_advocate_name',
         'tenant_advocate_email',
+        'signing_route',
+        'fully_executed_at',
     ];
 
     protected $casts = [
@@ -122,6 +124,7 @@ class Lease extends Model
         'date_created' => 'datetime',
         'signing_link_expires_at' => 'datetime',
         'signing_link_expired_alerted_at' => 'datetime',
+        'fully_executed_at' => 'datetime',
     ];
 
     /*
@@ -420,5 +423,63 @@ class Lease extends Model
         );
 
         return $query->whereNotIn('workflow_state', $terminalStates);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Signing Route Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Route 1: the property owner (landlord) signs as the lessor party.
+     * Sequence: Tenant+Witness → Advocate → Landlord+Witness → Advocate → FULLY_EXECUTED
+     */
+    public function usesLandlordRoute(): bool
+    {
+        return ($this->signing_route ?? 'manager') === 'landlord';
+    }
+
+    /**
+     * Route 2 (default): Chabrin manager countersigns as the lessor party.
+     * Sequence: Tenant+Witness → Advocate → Manager+Witness → Advocate → FULLY_EXECUTED
+     */
+    public function usesManagerRoute(): bool
+    {
+        return ($this->signing_route ?? 'manager') === 'manager';
+    }
+
+    /**
+     * Returns a human-readable label for the current signing route.
+     */
+    public function signingRouteLabel(): string
+    {
+        return $this->usesLandlordRoute() ? 'Landlord Signing' : 'Manager Countersign';
+    }
+
+    /**
+     * Activate the lease immediately if its start_date has already arrived.
+     * Called after the lease reaches FULLY_EXECUTED state.
+     * Returns true if the lease was activated.
+     */
+    public function activateIfStartDatePassed(): bool
+    {
+        $startDate = $this->start_date;
+        if (! $startDate) {
+            // No start date set — activate immediately (the tenancy is already live)
+            if ($this->canTransitionTo(LeaseWorkflowState::ACTIVE)) {
+                $this->transitionTo(LeaseWorkflowState::ACTIVE);
+                return true;
+            }
+            return false;
+        }
+
+        $today = now(config('app.timezone'))->startOfDay();
+        if ($startDate->lte($today) && $this->canTransitionTo(LeaseWorkflowState::ACTIVE)) {
+            $this->transitionTo(LeaseWorkflowState::ACTIVE);
+            return true;
+        }
+
+        return false;
     }
 }

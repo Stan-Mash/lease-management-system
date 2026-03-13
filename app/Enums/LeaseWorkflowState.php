@@ -27,6 +27,7 @@ enum LeaseWorkflowState: string
     case WITH_LAWYER = 'with_lawyer';
     case PENDING_UPLOAD = 'pending_upload';
     case PENDING_DEPOSIT = 'pending_deposit';
+    case FULLY_EXECUTED = 'fully_executed';
     case ACTIVE = 'active';
     case RENEWAL_OFFERED = 'renewal_offered';
     case RENEWAL_ACCEPTED = 'renewal_accepted';
@@ -59,11 +60,12 @@ enum LeaseWorkflowState: string
             self::RETURNED_UNSIGNED => [self::CHECKED_OUT, self::CANCELLED],
             self::TENANT_SIGNED => [self::PENDING_ADVOCATE, self::PENDING_WITNESS, self::PENDING_DEPOSIT, self::WITH_LAWYER, self::PENDING_UPLOAD, self::ACTIVE],
             self::PENDING_WITNESS => [self::PENDING_ADVOCATE, self::WITH_LAWYER],
-            self::PENDING_ADVOCATE => [self::WITH_LAWYER, self::PENDING_LANDLORD_PM, self::PENDING_DEPOSIT, self::ACTIVE],
-            self::PENDING_LANDLORD_PM => [self::PENDING_ADVOCATE, self::PENDING_DEPOSIT, self::ACTIVE],
+            self::PENDING_ADVOCATE => [self::WITH_LAWYER, self::PENDING_LANDLORD_PM, self::FULLY_EXECUTED, self::PENDING_DEPOSIT, self::ACTIVE],
+            self::PENDING_LANDLORD_PM => [self::PENDING_ADVOCATE, self::FULLY_EXECUTED, self::PENDING_DEPOSIT, self::ACTIVE],
             self::WITH_LAWYER => [self::PENDING_UPLOAD, self::PENDING_DEPOSIT],
             self::PENDING_UPLOAD => [self::PENDING_DEPOSIT, self::ACTIVE],
-            self::PENDING_DEPOSIT => [self::ACTIVE],
+            self::PENDING_DEPOSIT => [self::FULLY_EXECUTED, self::ACTIVE],
+            self::FULLY_EXECUTED => [self::ACTIVE],
             self::ACTIVE => [self::RENEWAL_OFFERED, self::EXPIRED, self::TERMINATED],
             self::RENEWAL_OFFERED => [self::RENEWAL_ACCEPTED, self::RENEWAL_DECLINED, self::EXPIRED],
             self::RENEWAL_ACCEPTED => [self::ACTIVE],
@@ -107,6 +109,7 @@ enum LeaseWorkflowState: string
             self::WITH_LAWYER => 'With Lawyer',
             self::PENDING_UPLOAD => 'Pending Upload',
             self::PENDING_DEPOSIT => 'Pending Deposit',
+            self::FULLY_EXECUTED => 'Fully Executed',
             self::ACTIVE => 'Active',
             self::RENEWAL_OFFERED => 'Renewal Offered',
             self::RENEWAL_ACCEPTED => 'Renewal Accepted',
@@ -132,7 +135,8 @@ enum LeaseWorkflowState: string
             self::PENDING_DEPOSIT, self::PENDING_WITNESS,
             self::PENDING_ADVOCATE, self::PENDING_LANDLORD_PM => 'warning',
             self::APPROVED, self::PRINTED, self::CHECKED_OUT,
-            self::SENT_DIGITAL, self::TENANT_SIGNED, self::WITH_LAWYER => 'info',
+            self::SENT_DIGITAL, self::TENANT_SIGNED, self::WITH_LAWYER,
+            self::FULLY_EXECUTED => 'info',
             self::ACTIVE => 'success',
             self::RENEWAL_OFFERED => 'primary',
             self::RENEWAL_ACCEPTED => 'success',
@@ -168,6 +172,7 @@ enum LeaseWorkflowState: string
             self::WITH_LAWYER => 'heroicon-o-scale',
             self::PENDING_UPLOAD => 'heroicon-o-cloud-arrow-up',
             self::PENDING_DEPOSIT => 'heroicon-o-banknotes',
+            self::FULLY_EXECUTED => 'heroicon-o-document-check',
             self::ACTIVE => 'heroicon-o-check',
             self::RENEWAL_OFFERED => 'heroicon-o-arrow-path',
             self::RENEWAL_ACCEPTED => 'heroicon-o-arrow-path-rounded-square',
@@ -254,13 +259,37 @@ enum LeaseWorkflowState: string
      *
      * @return array<string, array<string>>
      */
+    /**
+     * Signing sequences by lease signing_route.
+     * Both routes: Tenant → Advocate → Lessor → Advocate → Done (FULLY_EXECUTED)
+     * Witness signatures are captured alongside tenant and lessor respectively
+     * in the same portal step and do not occupy a separate sequence slot.
+     *
+     * @return array<string, array<string>>
+     */
+    public static function signingSequenceByRoute(): array
+    {
+        return [
+            // Route 2 (default): Chabrin manager acts as lessor
+            'manager'  => ['tenant', 'advocate', 'manager', 'advocate'],
+            // Route 1: property owner (landlord) acts as lessor
+            'landlord' => ['tenant', 'advocate', 'landlord', 'advocate'],
+        ];
+    }
+
+    /**
+     * @deprecated Use signingSequenceByRoute() with the lease's signing_route.
+     * Kept for backward compatibility with legacy leases that have no signing_route set.
+     *
+     * @return array<string, array<string>>
+     */
     public static function signingSequenceByLeaseType(): array
     {
         return [
-            'commercial' => ['tenant', 'advocate', 'landlord_pm', 'advocate'],
+            'commercial'        => ['tenant', 'advocate', 'landlord_pm', 'advocate'],
             'residential_micro' => ['tenant', 'pm'],
             'residential_major' => ['tenant', 'witness', 'advocate', 'landlord_pm', 'advocate'],
-            'residential' => ['tenant', 'witness', 'advocate', 'landlord_pm', 'advocate'],
+            'residential'       => ['tenant', 'witness', 'advocate', 'landlord_pm', 'advocate'],
         ];
     }
 

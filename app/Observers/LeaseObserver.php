@@ -138,11 +138,23 @@ class LeaseObserver
             }
         }
 
-        // When a digitally-signed lease becomes ACTIVE (property manager has countersigned /
-        // all approvals complete), dispatch a background job to send the tenant their final
-        // confirmation email + PDF. Dispatching as a job prevents the user from waiting for
-        // email delivery and PDF generation to complete before the UI responds.
-        // We do NOT send this immediately after the tenant signs — the manager must sign first.
+        // When the final advocate certifies, the lease reaches FULLY_EXECUTED.
+        // Immediately attempt to flip to ACTIVE if start_date has already arrived.
+        // If the start_date is in the future the scheduler handles the transition daily.
+        if ($lease->wasChanged('workflow_state') && $lease->workflow_state === 'fully_executed') {
+            try {
+                $lease->activateIfStartDatePassed();
+            } catch (\Exception $e) {
+                Log::warning('LeaseObserver: could not auto-activate after fully_executed', [
+                    'lease_id' => $lease->id,
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // When a digitally-signed lease becomes ACTIVE (all parties have signed and
+        // the final advocate has certified), dispatch a background job to send the
+        // tenant their final confirmation email + PDF.
         if ($lease->wasChanged('workflow_state') && $lease->workflow_state === 'active') {
             $hasDigitalSignature = $lease->digitalSignatures()->exists();
             if ($hasDigitalSignature) {

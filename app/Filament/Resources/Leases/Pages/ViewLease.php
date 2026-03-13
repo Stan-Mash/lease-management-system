@@ -79,7 +79,9 @@ class ViewLease extends ViewRecord
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'draft'
+                    // Only visible on landlord-route leases — manager-route leases skip this step entirely.
+                    fn () => $this->record->usesLandlordRoute()
+                        && $this->record->workflow_state === 'draft'
                         && ! $this->record->hasPendingApproval(),
                 )
                 ->requiresConfirmation()
@@ -114,7 +116,10 @@ class ViewLease extends ViewRecord
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->visible(
-                    fn () => in_array($this->record->workflow_state, ['pending_landlord_approval', 'draft'])
+                    // Only for landlord-route leases in pre-signing approval states.
+                    // Manager-route leases move directly to SENT_DIGITAL without a landlord approval step.
+                    fn () => $this->record->usesLandlordRoute()
+                        && in_array($this->record->workflow_state, ['pending_landlord_approval', 'draft'])
                         && ! ($this->record->workflow_state === 'draft' && $this->record->hasPendingApproval()),
                 )
                 /** @phpstan-ignore-next-line */
@@ -795,18 +800,63 @@ class ViewLease extends ViewRecord
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                 }),
 
-            // ── COUNTERSIGN & ACTIVATE (after tenant has signed digitally) ───
+            // ── SEND LANDLORD SIGNING LINK (Route 1 — after first advocate cert) ──
+            // Visible on landlord-route leases when it's time for the landlord to sign as lessor.
+            Action::make('sendLandlordSigningLink')
+                ->label('Send Landlord Signing Link')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('primary')
+                ->visible(
+                    fn () => $this->record->usesLandlordRoute()
+                        && $this->record->workflow_state === 'pending_landlord_pm'
+                        && auth()->user()?->canManageLeases(),
+                )
+                ->requiresConfirmation()
+                ->modalHeading('Send Signing Link to Landlord')
+                ->modalDescription(
+                    fn () => 'This will send a secure signing link to '
+                        . ($this->record->landlord?->names ?? 'the landlord')
+                        . ' so they can sign the lease as the lessor party (with witness). An email and SMS will be sent.',
+                )
+                ->modalSubmitActionLabel('Yes, Send Link')
+                ->action(function () {
+                    $lease = $this->record;
+                    if (! $lease->landlord) {
+                        Notification::make()->danger()
+                            ->title('No Landlord Linked')
+                            ->body('Please link a landlord to this lease before sending a signing link.')
+                            ->send();
+                        return;
+                    }
+                    $result = \App\Services\LandlordApprovalService::requestApproval($lease, 'both');
+                    if ($result['success']) {
+                        Notification::make()->success()
+                            ->title('Signing Link Sent')
+                            ->body('The landlord has been notified and can now sign the lease.')
+                            ->send();
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $lease]));
+                    } else {
+                        Notification::make()->danger()
+                            ->title('Could Not Send Link')
+                            ->body($result['message'] ?? 'An error occurred.')
+                            ->send();
+                    }
+                }),
+
+            // ── COUNTERSIGN & ACTIVATE (Route 2 — manager countersigns after first advocate cert) ───
             Action::make('countersignActivate')
                 ->label('Countersign & Activate Lease')
                 ->icon('heroicon-o-check-badge')
                 ->color('success')
                 ->visible(
-                    fn () => in_array($this->record->workflow_state, [
-                        'tenant_signed',
-                        'pending_upload',   // lawyer returned signed copy via portal
-                        'pending_landlord_pm',
-                        'pending_deposit',  // after advocate signs (commercial/residential_major flow)
-                    ], true)
+                    // Only shown on manager-route leases — landlord-route uses the landlord portal instead.
+                    fn () => $this->record->usesManagerRoute()
+                        && in_array($this->record->workflow_state, [
+                            'tenant_signed',
+                            'pending_upload',        // lawyer returned signed copy via portal
+                            'pending_landlord_pm',   // after first advocate cert
+                            'pending_deposit',       // legacy: after advocate signs
+                        ], true)
                         && ! $this->record->countersigned_at
                         && auth()->user()?->canManageLeases(),
                 )
@@ -1052,10 +1102,11 @@ HTML
                             'countersign_notes' => $data['countersign_notes'] ?? null,
                         ]);
 
-                        $signerRole = $this->record->workflow_state === 'pending_landlord_pm'
-                            ? \App\Services\SigningWorkflowService::SIGNER_LANDLORD_PM
-                            : \App\Services\SigningWorkflowService::SIGNER_PM;
-                        \App\Services\SigningWorkflowService::advanceAfterSignature($this->record, $signerRole);
+                        // Manager route: manager is always 'manager' signer role
+                        \App\Services\SigningWorkflowService::advanceAfterSignature(
+                            $this->record,
+                            \App\Services\SigningWorkflowService::SIGNER_MANAGER,
+                        );
 
                         // ── Final PDF multi-signature pass ─────────────────────
                         $lease = $this->record->fresh();

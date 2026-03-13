@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\LeaseWorkflowState;
+use App\Models\DigitalSignature;
 use App\Models\LeaseApproval;
 use App\Models\User;
 use App\Models\LeaseWitness;
 use App\Services\LandlordApprovalService;
 use App\Services\LeasePdfService;
 use App\Services\OTPService;
+use App\Services\SigningWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -306,13 +309,54 @@ class LandlordPublicApprovalController extends Controller
                 'notes' => 'Captured via landlord public approval portal.',
             ]);
 
-            LandlordApprovalService::approveLease(
-                $lease,
-                $validated['comments'] ?? null,
-                'both',
-            );
+            // ── Determine whether this is Route-1 lessor signing or a pre-signing pre-approval ──
+            // Route 1 (lease.signing_route = 'landlord') and the lease is in PENDING_LANDLORD_PM:
+            //   → landlord is signing as the executing lessor party; advance the workflow.
+            // All other cases (PENDING_LANDLORD_APPROVAL or signing_route = 'manager'):
+            //   → traditional pre-approval flow (LandlordApprovalService).
+            $isLessorSigning = $lease->usesLandlordRoute()
+                && $lease->workflow_state === LeaseWorkflowState::PENDING_LANDLORD_PM->value;
 
-            // Notify internal staff that landlord has approved this lease
+            if ($isLessorSigning) {
+                // Record the landlord's digital signature
+                DigitalSignature::createFromData([
+                    'lease_id'           => $lease->id,
+                    'tenant_id'          => null,
+                    'signer_type'        => 'landlord',
+                    'signed_by_user_id'  => null,
+                    'signed_by_name'     => $lease->landlord?->names ?? 'Landlord',
+                    'signature_data'     => $landlordPng,
+                    'signature_type'     => 'drawn',
+                    'ip_address'         => $request->ip(),
+                    'user_agent'         => $request->userAgent(),
+                    'signed_at'          => now(),
+                    'metadata'           => ['source' => 'landlord_public_portal', 'approval_id' => $approval->id],
+                ]);
+
+                // Advance the workflow (state → PENDING_ADVOCATE for second cert)
+                SigningWorkflowService::advanceAfterSignature($lease, 'landlord');
+
+                // Notify internal staff
+                $notifBody = sprintf(
+                    'Landlord %s has signed lease %s as lessor. Second advocate certification is now required.',
+                    $lease->landlord?->names ?? 'Landlord',
+                    $lease->reference_number ?? ('#' . $lease->id),
+                );
+            } else {
+                LandlordApprovalService::approveLease(
+                    $lease,
+                    $validated['comments'] ?? null,
+                    'both',
+                );
+                $notifBody = sprintf(
+                    'Landlord %s approved lease %s for %s. Review and proceed with digital signing / countersigning.',
+                    $lease->landlord?->names ?? 'Landlord',
+                    $lease->reference_number ?? ('#' . $lease->id),
+                    $lease->tenant?->names ?? 'Tenant',
+                );
+            }
+
+            // Notify internal staff
             $recipients = collect();
             $zoneManager = $lease->assignedZone?->zoneManager;
             if ($zoneManager instanceof User) {
@@ -323,13 +367,8 @@ class LandlordPublicApprovalController extends Controller
 
             if ($recipients->isNotEmpty()) {
                 FilamentNotification::make()
-                    ->title('Landlord Approved Lease')
-                    ->body(sprintf(
-                        'Landlord %s approved lease %s for %s. Review and proceed with digital signing / countersigning.',
-                        $lease->landlord?->names ?? 'Landlord',
-                        $lease->reference_number ?? ('#' . $lease->id),
-                        $lease->tenant?->names ?? 'Tenant',
-                    ))
+                    ->title($isLessorSigning ? 'Landlord Signed Lease' : 'Landlord Approved Lease')
+                    ->body($notifBody)
                     ->success()
                     ->sendToDatabase($recipients);
             }
