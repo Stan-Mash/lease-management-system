@@ -44,9 +44,13 @@ class OTPService
         string $purpose = 'digital_signing',
         bool $checkFingerprint = true,
     ): OTPVerification {
-        // Check rate limiting (max attempts per hour per lease)
+        // Check rate limiting (max attempts per hour per lease+contact pair).
+        // Scoped to the specific phone/email so tenant and advocate OTPs are
+        // counted independently — an advocate can still send OTPs even after
+        // the tenant has exhausted their hourly allowance (and vice-versa).
         $maxAttempts = (int) config('lease.otp.max_attempts_per_hour', 3);
         $recentOTPs = OTPVerification::forLease($lease->id)
+            ->where('phone', $phone)
             ->recent(1)
             ->count();
 

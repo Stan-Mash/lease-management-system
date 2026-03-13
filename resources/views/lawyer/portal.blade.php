@@ -266,6 +266,17 @@
                 });
             }
 
+            if (codeInput) {
+                codeInput.addEventListener('input', function () {
+                    // Strip non-digits from pasted or typed content
+                    codeInput.value = codeInput.value.replace(/\D/g, '');
+                    // Auto-submit as soon as all 6 digits are entered — no button click needed
+                    if (codeInput.value.length === 6 && verifyBtn && !verifyBtn.disabled) {
+                        verifyBtn.click();
+                    }
+                });
+            }
+
             if (verifyBtn && codeInput && csrf) {
                 verifyBtn.addEventListener('click', async function () {
                     const code = codeInput.value.trim();

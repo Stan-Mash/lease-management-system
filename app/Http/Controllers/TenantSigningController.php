@@ -272,8 +272,9 @@ class TenantSigningController extends Controller
                     );
 
                     $route = \Illuminate\Support\Facades\Notification::route('mail', $targetEmail);
-                    // If you later add an SMS channel for advocates, you can chain route('sms', $targetPhone) here.
-                    $route->notify($notification);
+                    // notifyNow() bypasses the queue so the email is dispatched synchronously
+                    // while the tenant is still on the signing page — instant delivery.
+                    $route->notifyNow($notification);
                 }
             }
 
