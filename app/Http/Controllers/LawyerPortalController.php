@@ -482,18 +482,24 @@ class LawyerPortalController extends Controller
                 ? $request->input('signature_data')
                 : 'data:image/png;base64,' . base64_encode(file_get_contents($signaturePath));
 
+            $signerType = match ($tracking->side) {
+                'lessor' => 'lessor_advocate',
+                'lessee' => 'lessee_advocate',
+                default  => 'advocate',
+            };
+
             DigitalSignature::createFromData([
                 'lease_id' => $lease->id,
                 'tenant_id' => null,
-                'signer_type' => 'advocate',
+                'signer_type' => $signerType,
                 'signed_by_user_id' => null,
-                'signed_by_name' => $tracking->lawyer?->name ?? 'Advocate',
+                'signed_by_name' => $tracking->advocate_name ?? $tracking->lawyer?->name ?? 'Advocate',
                 'signature_data' => $signatureDataUri,
                 'signature_type' => 'drawn',
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'signed_at' => now(),
-                'metadata' => ['source' => 'lawyer_portal', 'tracking_id' => $tracking->id],
+                'metadata' => ['source' => 'lawyer_portal', 'tracking_id' => $tracking->id, 'side' => $tracking->side],
             ]);
 
             $tracking->markAsReturned('email', null, 'Returned via lawyer portal (signature and/or stamp applied).');
