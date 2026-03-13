@@ -214,18 +214,29 @@ class ViewLease extends ViewRecord
             CancelDisputedLeaseAction::make(),
 
             // ── STEP 2: SEND DIGITAL SIGNING LINK (first send) ──────────────
+            // Visible for:
+            //   • Landlord-route leases that have been approved (normal path)
+            //   • Manager-route leases still in draft (approval step is skipped;
+            //     clicking this auto-approves and sends in one action)
             Action::make('sendDigital')
-                ->label('Send Signing Link to Tenant')
+                ->label(fn () => $this->record->usesManagerRoute() && $this->record->workflow_state === 'draft'
+                    ? 'Approve & Send Signing Link'
+                    : 'Send Signing Link to Tenant')
                 ->icon('heroicon-o-device-phone-mobile')
                 ->color('info')
                 ->visible(
-                    fn () => $this->record->workflow_state === 'approved'
-                        && $this->record->signing_mode === 'digital',
+                    fn () => (
+                        $this->record->workflow_state === 'approved'
+                        || ($this->record->usesManagerRoute() && $this->record->workflow_state === 'draft')
+                    ) && $this->record->signing_mode === 'digital',
                 )
-                ->modalHeading('Send Signing Link to Tenant')
+                ->modalHeading(fn () => $this->record->usesManagerRoute() && $this->record->workflow_state === 'draft'
+                    ? 'Approve & Send Signing Link to Tenant'
+                    : 'Send Signing Link to Tenant')
                 ->modalDescription(
-                    fn () => 'The tenant will receive a secure link to digitally sign their lease (valid 72 hours). '
-                        . 'They will open the link, request a 6-digit OTP, verify it, and draw their signature.',
+                    fn () => $this->record->usesManagerRoute() && $this->record->workflow_state === 'draft'
+                        ? 'This will approve the lease internally (no landlord approval required for manager-route leases) and immediately send the tenant a secure digital signing link (valid 72 hours).'
+                        : 'The tenant will receive a secure link to digitally sign their lease (valid 72 hours). They will open the link, request a 6-digit OTP, verify it, and draw their signature.',
                 )
                 ->modalSubmitActionLabel('Send Now')
                 /** @phpstan-ignore-next-line */
@@ -251,6 +262,13 @@ class ViewLease extends ViewRecord
                 ->action(function (array $data) {
                     try {
                         $method = $data['send_method'] ?? 'sms';
+
+                        // Manager-route leases skip landlord approval — silently approve first
+                        // so DigitalSigningService::initiate() can transition to SENT_DIGITAL.
+                        if ($this->record->usesManagerRoute() && $this->record->workflow_state === 'draft') {
+                            $this->record->transitionTo(LeaseWorkflowState::APPROVED);
+                        }
+
                         $this->record->sendDigitalSigningLink($method);
 
                         $sentTo = match ($method) {

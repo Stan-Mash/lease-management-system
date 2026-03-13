@@ -874,12 +874,19 @@ class LeaseInfolist
     private static function journeyContent($record, string $state, string $tenant, string $phone, string $mode): array
     {
         return match ($state) {
-            'draft' => [
-                '📝', '#DAA520',
-                'Lease is a Draft',
-                "This lease for {$tenant} has been created but not yet sent for landlord approval. Review the details and request approval when ready.",
-                'Click "Request Landlord Approval" to notify the landlord — or "Approve Lease" to approve it yourself.',
-            ],
+            'draft' => $record->usesManagerRoute()
+                ? [
+                    '📝', '#DAA520',
+                    'Lease is a Draft',
+                    "This lease for {$tenant} has been created. No landlord approval is required for this lease — you can send the signing link directly to the tenant.",
+                    'Click "Approve & Send Signing Link" to send the tenant their digital signing link.',
+                ]
+                : [
+                    '📝', '#DAA520',
+                    'Lease is a Draft',
+                    "This lease for {$tenant} has been created but not yet sent for landlord approval. Review the details and request approval when ready.",
+                    'Click "Request Landlord Approval" to notify the landlord — or "Approve Lease" to approve it yourself.',
+                ],
             'received' => [
                 '📬', '#3b82f6',
                 'Lease Received',
