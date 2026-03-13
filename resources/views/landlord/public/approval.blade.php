@@ -230,6 +230,7 @@
     </div>
 
     {{-- Summary card --}}
+    <div id="lease-content" style="{{ $otpVerified ? '' : 'display:none' }}">
     <div class="card">
 
         <div class="section">
@@ -369,6 +370,7 @@
             ❌ Reject This Lease
         </button>
     </div>
+    </div>{{-- /lease-content --}}
 
     <div class="footer">
         Sent by Chabrin Agencies · {{ config('app.name') }}<br>
@@ -435,6 +437,43 @@
                                 style="font-size:11px;color:#6b7280;text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;">
                             Clear witness signature
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Advocate selection --}}
+            <div style="margin-bottom:16px;border:1px solid #e5e7eb;border-radius:10px;padding:14px;background:#f9fafb;">
+                <p style="font-weight:600;font-size:13px;margin-bottom:10px;color:#1a365d;">Legal Representation</p>
+                <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">Who will certify your signature on this lease?</p>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+                        <input type="radio" name="lessor_advocate_selection" value="chabrin_advocate" style="accent-color:#1a365d;">
+                        Use Chabrin's Advocate
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+                        <input type="radio" name="lessor_advocate_selection" value="own_advocate" style="accent-color:#1a365d;">
+                        I have my own Advocate
+                    </label>
+                </div>
+                <div id="lessor-own-advocate-fields" style="display:none;margin-top:12px;display:grid;gap:10px;">
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Advocate Full Name</label>
+                        <input type="text" id="lessor-advocate-name" name="lessor_advocate_name"
+                               style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"
+                               placeholder="e.g. Jane Otieno, Advocate">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Advocate Email Address</label>
+                        <input type="email" id="lessor-advocate-email" name="lessor_advocate_email"
+                               style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"
+                               placeholder="advocate@lawfirm.co.ke">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Advocate Phone Number</label>
+                        <input type="tel" id="lessor-advocate-phone" name="lessor_advocate_phone"
+                               style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"
+                               placeholder="e.g. 0722 000 000">
+                        <p style="font-size:11px;color:#9ca3af;margin-top:4px;">The advocate will receive a one-time code to verify their identity before signing.</p>
                     </div>
                 </div>
             </div>
@@ -668,6 +707,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    const otpCodeInput = document.getElementById('otp-code-input');
+    if (otpCodeInput) {
+        otpCodeInput.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length === 6) {
+                const verifyBtn = document.getElementById('otp-verify-btn');
+                if (verifyBtn && !verifyBtn.disabled) verifyBtn.click();
+            }
+        });
+    }
+
     if (verifyBtn && codeInput) {
         verifyBtn.addEventListener('click', async function () {
             const code = codeInput.value.trim();
@@ -690,6 +740,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const data = await resp.json();
                 if (data.success) {
                     landlordOtpVerified = true;
+                    document.getElementById('lease-content').style.display = '';
                     const otpSection = document.getElementById('otp-section');
                     if (otpSection) otpSection.style.display = 'none';
                     showOtpMessage('success', data.message || 'Phone verified.');
@@ -706,6 +757,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+});
+
+document.querySelectorAll('input[name="lessor_advocate_selection"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        const fields = document.getElementById('lessor-own-advocate-fields');
+        if (fields) fields.style.display = this.value === 'own_advocate' ? 'grid' : 'none';
+    });
 });
 
 </script>

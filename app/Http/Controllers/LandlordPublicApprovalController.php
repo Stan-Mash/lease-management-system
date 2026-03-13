@@ -240,11 +240,15 @@ class LandlordPublicApprovalController extends Controller
 
         if ($action === 'approve') {
             $validated = $request->validate([
-                'signature_data' => ['required', 'string'],
-                'lessor_witness_name' => ['required', 'string', 'max:255'],
-                'lessor_witness_id' => ['required', 'string', 'max:100'],
-                'witness_signature_data' => ['required', 'string'],
-                'comments' => ['nullable', 'string'],
+                'signature_data'             => ['required', 'string'],
+                'lessor_witness_name'         => ['required', 'string', 'max:255'],
+                'lessor_witness_id'           => ['required', 'string', 'max:100'],
+                'witness_signature_data'      => ['required', 'string'],
+                'comments'                   => ['nullable', 'string'],
+                'lessor_advocate_selection'   => ['nullable', 'in:chabrin_advocate,own_advocate'],
+                'lessor_advocate_name'        => ['required_if:lessor_advocate_selection,own_advocate', 'nullable', 'string', 'max:255'],
+                'lessor_advocate_email'       => ['required_if:lessor_advocate_selection,own_advocate', 'nullable', 'email', 'max:255'],
+                'lessor_advocate_phone'       => ['required_if:lessor_advocate_selection,own_advocate', 'nullable', 'string', 'max:30'],
             ]);
 
             $lease = $approval->lease;
@@ -333,7 +337,18 @@ class LandlordPublicApprovalController extends Controller
                     'metadata'           => ['source' => 'landlord_public_portal', 'approval_id' => $approval->id],
                 ]);
 
+                // Persist lessor's advocate choice for the second certification pass
+                $lessorAdvocateSelection = $validated['lessor_advocate_selection'] ?? 'chabrin_advocate';
+                if ($lessorAdvocateSelection === 'own_advocate') {
+                    $lease->update([
+                        'lessor_advocate_name'  => $validated['lessor_advocate_name'] ?? null,
+                        'lessor_advocate_email' => $validated['lessor_advocate_email'] ?? null,
+                        'lessor_advocate_phone' => $validated['lessor_advocate_phone'] ?? null,
+                    ]);
+                }
+
                 // Advance the workflow (state → PENDING_ADVOCATE for second cert)
+                // SigningWorkflowService will resolve the lessor advocate email from lease fields
                 SigningWorkflowService::advanceAfterSignature($lease, 'landlord');
 
                 // Notify internal staff

@@ -80,10 +80,13 @@ class LawyerPortalController extends Controller
         $lease = $tracking->lease;
         $lawyer = $tracking->lawyer;
 
-        // Resolve advocate contact: linked lawyer phone/email → guest advocate email from lease
-        $contact = $lawyer?->phone
+        // Resolve advocate contact (priority: own-advocate phone on tracking → linked lawyer phone
+        // → own-advocate email on tracking → linked lawyer email → legacy lease field)
+        $contact = $tracking->advocate_phone
+            ?? $lawyer?->phone
+            ?? $tracking->advocate_email
             ?? $lawyer?->email
-            ?? $lease->tenant_advocate_email;
+            ?? ($tracking->side === 'lessor' ? $lease->lessor_advocate_email : $lease->tenant_advocate_email);
 
         if (empty($contact)) {
             return response()->json([
@@ -169,6 +172,48 @@ class LawyerPortalController extends Controller
                 'message' => 'Verification failed. Please try again.',
             ], 400);
         }
+    }
+
+    /**
+     * Save advocate's own details (name, firm, LSK No.) entered via the portal.
+     * Called after OTP verification, before signing, for own-advocate flows.
+     * Chabrin advocates skip this step — their details are pre-filled from the Lawyer record.
+     */
+    public function saveDetails(Request $request, string $token): \Illuminate\Http\JsonResponse
+    {
+        $tracking = LeaseLawyerTracking::findByToken($token);
+
+        if (! $tracking) {
+            return response()->json(['success' => false, 'message' => 'Invalid or expired link.'], 404);
+        }
+
+        if (! session("otp_verified_{$token}")) {
+            return response()->json(['success' => false, 'message' => 'Identity not verified. Please verify your OTP first.'], 403);
+        }
+
+        $data = $request->validate([
+            'advocate_name' => ['required', 'string', 'max:255'],
+            'advocate_firm' => ['nullable', 'string', 'max:255'],
+            'lsk_number'    => ['required', 'string', 'max:50'],
+        ]);
+
+        $tracking->update([
+            'advocate_name'       => $data['advocate_name'],
+            'advocate_firm'       => $data['advocate_firm'] ?? null,
+            'advocate_lsk_number' => $data['lsk_number'],
+        ]);
+
+        Log::info('Lawyer portal: advocate details saved', [
+            'lease_id'    => $tracking->lease_id,
+            'tracking_id' => $tracking->id,
+            'side'        => $tracking->side,
+            'lsk_number'  => $data['lsk_number'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Details saved. You can now sign the document.',
+        ]);
     }
 
     /**

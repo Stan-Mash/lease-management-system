@@ -297,6 +297,13 @@
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                                    placeholder="advocate@example.com">
                         </div>
+                        <div>
+                            <label for="tenant-advocate-phone" class="block text-sm font-medium text-gray-700 mb-1">Advocate Phone Number</label>
+                            <input id="tenant-advocate-phone" type="tel"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                   placeholder="e.g. 0722 000 000">
+                            <p class="text-xs text-gray-500 mt-1">The advocate will receive a one-time code on this number to verify their identity before signing.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -619,12 +626,13 @@
             const advocateSelection = document.querySelector('input[name="advocate_selection"]:checked')?.value || '';
             const ownAdvocateName = document.getElementById('tenant-advocate-name')?.value.trim() || '';
             const ownAdvocateEmail = document.getElementById('tenant-advocate-email')?.value.trim() || '';
+            const ownAdvocatePhone = document.getElementById('tenant-advocate-phone')?.value.trim() || '';
 
             const mainOk = signaturePad && !signaturePad.isEmpty();
             const witnessOk = witnessSignaturePad && !witnessSignaturePad.isEmpty() && witnessName !== '' && witnessId !== '';
             let advocateOk = advocateSelection !== '';
             if (advocateSelection === 'own_advocate') {
-                advocateOk = ownAdvocateName !== '' && ownAdvocateEmail !== '';
+                advocateOk = ownAdvocateName !== '' && ownAdvocateEmail !== '' && ownAdvocatePhone !== '';
             }
 
             btn.disabled = !(mainOk && witnessOk && advocateOk);
@@ -650,11 +658,12 @@
                 showMessage('signature-message', 'error', 'Please select your legal representation option.', true);
                 return;
             }
-            const ownAdvocateName = document.getElementById('tenant-advocate-name').value.trim();
-            const ownAdvocateEmail = document.getElementById('tenant-advocate-email').value.trim();
-            if (advocateSelection === 'own_advocate') {
-                if (!ownAdvocateName || !ownAdvocateEmail) {
-                    showMessage('signature-message', 'error', 'Please provide your advocate’s name and email.', true);
+            const ownAdvocateName = document.getElementById(‘tenant-advocate-name’).value.trim();
+            const ownAdvocateEmail = document.getElementById(‘tenant-advocate-email’).value.trim();
+            const ownAdvocatePhone = document.getElementById(‘tenant-advocate-phone’).value.trim();
+            if (advocateSelection === ‘own_advocate’) {
+                if (!ownAdvocateName || !ownAdvocateEmail || !ownAdvocatePhone) {
+                    showMessage(‘signature-message’, ‘error’, ‘Please provide your advocate\’s name, email, and phone number.’, true);
                     return;
                 }
             }
@@ -693,6 +702,7 @@
                         advocate_selection: advocateSelection,
                         tenant_advocate_name: advocateSelection === 'own_advocate' ? ownAdvocateName : null,
                         tenant_advocate_email: advocateSelection === 'own_advocate' ? ownAdvocateEmail : null,
+                        tenant_advocate_phone: advocateSelection === 'own_advocate' ? ownAdvocatePhone : null,
                         latitude:  userLocation?.latitude,
                         longitude: userLocation?.longitude,
                     }),

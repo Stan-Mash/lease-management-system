@@ -160,13 +160,19 @@ class SigningWorkflowService
             ]);
         }
 
-        self::notifyNextParty($lease, $nextParty);
+        // Determine which side the next advocate certification belongs to.
+        // After tenant signs → lessee advocate. After lessor signs → lessor advocate.
+        $advocateSide = in_array($normalized, ['manager', 'landlord'], true) ? 'lessor' : 'lessee';
+
+        self::notifyNextParty($lease, $nextParty, $advocateSide);
     }
 
     /**
      * Send the appropriate notification/link to the next party in the sequence.
+     *
+     * @param  string  $advocateSide  'lessee'|'lessor' — used when nextParty is 'advocate'
      */
-    protected static function notifyNextParty(Lease $lease, ?string $nextParty): void
+    protected static function notifyNextParty(Lease $lease, ?string $nextParty, string $advocateSide = 'lessee'): void
     {
         if ($nextParty === null) {
             // End of sequence — lease is FULLY_EXECUTED (or ACTIVE if activated).
@@ -180,9 +186,9 @@ class SigningWorkflowService
             return;
         }
 
-        // Advocate needs to certify — send a fresh portal link
+        // Advocate needs to certify — send a fresh portal link for the correct side
         if ($nextParty === 'advocate') {
-            self::sendAdvocatePortalLink($lease);
+            self::sendAdvocatePortalLink($lease, $advocateSide);
             return;
         }
 
@@ -218,14 +224,24 @@ class SigningWorkflowService
      *     The advocate gets a new token so they can view the updated PDF
      *     (which now includes both tenant and lessor signatures).
      */
-    protected static function sendAdvocatePortalLink(Lease $lease): void
+    protected static function sendAdvocatePortalLink(Lease $lease, string $side = 'lessee'): void
     {
-        // Resolve advocate contact from the lease
-        $advocateEmail = $lease->tenant_advocate_email;
-        $advocateName  = $lease->tenant_advocate_name;
+        // Resolve advocate contact based on which side needs certifying.
+        // lessee side → tenant_advocate_email / lessee_advocate_phone
+        // lessor side → lessor_advocate_email / lessor_advocate_phone
+        if ($side === 'lessor') {
+            $advocateEmail = $lease->lessor_advocate_email;
+            $advocateName  = $lease->lessor_advocate_name;
+            $advocatePhone = $lease->lessor_advocate_phone;
+        } else {
+            $advocateEmail = $lease->tenant_advocate_email;
+            $advocateName  = $lease->tenant_advocate_name;
+            $advocatePhone = $lease->lessee_advocate_phone;
+        }
 
-        // Also check if there is a linked LeaseLawyerTracking with a lawyer record
+        // Fall back to a linked Lawyer record (Chabrin's advocate) if no own-advocate contact
         $existingTracking = LeaseLawyerTracking::where('lease_id', $lease->id)
+            ->where('side', $side)
             ->whereNotNull('lawyer_id')
             ->latest()
             ->first();
@@ -235,11 +251,27 @@ class SigningWorkflowService
             $lawyerModel   = $existingTracking->lawyer;
             $advocateEmail = $advocateEmail ?: $lawyerModel->email;
             $advocateName  = $advocateName  ?: $lawyerModel->name;
+            $advocatePhone = $advocatePhone ?: $lawyerModel->phone;
+        }
+
+        // Ultimate fallback: any Chabrin advocate linked to this lease
+        if (empty($advocateEmail)) {
+            $anyTracking = LeaseLawyerTracking::where('lease_id', $lease->id)
+                ->whereNotNull('lawyer_id')
+                ->latest()
+                ->first();
+            if ($anyTracking?->lawyer) {
+                $lawyerModel   = $anyTracking->lawyer;
+                $advocateEmail = $lawyerModel->email;
+                $advocateName  = $lawyerModel->name;
+                $advocatePhone = $lawyerModel->phone;
+            }
         }
 
         if (empty($advocateEmail)) {
             Log::warning('SigningWorkflowService: cannot send advocate portal link — no email on record', [
                 'lease_id' => $lease->id,
+                'side'     => $side,
             ]);
             return;
         }
@@ -251,14 +283,17 @@ class SigningWorkflowService
         $tracking = LeaseLawyerTracking::create([
             'lease_id'               => $lease->id,
             'lawyer_id'              => $lawyerModel?->id,
+            'side'                   => $side,
             'sent_method'            => 'email',
             'sent_by'                => null,
-            'sent_notes'             => 'Auto-sent by workflow after signing step.',
+            'sent_notes'             => 'Auto-sent by workflow after signing step (' . $side . ' side).',
             'status'                 => 'sent',
             'sent_at'                => now(),
             'lawyer_link_token'      => $token,
             'lawyer_link_expires_at' => now()->addDays(14),
             'sent_via_portal_link'   => true,
+            'advocate_email'         => $advocateEmail,
+            'advocate_phone'         => $advocatePhone,
         ]);
 
         // Dev redirect override

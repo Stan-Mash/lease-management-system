@@ -62,6 +62,7 @@ Route::prefix('lawyer/lease')->name('lawyer.portal')->middleware('throttle:30,1'
     Route::post('/{token}/verify-otp', [LawyerPortalController::class, 'verifyOtp'])
         ->middleware('throttle:10,1')
         ->name('.verify-otp');
+    Route::post('/{token}/save-details', [LawyerPortalController::class, 'saveDetails'])->name('.save-details');
     Route::post('/{token}/upload', [LawyerPortalController::class, 'upload'])->name('.upload');
 });
 

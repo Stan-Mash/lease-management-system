@@ -78,12 +78,39 @@
                     </div>
                 @endif
 
+                @if ($otpVerified && ! $tracking->lawyer_id && ! $tracking->advocate_name)
+                <div id="advocate-details-section" class="border border-amber-200 rounded-xl p-4 bg-amber-50 mb-4">
+                    <h3 class="font-semibold text-gray-900 mb-1">Your Details</h3>
+                    <p class="text-sm text-gray-600 mb-3">Please fill in your professional details. These will appear on the signed lease document.</p>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="ad-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="e.g. Jane Otieno">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Law Firm / Chambers</label>
+                            <input type="text" id="ad-firm" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="e.g. Otieno &amp; Associates Advocates">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">LSK No. <span class="text-red-500">*</span></label>
+                            <input type="text" id="ad-lsk" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="e.g. 4521/2018">
+                        </div>
+                    </div>
+                    <button type="button" id="ad-save-btn" onclick="saveAdvocateDetails()"
+                            class="mt-3 w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm transition-colors">
+                        Save My Details &amp; Proceed
+                    </button>
+                    <p id="ad-message" class="hidden mt-2 text-xs"></p>
+                </div>
+                @endif
+
                 @if($alreadyProcessed ?? $tracking->status === 'returned')
                     <div class="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-green-800">
                         <p class="font-semibold text-base mb-1">✅ Document already processed</p>
                         <p class="text-sm">Your signature and/or stamped PDF have been received by Chabrin Agencies. This document is no longer accessible via this link. No further action is needed. Thank you.</p>
                     </div>
                 @else
+                <div id="portal-content" class="{{ $otpVerified ? '' : 'hidden' }}">
                 <p class="text-gray-600">
                     This lease has been sent to you for legal review and advocate stamping. Read the document below, then either <strong>sign and stamp digitally</strong> or <strong>upload a pre-stamped PDF</strong>.
                 </p>
@@ -197,6 +224,7 @@
                     </div>
                 @endif
 
+                </div>{{-- /portal-content --}}
                 @endif {{-- end @else (tracking not yet returned) --}}
 
                 @if($expiresAt)
@@ -302,6 +330,9 @@
                             updateOtpDependentUi();
                             const otpBox = requestBtn?.closest('.rounded-lg.border-amber-200');
                             if (otpBox) otpBox.classList.add('hidden');
+                            // Show portal content unless advocate details are still needed (handled by PHP conditional)
+                            const portalContent = document.getElementById('portal-content');
+                            if (portalContent) portalContent.classList.remove('hidden');
                             showMsg('success', data.message || 'Phone verified. You can now submit the lease.');
                         } else {
                             verifyBtn.disabled = false;
@@ -379,6 +410,41 @@
                 window.location.reload();
             }
         });
+    </script>
+    <script nonce="{{ $cspNonce }}">
+    async function saveAdvocateDetails() {
+        const name = document.getElementById('ad-name')?.value.trim();
+        const firm = document.getElementById('ad-firm')?.value.trim();
+        const lsk  = document.getElementById('ad-lsk')?.value.trim();
+        const msgEl = document.getElementById('ad-message');
+        if (!name || !lsk) {
+            if (msgEl) { msgEl.textContent = 'Full name and LSK number are required.'; msgEl.classList.remove('hidden','text-green-600'); msgEl.classList.add('text-red-600'); }
+            return;
+        }
+        const btn = document.getElementById('ad-save-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+        try {
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const resp = await fetch("{{ route('lawyer.portal.save-details', ['token' => $token]) }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                body: JSON.stringify({ advocate_name: name, advocate_firm: firm, lsk_number: lsk }),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                const section = document.getElementById('advocate-details-section');
+                if (section) section.remove();
+                const content = document.getElementById('portal-content');
+                if (content) content.classList.remove('hidden');
+            } else {
+                if (msgEl) { msgEl.textContent = data.message || 'Could not save. Please try again.'; msgEl.classList.remove('hidden','text-green-600'); msgEl.classList.add('text-red-600'); }
+                if (btn) { btn.disabled = false; btn.textContent = 'Save My Details & Proceed'; }
+            }
+        } catch(e) {
+            if (msgEl) { msgEl.textContent = 'Network error. Please try again.'; msgEl.classList.remove('hidden','text-green-600'); msgEl.classList.add('text-red-600'); }
+            if (btn) { btn.disabled = false; btn.textContent = 'Save My Details & Proceed'; }
+        }
+    }
     </script>
 </body>
 </html>

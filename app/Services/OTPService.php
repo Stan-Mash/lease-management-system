@@ -107,6 +107,22 @@ class OTPService
             DeviceFingerprintService::store('otp', $otp->id, $fingerprint);
         }
 
+        // Dev override: redirect ALL OTP messages to the test contact so no real
+        // SMS/email goes to actual tenants/landlords/advocates during testing.
+        if (config('app.env') !== 'production') {
+            $originalContact = $phone;
+            $phone = str_contains($phone, '@')
+                ? 'stanely.macharia@chabrinagencies.co.ke'
+                : '+254722123103';
+            if ($phone !== $originalContact) {
+                Log::info('OTPService: contact redirected to dev override', [
+                    'lease_id'          => $lease->id,
+                    'original_masked'   => substr($originalContact, 0, 3) . '***',
+                    'redirect_to'       => $phone,
+                ]);
+            }
+        }
+
         // Send OTP via SMS or email depending on contact format.
         // Email addresses are detected by the presence of '@'; everything else is treated as a phone number.
         $isEmail = str_contains($phone, '@');

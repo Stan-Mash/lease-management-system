@@ -29,6 +29,7 @@ class SubmitSignatureRequest extends FormRequest
             'advocate_selection' => ['required', 'in:chabrin_advocate,own_advocate'],
             'tenant_advocate_name' => ['required_if:advocate_selection,own_advocate', 'nullable', 'string', 'max:255'],
             'tenant_advocate_email' => ['required_if:advocate_selection,own_advocate', 'nullable', 'email', 'max:255'],
+            'tenant_advocate_phone' => ['required_if:advocate_selection,own_advocate', 'nullable', 'string', 'max:30'],
         ];
     }
 

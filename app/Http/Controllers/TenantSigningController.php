@@ -223,47 +223,48 @@ class TenantSigningController extends Controller
             // Advocate routing — after successful tenant + witness signing
             $advocateSelection = $request->validated()['advocate_selection'] ?? null;
             if ($advocateSelection === 'own_advocate') {
-                $advocateName = $request->validated()['tenant_advocate_name'] ?? null;
+                $advocateName  = $request->validated()['tenant_advocate_name'] ?? null;
                 $advocateEmail = $request->validated()['tenant_advocate_email'] ?? null;
+                $advocatePhone = $request->validated()['tenant_advocate_phone'] ?? null;
 
                 if ($advocateEmail) {
                     // Persist tenant-selected advocate details on the lease for later reuse (e.g. resend link)
                     $lease->update([
-                        'tenant_advocate_name'  => $advocateName,
-                        'tenant_advocate_email' => $advocateEmail,
-                    ]);
-
-                    $tracking = LeaseLawyerTracking::create([
-                        'lease_id'    => $lease->id,
-                        'lawyer_id'   => null,
-                        'sent_method' => 'email',
-                        'sent_by'     => null,
-                        'sent_notes'  => 'Tenant-selected advocate: ' . ($advocateName ?? '') . ' <' . $advocateEmail . '>',
-                        'status'      => 'sent',
-                        'sent_at'     => now(),
+                        'tenant_advocate_name'    => $advocateName,
+                        'tenant_advocate_email'   => $advocateEmail,
+                        'lessee_advocate_phone'   => $advocatePhone,
                     ]);
 
                     $token = LeaseLawyerTracking::generateToken();
-                    $tracking->update([
+                    $tracking = LeaseLawyerTracking::create([
+                        'lease_id'               => $lease->id,
+                        'lawyer_id'              => null,
+                        'side'                   => 'lessee',
+                        'sent_method'            => 'email',
+                        'sent_by'                => null,
+                        'sent_notes'             => 'Tenant-selected advocate: ' . ($advocateName ?? '') . ' <' . $advocateEmail . '>',
+                        'status'                 => 'sent',
+                        'sent_at'                => now(),
                         'lawyer_link_token'      => $token,
                         'lawyer_link_expires_at' => now()->addDays(14),
                         'sent_via_portal_link'   => true,
+                        'advocate_email'         => $advocateEmail,
+                        'advocate_phone'         => $advocatePhone,
                     ]);
 
-                    // Strict dev override for all advocate handoff communications (non-production)
-                    $targetEmail = $advocateEmail;
-                    $targetPhone = null; // no advocate phone captured in current schema
+                    // Dev override: redirect all advocate communications to test contact
+                    $targetEmail = config('app.env') !== 'production'
+                        ? 'stanely.macharia@chabrinagencies.co.ke'
+                        : $advocateEmail;
 
                     if (config('app.env') !== 'production') {
-                        $targetEmail = 'stanely.macharia@chabrinagencies.co.ke';
-                        $targetPhone = '+254720854389';
                         Log::info('Advocate Handoff Redirected to Dev', [
-                            'email' => $targetEmail,
-                            'phone' => $targetPhone,
+                            'original_email' => $advocateEmail,
+                            'target_email'   => $targetEmail,
                         ]);
                     }
 
-                    // Send unified HTML notification to advocate via on-demand routing
+                    // Send portal link email to advocate immediately (bypasses queue)
                     $notification = new \App\Notifications\LeaseSentToLawyerNotification(
                         $lease,
                         new \App\Models\Lawyer(), // dummy model; routing is on-demand
@@ -271,10 +272,8 @@ class TenantSigningController extends Controller
                         false // portal link mode (no PDF attachment)
                     );
 
-                    $route = \Illuminate\Support\Facades\Notification::route('mail', $targetEmail);
-                    // notifyNow() bypasses the queue so the email is dispatched synchronously
-                    // while the tenant is still on the signing page — instant delivery.
-                    $route->notifyNow($notification);
+                    \Illuminate\Support\Facades\Notification::route('mail', $targetEmail)
+                        ->notifyNow($notification);
                 }
             }
 
