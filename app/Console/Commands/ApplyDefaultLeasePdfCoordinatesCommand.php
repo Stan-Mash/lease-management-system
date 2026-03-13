@@ -50,11 +50,25 @@ class ApplyDefaultLeasePdfCoordinatesCommand extends Command
             return self::SUCCESS;
         }
 
-        $map = DefaultLeasePdfCoordinateMap::particularsPage1();
+        // Signing page number differs by template type:
+        //   commercial         → page 7
+        //   residential_major  → page 5
+        //   residential_micro  → page 2
+        $signingPages = [
+            'commercial'        => 7,
+            'residential_major' => 5,
+            'residential_micro' => 2,
+        ];
 
         foreach ($templates as $template) {
+            $signingPage = $signingPages[$template->template_type] ?? 2;
+            $map = array_merge(
+                DefaultLeasePdfCoordinateMap::page1Fields(),
+                DefaultLeasePdfCoordinateMap::legacySignaturePlaceholders(),
+                DefaultLeasePdfCoordinateMap::signingPage($signingPage),
+            );
             $template->update(['pdf_coordinate_map' => $map]);
-            $this->line("Applied default map to: {$template->name} ({$template->slug}, type: {$template->template_type})");
+            $this->line("Applied default map (signing p{$signingPage}) to: {$template->name} ({$template->slug}, type: {$template->template_type})");
         }
 
         $this->info('Done. You can fine-tune positions via Edit Template → Pick positions or edit the JSON in PDF Upload.');
