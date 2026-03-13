@@ -71,19 +71,19 @@ class LeasePdfService
      */
     public function generate(Lease $lease): string
     {
-        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses', 'guarantors']);
+        $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses', 'guarantors', 'lawyerTrackings.lawyer', 'zoneManager']);
         $needsDraft = $this->needsDraftWatermark($lease);
 
-        // Tenant signature — the drawn canvas signature from the signing portal
+        // Tenant / Lessee signature — drawn canvas from signing portal
         $tenantSignature = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first()
-            ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: any signature (legacy rows have no signer_type)
+            ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: legacy rows with no signer_type
         $tenantSigPath = $tenantSignature ? $this->writeSignatureTempFile($tenantSignature) : null;
 
-        // Manager/Lessor countersignature — drawn by the property manager on countersign
+        // Manager / Lessor countersignature
         $managerSignature = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
         $managerSigPath = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
 
-        // Witness & Advocate — witness may come from DigitalSignature OR LeaseWitness model
+        // Lessee witness — may come from DigitalSignature OR LeaseWitness model
         $witnessTempSigPath = null;
         $witnessSigPath = null;
         $witnessSignature = $lease->digitalSignatures->where('signer_type', 'witness')->sortByDesc('created_at')->first();
@@ -102,8 +102,32 @@ class LeasePdfService
                 }
             }
         }
+
+        // Legacy advocate signature — signer_type='advocate' (old single-advocate workflow)
         $advocateSignature = $lease->digitalSignatures->where('signer_type', 'advocate')->sortByDesc('created_at')->first();
         $advocateSigPath = $advocateSignature ? $this->writeSignatureTempFile($advocateSignature) : null;
+
+        // ── New dual-advocate signatures ─────────────────────────────────────
+        // Lessor advocate — signer_type='lessor_advocate'
+        $lessorAdvSig = $lease->digitalSignatures->where('signer_type', 'lessor_advocate')->sortByDesc('created_at')->first();
+        $lessorAdvSigPath = $lessorAdvSig ? $this->writeSignatureTempFile($lessorAdvSig) : null;
+
+        // Lessee advocate — signer_type='lessee_advocate'; fall back to legacy 'advocate'
+        $lesseeAdvSig = $lease->digitalSignatures->where('signer_type', 'lessee_advocate')->sortByDesc('created_at')->first()
+            ?? $advocateSignature;
+        $lesseeAdvSigPath = ($lesseeAdvSig && $lesseeAdvSig !== $advocateSignature)
+            ? $this->writeSignatureTempFile($lesseeAdvSig)
+            : $advocateSigPath; // reuse already-extracted path for legacy advocate
+
+        // Lessor witness — from LeaseWitness where witnessed_party='lessor'
+        $lessorWitnessModel = $lease->witnesses->where('witnessed_party', 'lessor')->sortByDesc('witnessed_at')->first();
+        $lessorWitnessSigPath = null;
+        if ($lessorWitnessModel?->witness_signature_path) {
+            $fullPath = storage_path('app/' . $lessorWitnessModel->witness_signature_path);
+            if (file_exists($fullPath)) {
+                $lessorWitnessSigPath = $fullPath;
+            }
+        }
 
         // Guarantor(s) — from Guarantor model signature_path (storage path)
         $guarantorSigPaths = [];
@@ -195,6 +219,30 @@ class LeasePdfService
                         if (! empty($dateEntries)) {
                             $next = $outDir . '/' . $baseName . '-dates.pdf';
                             $this->pdfOverlay->stampDateTexts($current, $dateEntries, $next);
+                            if ($current !== $lawyerDocPath) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        // ── New-style 6-box signing-page overlay (text + additional sigs) ──
+                        $newStyleCoords = $this->filterNewStyleSigningCoords(is_array($coordinates) ? $coordinates : []);
+                        if (! empty($newStyleCoords)) {
+                            $next = $outDir . '/' . $baseName . '-signing.pdf';
+                            $this->pdfOverlay->stampAllSigningFields(
+                                $current,
+                                $this->signingPageTextFields($lease),
+                                array_filter([
+                                    'lessor_signature'          => $managerSigPath,
+                                    'lessor_witness_signature'  => $lessorWitnessSigPath,
+                                    'lessor_advocate_signature' => $lessorAdvSigPath,
+                                    'lessee_signature'          => $tenantSigPath,
+                                    'lessee_witness_signature'  => $witnessSigPath,
+                                    'lessee_advocate_signature' => $lesseeAdvSigPath,
+                                ]),
+                                $newStyleCoords,
+                                $next,
+                            );
                             if ($current !== $lawyerDocPath) {
                                 @unlink($current);
                             }
@@ -372,6 +420,30 @@ class LeasePdfService
                             $current = $next;
                         }
 
+                        // ── New-style 6-box signing-page overlay (text + additional sigs) ──
+                        $newStyleCoords = $this->filterNewStyleSigningCoords(is_array($coordinates) ? $coordinates : []);
+                        if (! empty($newStyleCoords)) {
+                            $next = $outDir . '/' . $baseName . '-signing.pdf';
+                            $this->pdfOverlay->stampAllSigningFields(
+                                $current,
+                                $this->signingPageTextFields($lease),
+                                array_filter([
+                                    'lessor_signature'          => $managerSigPath,
+                                    'lessor_witness_signature'  => $lessorWitnessSigPath,
+                                    'lessor_advocate_signature' => $lessorAdvSigPath,
+                                    'lessee_signature'          => $tenantSigPath,
+                                    'lessee_witness_signature'  => $witnessSigPath,
+                                    'lessee_advocate_signature' => $lesseeAdvSigPath,
+                                ]),
+                                $newStyleCoords,
+                                $next,
+                            );
+                            if ($current !== $step1 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
                         $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
                         if ($tenantSignature && $managerSignature) {
                             $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
@@ -455,7 +527,16 @@ class LeasePdfService
                 'Assign a template to this lease or mark one as default for this lease type.'
             );
         } finally {
-            foreach (array_filter([$tenantSigPath, $managerSigPath, $witnessTempSigPath ?? null, $advocateSigPath ?? null]) as $p) {
+            $tempPaths = array_filter([
+                $tenantSigPath,
+                $managerSigPath,
+                $witnessTempSigPath ?? null,
+                $advocateSigPath ?? null,
+                $lessorAdvSigPath ?? null,
+                // $lesseeAdvSigPath may equal $advocateSigPath (reuse), avoid double-unlink
+                ($lessorAdvSigPath !== null && $lesseeAdvSigPath !== $advocateSigPath) ? $lesseeAdvSigPath : null,
+            ]);
+            foreach ($tempPaths as $p) {
                 if ($p && file_exists($p)) {
                     @unlink($p);
                 }
@@ -854,6 +935,115 @@ class LeasePdfService
             // Reference (for any reference fields in template)
             'reference_number' => $lease->reference_number ?? '',
         ];
+    }
+
+    /**
+     * Collect text field values for the new-style 6-box signing page overlay.
+     * Called by generate() to build the $textFields array passed to stampAllSigningFields().
+     * Returns empty strings for missing data — stampAllSigningFields() skips empty values.
+     *
+     * @return array<string, string>
+     */
+    private function signingPageTextFields(Lease $lease): array
+    {
+        // ── Lessor (manager or landlord who countersigned) ────────────────────
+        $managerSig  = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
+        $lessorName  = $managerSig?->signed_by_name ?? $lease->landlord?->names ?? '';
+        $lessorId    = '';
+        if ($managerSig?->signed_by_user_id) {
+            $lessorId = $lease->zoneManager?->national_id ?? '';
+        }
+        if ($lessorId === '') {
+            $lessorId = $lease->landlord?->national_id ?? '';
+        }
+        $lessorDate = $managerSig?->signed_at?->format('d/m/Y') ?? '';
+
+        // ── Lessor witness ────────────────────────────────────────────────────
+        $lessorWitness = $lease->witnesses->where('witnessed_party', 'lessor')->sortByDesc('witnessed_at')->first();
+        $lessorWitnessName = $lessorWitness?->witnessed_by_name ?? $lease->lessor_witness_name ?? '';
+        $lessorWitnessId   = $lessorWitness?->witness_id_number ?? $lease->lessor_witness_id ?? '';
+        $lessorWitnessDate = $lessorWitness?->witnessed_at?->format('d/m/Y') ?? '';
+
+        // ── Lessor advocate ───────────────────────────────────────────────────
+        $lessorTracking = null;
+        if ($lease->relationLoaded('lawyerTrackings')) {
+            $lessorTracking = $lease->lawyerTrackings->where('side', 'lessor')->first();
+        }
+        $lessorAdvName = $lessorTracking?->advocate_name ?? $lessorTracking?->lawyer?->name ?? $lease->lessor_advocate_name ?? '';
+        $lessorAdvFirm = $lessorTracking?->advocate_firm ?? $lessorTracking?->lawyer?->firm ?? '';
+        $lessorAdvLsk  = $lessorTracking?->advocate_lsk_number ?? $lessorTracking?->lawyer?->lsk_number ?? '';
+        $lessorAdvSig  = $lease->digitalSignatures->where('signer_type', 'lessor_advocate')->sortByDesc('created_at')->first();
+        $lessorAdvDate = $lessorAdvSig?->signed_at?->format('d/m/Y') ?? '';
+
+        // ── Lessee (tenant) ───────────────────────────────────────────────────
+        $tenantSig  = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first();
+        $lesseeName = $lease->tenant?->names ?? '';
+        $lesseeId   = $lease->tenant?->national_id ?? $lease->tenant?->passport_number ?? '';
+        $lesseeDate = $tenantSig?->signed_at?->format('d/m/Y') ?? '';
+
+        // ── Lessee witness ────────────────────────────────────────────────────
+        $lesseeWitness = $lease->witnesses->where('witnessed_party', 'tenant')->sortByDesc('witnessed_at')->first();
+        $lesseeWitnessName = $lesseeWitness?->witnessed_by_name ?? '';
+        $lesseeWitnessId   = $lesseeWitness?->witness_id_number ?? '';
+        $lesseeWitnessDate = $lesseeWitness?->witnessed_at?->format('d/m/Y') ?? '';
+
+        // ── Lessee advocate ───────────────────────────────────────────────────
+        $lesseeTracking = null;
+        if ($lease->relationLoaded('lawyerTrackings')) {
+            $lesseeTracking = $lease->lawyerTrackings->where('side', 'lessee')->first();
+        }
+        $lesseeAdvName = $lesseeTracking?->advocate_name ?? $lesseeTracking?->lawyer?->name ?? '';
+        $lesseeAdvFirm = $lesseeTracking?->advocate_firm ?? $lesseeTracking?->lawyer?->firm ?? '';
+        $lesseeAdvLsk  = $lesseeTracking?->advocate_lsk_number ?? $lesseeTracking?->lawyer?->lsk_number ?? '';
+        $lesseeAdvSig  = $lease->digitalSignatures->whereIn('signer_type', ['lessee_advocate', 'advocate'])->sortByDesc('created_at')->first();
+        $lesseeAdvDate = $lesseeAdvSig?->signed_at?->format('d/m/Y') ?? '';
+
+        return [
+            // Box 1 — Lessor
+            'lessor_sig_name' => $lessorName,
+            'lessor_sig_id'   => $lessorId,
+            'lessor_sig_date' => $lessorDate,
+            // Box 2 — Lessor Witness
+            'lessor_witness_name' => $lessorWitnessName,
+            'lessor_witness_id'   => $lessorWitnessId,
+            'lessor_witness_date' => $lessorWitnessDate,
+            // Box 3 — Lessor Advocate
+            'lessor_advocate_name' => $lessorAdvName,
+            'lessor_advocate_firm' => $lessorAdvFirm,
+            'lessor_advocate_lsk'  => $lessorAdvLsk,
+            'lessor_advocate_date' => $lessorAdvDate,
+            // Box 4 — Lessee
+            'lessee_sig_name' => $lesseeName,
+            'lessee_sig_id'   => $lesseeId,
+            'lessee_sig_date' => $lesseeDate,
+            // Box 5 — Lessee Witness
+            'lessee_witness_name' => $lesseeWitnessName,
+            'lessee_witness_id'   => $lesseeWitnessId,
+            'lessee_witness_date' => $lesseeWitnessDate,
+            // Box 6 — Lessee Advocate
+            'lessee_advocate_name' => $lesseeAdvName,
+            'lessee_advocate_firm' => $lesseeAdvFirm,
+            'lessee_advocate_lsk'  => $lesseeAdvLsk,
+            'lessee_advocate_date' => $lesseeAdvDate,
+        ];
+    }
+
+    /**
+     * Filter a coordinate map to only new-style signing-page keys
+     * (lessor_*, lessee_* prefixed keys introduced for the 6-box layout).
+     * Returns empty array if no new-style keys are present, which causes
+     * stampAllSigningFields() to be skipped (backward compat for old templates).
+     *
+     * @param  array<string, mixed>  $coordinates
+     * @return array<string, mixed>
+     */
+    private function filterNewStyleSigningCoords(array $coordinates): array
+    {
+        return array_filter(
+            $coordinates,
+            static fn ($key) => str_starts_with($key, 'lessor_') || str_starts_with($key, 'lessee_'),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     private function injectDraftWatermark(string $html): string

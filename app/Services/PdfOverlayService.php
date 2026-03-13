@@ -345,6 +345,91 @@ class PdfOverlayService
     }
 
     /**
+     * Stamp all signing-page fields (text + images) in a single FPDI pass.
+     *
+     * Handles both text fields and image fields from the coordinate map in one pass,
+     * avoiding multiple re-imports of the same PDF.  Fields with no value/path are
+     * silently skipped so partial data (e.g. only tenant signed so far) works fine.
+     *
+     * Image entries are distinguished from text entries by the presence of a
+     * 'width' key WITHOUT a 'size' key (text entries always have 'size').
+     *
+     * @param  array<string, string>  $textFields   Keyed by coord map key, e.g. ['lessor_sig_name' => 'John Doe']
+     * @param  array<string, string>  $imagePaths   Keyed by coord map key, e.g. ['lessor_signature' => '/tmp/sig.png']
+     * @param  array<string, array{page: int, x: float, y: float, ...}>  $coordinates
+     */
+    public function stampAllSigningFields(
+        string $sourcePdfPath,
+        array $textFields,
+        array $imagePaths,
+        array $coordinates,
+        string $outputPath,
+    ): string {
+        if (empty($textFields) && empty($imagePaths)) {
+            copy($sourcePdfPath, $outputPath);
+            return $outputPath;
+        }
+
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
+        $this->loadFont($pdf);
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            foreach ($coordinates as $fieldKey => $config) {
+                $targetPage = (int) ($config['page'] ?? 1);
+                if ($targetPage !== $pageNo) {
+                    continue;
+                }
+
+                $isImage = isset($config['width']) && ! isset($config['size']);
+
+                if ($isImage) {
+                    // Image field — look up path
+                    $imgPath = $imagePaths[$fieldKey] ?? null;
+                    if ($imgPath === null || $imgPath === '' || ! file_exists($imgPath)) {
+                        continue;
+                    }
+                    $x      = (float) ($config['x'] ?? 0);
+                    $y      = (float) ($config['y'] ?? 0);
+                    $w      = (float) ($config['width'] ?? 0);
+                    $h      = (float) ($config['height'] ?? 0);
+                    $anchor = (string) ($config['anchor'] ?? 'default');
+                    if ($anchor === 'above') {
+                        $y = $y - $h;
+                    }
+                    try {
+                        $pdf->Image($imgPath, $x, $y, $w, $h);
+                    } catch (\Exception $e) {
+                        // Bad image — skip silently to avoid aborting the whole pass
+                    }
+                } else {
+                    // Text field
+                    $value = $textFields[$fieldKey] ?? '';
+                    if ($value === '') {
+                        continue;
+                    }
+                    $x        = (float) ($config['x'] ?? 0);
+                    $y        = (float) ($config['y'] ?? 0);
+                    $fontSize = isset($config['size']) ? (int) $config['size'] : self::OVERLAY_FONT_SIZE;
+                    $color    = isset($config['color']) ? (string) $config['color'] : self::DEFAULT_COLOR;
+                    $widthMm  = isset($config['width']) ? (float) $config['width'] : null;
+                    $align    = $config['align'] ?? 'L';
+                    $this->writeText($pdf, $value, $x, $y, $fontSize, $color, $widthMm, $align);
+                }
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+        return $outputPath;
+    }
+
+    /**
      * Stamp manager countersignature + timestamp + SHA-256 audit stamp.
      */
     public function stampAuditBlock(

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\LeaseTemplate;
+use App\Services\DefaultLeasePdfCoordinateMap;
 use App\Services\PdfOverlayService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -26,26 +27,53 @@ use Illuminate\Support\Facades\Storage;
  */
 class GenerateVisualPdfMap extends Command
 {
-    protected $signature = 'lease:visual-map {template_id : Primary key of the LeaseTemplate record}';
+    protected $signature = 'lease:visual-map
+        {template_id : Primary key of the LeaseTemplate record}
+        {--default-map : Overlay the DefaultLeasePdfCoordinateMap instead of the saved coordinate map}';
 
     protected $description = 'Generate a visual coordinate-map PDF for a lease template (stamps coloured boxes at every mapped position)';
 
-    /** Signature-slot key suffixes — same set used in LeasePdfService / VisualPdfGenerationTest. */
+    /**
+     * Signature-slot keys: legacy keys + new 6-box signing-page keys.
+     * Image slots are auto-detected by having 'width' without 'size',
+     * but this explicit list is still used for colour assignment.
+     */
     private const SIG_KEYS = [
+        // Legacy
         'tenant_signature',
         'manager_signature',
         'witness_signature',
         'advocate_signature',
         'guarantor_signature',
+        // New 6-box signing page
+        'lessor_signature',
+        'lessor_witness_signature',
+        'lessor_advocate_signature',
+        'lessor_advocate_stamp',
+        'lessee_signature',
+        'lessee_witness_signature',
+        'lessee_advocate_signature',
+        'lessee_advocate_stamp',
     ];
 
     /** Colour assignment per signature type [R, G, B]. */
     private const SIG_COLORS = [
-        'tenant_signature'   => [0,   122, 255],   // blue
-        'manager_signature'  => [255,  59,  48],   // red
-        'witness_signature'  => [52,  199,  89],   // green
-        'advocate_signature' => [255, 149,   0],   // orange
-        'guarantor_signature'=> [175,  82, 222],   // purple
+        // Legacy
+        'tenant_signature'         => [0,   122, 255],   // blue
+        'manager_signature'        => [255,  59,  48],   // red
+        'witness_signature'        => [52,  199,  89],   // green
+        'advocate_signature'       => [255, 149,   0],   // orange
+        'guarantor_signature'      => [175,  82, 222],   // purple
+        // New 6-box signing page — lessor side (warm tones)
+        'lessor_signature'         => [255,  59,  48],   // red (same as manager — lessor IS manager)
+        'lessor_witness_signature' => [255, 149,   0],   // orange
+        'lessor_advocate_signature'=> [255, 204,   0],   // yellow
+        'lessor_advocate_stamp'    => [200, 160,   0],   // dark yellow
+        // New 6-box signing page — lessee side (cool tones)
+        'lessee_signature'         => [0,   122, 255],   // blue (same as tenant)
+        'lessee_witness_signature' => [52,  199,  89],   // green
+        'lessee_advocate_signature'=> [0,   199, 190],   // teal
+        'lessee_advocate_stamp'    => [0,   150, 140],   // dark teal
     ];
 
     // -------------------------------------------------------------------------
@@ -63,14 +91,18 @@ class GenerateVisualPdfMap extends Command
             return self::FAILURE;
         }
 
-        $coordinateMap = $template->pdf_coordinate_map;
+        $coordinateMap = $this->option('default-map')
+            ? DefaultLeasePdfCoordinateMap::particularsPage1()
+            : $template->pdf_coordinate_map;
 
         if (empty($coordinateMap)) {
-            $this->error("Template #{$templateId} ({$template->name}) has no pdf_coordinate_map.");
+            $this->error("Template #{$templateId} ({$template->name}) has no pdf_coordinate_map. Use --default-map to preview the DefaultLeasePdfCoordinateMap.");
             return self::FAILURE;
         }
 
+        $source = $this->option('default-map') ? '<comment>DefaultLeasePdfCoordinateMap</comment>' : 'saved pdf_coordinate_map';
         $this->line("Template : <info>{$template->name}</info> (#{$template->id}, type: {$template->template_type})");
+        $this->line("Map      : {$source}");
         $this->line('Coords   : ' . count($coordinateMap) . ' field(s) mapped');
 
         // ── 2. Resolve source PDF to a local temp path ───────────────────────
@@ -83,18 +115,13 @@ class GenerateVisualPdfMap extends Command
 
         $this->line("Source   : {$sourcePdfPath}");
 
-        // ── 3. Split coordinate map into text fields vs signature slots ──────
-        $sigKeys    = self::SIG_KEYS;
-        $textCoords = array_filter(
-            $coordinateMap,
-            fn ($c, $k) => ! in_array((string) $k, $sigKeys, true),
-            ARRAY_FILTER_USE_BOTH,
-        );
-        $sigCoords  = array_filter(
-            $coordinateMap,
-            fn ($c, $k) => in_array((string) $k, $sigKeys, true),
-            ARRAY_FILTER_USE_BOTH,
-        );
+        // ── 3. Split coordinate map into text fields vs image/signature slots ──
+        // Image slots are detected by having 'width' WITHOUT 'size' (the same
+        // heuristic used in PdfOverlayService::stampAllSigningFields).
+        $isImageSlot = static fn (array $c): bool => isset($c['width']) && ! isset($c['size']);
+
+        $textCoords = array_filter($coordinateMap, static fn ($c) => is_array($c) && ! $isImageSlot($c));
+        $sigCoords  = array_filter($coordinateMap, static fn ($c) => is_array($c) && $isImageSlot($c));
 
         // ── 4. Build dummy text values (field key as label) ──────────────────
         $textFields = [];
@@ -178,12 +205,15 @@ class GenerateVisualPdfMap extends Command
         $this->info("✓ template-{$template->id}-mapped.pdf → {$artifactPath} ({$kb} KB)");
         $this->line('');
         $this->line('Legend:');
-        $this->line('  <fg=red>RED text</>          — text field labels stamped at coordinate positions');
-        foreach (self::SIG_COLORS as $key => [$r, $g, $b]) {
-            $hex   = sprintf('#%02X%02X%02X', $r, $g, $b);
-            $label = ucwords(str_replace('_', ' ', $key));
-            $this->line("  {$hex}  — {$label}");
-        }
+        $this->line('  <fg=red>RED text</>                — text field labels at coordinate positions');
+        $this->line('  Blue filled boxes         — lessee / tenant signature');
+        $this->line('  Red filled boxes           — lessor / manager signature');
+        $this->line('  Green filled boxes         — lessee / legacy witness signature');
+        $this->line('  Orange filled boxes        — lessor witness / legacy advocate');
+        $this->line('  Yellow / teal / purple     — advocate signatures and stamps');
+        $sigCount = count($sigCoords);
+        $txtCount = count($textCoords);
+        $this->line("  ({$txtCount} text fields, {$sigCount} image/signature slots mapped)"  );
 
         return self::SUCCESS;
     }
