@@ -338,6 +338,51 @@ class PdfOverlayService
     }
 
     /**
+     * Stamp small date labels (e.g. "Date: 13/03/2026") below each signature image.
+     * Single FPDI pass; 8pt Helvetica, dark gray (80,80,80).
+     *
+     * @param array<int, array{text: string, page: int, x: float, y: float}> $dateEntries
+     */
+    public function stampDateTexts(
+        string $sourcePdfPath,
+        array $dateEntries,
+        string $outputPath,
+    ): string {
+        if (empty($dateEntries)) {
+            if ($sourcePdfPath !== $outputPath) {
+                copy($sourcePdfPath, $outputPath);
+            }
+
+            return $outputPath;
+        }
+
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            foreach ($dateEntries as $entry) {
+                if ((int) ($entry['page'] ?? 1) !== $pageNo) {
+                    continue;
+                }
+                $pdf->SetFont('Helvetica', '', 8);
+                $pdf->SetTextColor(80, 80, 80);
+                $pdf->SetXY((float) $entry['x'], (float) $entry['y']);
+                $pdf->Cell(60, 4, (string) $entry['text'], 0, 0, 'L');
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+
+        return $outputPath;
+    }
+
+    /**
      * Load overlay font: Century Gothic Bold from storage_path('fonts/centurygothic_bold.php').
      * That file is generated from storage_path('fonts/centurygothic_bold.ttf') via FPDF makefont.
      * Falls back to storage/app/fonts (centurygothic.php / centurygothicb.php) then Helvetica Bold.
