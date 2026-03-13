@@ -36,46 +36,62 @@ class DefaultLeasePdfCoordinateMap
     }
 
     /**
-     * Page 1 "Particulars": date, lessor, lessee, building, term, financials, reference.
+     * Particulars page fields: date, lessor, lessee, building, term, financials, reference,
+     * rent review (page 2 of the particulars for templates that have rent review on a separate page).
      *
+     * @param  int  $particularsPage  Physical PDF page number of the Particulars section.
+     *                                Residential templates = 1 (no cover page).
+     *                                Commercial template   = 2 (cover page is page 1).
+     * @param  int  $rentReviewPage   Physical PDF page number of the Rent Review row.
+     *                                Usually the same as $particularsPage, but commercial
+     *                                has rent review on the next page (particularsPage + 1).
      * @return array<string, array{page: int, x: float, y: float, size: int, width: float, align: string}>
      */
-    public static function page1Fields(): array
+    public static function page1Fields(int $particularsPage = 1, int $rentReviewPage = 0): array
     {
+        if ($rentReviewPage === 0) {
+            $rentReviewPage = $particularsPage;
+        }
+
         return [
             // Date: "dated the __ day on the month of __ in the year __"
-            'lease_date_day'   => ['page' => 1, 'x' => 25, 'y' => 45, 'size' => 12, 'width' => 12, 'align' => 'L'],
-            'lease_date_month' => ['page' => 1, 'x' => 42, 'y' => 45, 'size' => 12, 'width' => 28, 'align' => 'L'],
-            'lease_date_year'  => ['page' => 1, 'x' => 75, 'y' => 45, 'size' => 12, 'width' => 18, 'align' => 'L'],
+            'lease_date_day'   => ['page' => $particularsPage, 'x' => 25, 'y' => 45, 'size' => 12, 'width' => 12, 'align' => 'L'],
+            'lease_date_month' => ['page' => $particularsPage, 'x' => 42, 'y' => 45, 'size' => 12, 'width' => 28, 'align' => 'L'],
+            'lease_date_year'  => ['page' => $particularsPage, 'x' => 75, 'y' => 45, 'size' => 12, 'width' => 18, 'align' => 'L'],
 
             // Lessor
-            'landlord_name'   => ['page' => 1, 'x' => 25, 'y' => 58, 'size' => 12, 'width' => 75, 'align' => 'L'],
-            'landlord_po_box' => ['page' => 1, 'x' => 105, 'y' => 58, 'size' => 12, 'width' => 25, 'align' => 'L'],
+            'landlord_name'   => ['page' => $particularsPage, 'x' => 25, 'y' => 58, 'size' => 12, 'width' => 75, 'align' => 'L'],
+            'landlord_po_box' => ['page' => $particularsPage, 'x' => 105, 'y' => 58, 'size' => 12, 'width' => 25, 'align' => 'L'],
 
             // Lessee
-            'tenant_name'      => ['page' => 1, 'x' => 25, 'y' => 72, 'size' => 12, 'width' => 70, 'align' => 'L'],
-            'tenant_id_number' => ['page' => 1, 'x' => 100, 'y' => 72, 'size' => 12, 'width' => 35, 'align' => 'L'],
-            'tenant_po_box'    => ['page' => 1, 'x' => 100, 'y' => 78, 'size' => 12, 'width' => 30, 'align' => 'L'],
+            'tenant_name'      => ['page' => $particularsPage, 'x' => 25, 'y' => 72, 'size' => 12, 'width' => 70, 'align' => 'L'],
+            'tenant_id_number' => ['page' => $particularsPage, 'x' => 100, 'y' => 72, 'size' => 12, 'width' => 35, 'align' => 'L'],
+            'tenant_po_box'    => ['page' => $particularsPage, 'x' => 100, 'y' => 78, 'size' => 12, 'width' => 30, 'align' => 'L'],
 
             // Building
-            'property_lr_number' => ['page' => 1, 'x' => 45, 'y' => 95, 'size' => 12, 'width' => 35, 'align' => 'L'],
-            'unit_code'          => ['page' => 1, 'x' => 95, 'y' => 95, 'size' => 12, 'width' => 40, 'align' => 'L'],
-            'property_name'      => ['page' => 1, 'x' => 25, 'y' => 90, 'size' => 12, 'width' => 120, 'align' => 'L'],
+            'property_lr_number' => ['page' => $particularsPage, 'x' => 45, 'y' => 95, 'size' => 12, 'width' => 35, 'align' => 'L'],
+            'unit_code'          => ['page' => $particularsPage, 'x' => 95, 'y' => 95, 'size' => 12, 'width' => 40, 'align' => 'L'],
+            'property_name'      => ['page' => $particularsPage, 'x' => 25, 'y' => 90, 'size' => 12, 'width' => 120, 'align' => 'L'],
 
             // Term: "from __ / __ / __ To __ / __ / __"
-            'start_date_day'   => ['page' => 1, 'x' => 95,  'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
-            'start_date_month' => ['page' => 1, 'x' => 110, 'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
-            'start_date_year'  => ['page' => 1, 'x' => 125, 'y' => 108, 'size' => 12, 'width' => 18, 'align' => 'C'],
-            'end_date_day'     => ['page' => 1, 'x' => 155, 'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
-            'end_date_month'   => ['page' => 1, 'x' => 170, 'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
-            'end_date_year'    => ['page' => 1, 'x' => 185, 'y' => 108, 'size' => 12, 'width' => 18, 'align' => 'C'],
+            'start_date_day'   => ['page' => $particularsPage, 'x' => 95,  'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
+            'start_date_month' => ['page' => $particularsPage, 'x' => 110, 'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
+            'start_date_year'  => ['page' => $particularsPage, 'x' => 125, 'y' => 108, 'size' => 12, 'width' => 18, 'align' => 'C'],
+            'end_date_day'     => ['page' => $particularsPage, 'x' => 155, 'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
+            'end_date_month'   => ['page' => $particularsPage, 'x' => 170, 'y' => 108, 'size' => 12, 'width' => 12, 'align' => 'C'],
+            'end_date_year'    => ['page' => $particularsPage, 'x' => 185, 'y' => 108, 'size' => 12, 'width' => 18, 'align' => 'C'],
 
             // Financials
-            'monthly_rent'   => ['page' => 1, 'x' => 35, 'y' => 123, 'size' => 12, 'width' => 45, 'align' => 'R'],
-            'deposit_amount' => ['page' => 1, 'x' => 35, 'y' => 130, 'size' => 12, 'width' => 45, 'align' => 'R'],
-            'vat_amount'     => ['page' => 1, 'x' => 35, 'y' => 137, 'size' => 12, 'width' => 45, 'align' => 'R'],
+            'monthly_rent'   => ['page' => $particularsPage, 'x' => 35, 'y' => 123, 'size' => 12, 'width' => 45, 'align' => 'R'],
+            'deposit_amount' => ['page' => $particularsPage, 'x' => 35, 'y' => 130, 'size' => 12, 'width' => 45, 'align' => 'R'],
+            'vat_amount'     => ['page' => $particularsPage, 'x' => 35, 'y' => 137, 'size' => 12, 'width' => 45, 'align' => 'R'],
 
-            'reference_number' => ['page' => 1, 'x' => 25, 'y' => 35, 'size' => 12, 'width' => 60, 'align' => 'L'],
+            'reference_number' => ['page' => $particularsPage, 'x' => 25, 'y' => 35, 'size' => 12, 'width' => 60, 'align' => 'L'],
+
+            // Rent review (may be on the next page for templates with a long particulars section)
+            'lease_years'       => ['page' => $rentReviewPage, 'x' => 75, 'y' => 20, 'size' => 12, 'width' => 12, 'align' => 'L'],
+            'rent_review_years' => ['page' => $rentReviewPage, 'x' => 75, 'y' => 28, 'size' => 12, 'width' => 12, 'align' => 'L'],
+            'rent_review_rate'  => ['page' => $rentReviewPage, 'x' => 95, 'y' => 28, 'size' => 12, 'width' => 15, 'align' => 'L'],
         ];
     }
 
@@ -85,15 +101,16 @@ class DefaultLeasePdfCoordinateMap
      * The LeasePdfService prefers new named keys (lessor_signature, lessee_signature …)
      * over these old keys when both are present.
      *
+     * @param  int  $signingPage  Physical PDF page number of the signing/execution section.
      * @return array<string, array{page: int, x: float, y: float, width: float, height: float}>
      */
-    public static function legacySignaturePlaceholders(): array
+    public static function legacySignaturePlaceholders(int $signingPage = 2): array
     {
         return [
-            'tenant_signature'   => ['page' => 2, 'x' => 140, 'y' => 240, 'width' => 80, 'height' => 30],
-            'manager_signature'  => ['page' => 2, 'x' => 140, 'y' => 280, 'width' => 80, 'height' => 30, 'anchor' => 'above'],
-            'witness_signature'  => ['page' => 2, 'x' =>  20, 'y' => 260, 'width' => 50, 'height' => 20],
-            'advocate_signature' => ['page' => 2, 'x' =>  20, 'y' => 280, 'width' => 45, 'height' => 18, 'anchor' => 'beside'],
+            'tenant_signature'   => ['page' => $signingPage, 'x' => 140, 'y' => 240, 'width' => 80, 'height' => 30],
+            'manager_signature'  => ['page' => $signingPage, 'x' => 140, 'y' => 280, 'width' => 80, 'height' => 30, 'anchor' => 'above'],
+            'witness_signature'  => ['page' => $signingPage, 'x' =>  20, 'y' => 260, 'width' => 50, 'height' => 20],
+            'advocate_signature' => ['page' => $signingPage, 'x' =>  20, 'y' => 280, 'width' => 45, 'height' => 18, 'anchor' => 'beside'],
         ];
     }
 

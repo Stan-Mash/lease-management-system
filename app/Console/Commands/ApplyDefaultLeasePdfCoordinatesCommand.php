@@ -50,25 +50,25 @@ class ApplyDefaultLeasePdfCoordinatesCommand extends Command
             return self::SUCCESS;
         }
 
-        // Signing page number differs by template type:
-        //   commercial         → page 7
-        //   residential_major  → page 5
-        //   residential_micro  → page 2
-        $signingPages = [
-            'commercial'        => 7,
-            'residential_major' => 5,
-            'residential_micro' => 2,
+        // Page layout per template type:
+        //   commercial:        cover page (p1) + particulars (p2) + rent review (p3) + signing (p7)
+        //   residential_major: particulars (p1) + rent review (p1) + signing (p5)
+        //   residential_micro: particulars (p1) + rent review (p1) + signing (p2)
+        $pageLayout = [
+            'commercial'        => ['particulars' => 2, 'rentReview' => 3, 'signing' => 7],
+            'residential_major' => ['particulars' => 1, 'rentReview' => 1, 'signing' => 5],
+            'residential_micro' => ['particulars' => 1, 'rentReview' => 1, 'signing' => 2],
         ];
 
         foreach ($templates as $template) {
-            $signingPage = $signingPages[$template->template_type] ?? 2;
+            $layout = $pageLayout[$template->template_type] ?? ['particulars' => 1, 'rentReview' => 1, 'signing' => 2];
             $map = array_merge(
-                DefaultLeasePdfCoordinateMap::page1Fields(),
-                DefaultLeasePdfCoordinateMap::legacySignaturePlaceholders(),
-                DefaultLeasePdfCoordinateMap::signingPage($signingPage),
+                DefaultLeasePdfCoordinateMap::page1Fields($layout['particulars'], $layout['rentReview']),
+                DefaultLeasePdfCoordinateMap::legacySignaturePlaceholders($layout['signing']),
+                DefaultLeasePdfCoordinateMap::signingPage($layout['signing']),
             );
             $template->update(['pdf_coordinate_map' => $map]);
-            $this->line("Applied default map (signing p{$signingPage}) to: {$template->name} ({$template->slug}, type: {$template->template_type})");
+            $this->line("Applied default map (particulars p{$layout['particulars']}, signing p{$layout['signing']}) to: {$template->name} ({$template->slug}, type: {$template->template_type})");
         }
 
         $this->info('Done. You can fine-tune positions via Edit Template → Pick positions or edit the JSON in PDF Upload.');
