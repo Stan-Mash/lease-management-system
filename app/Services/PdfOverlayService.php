@@ -292,6 +292,59 @@ class PdfOverlayService
     }
 
     /**
+     * Stamp multiple date texts at specified positions on a PDF (single FPDI pass).
+     * Used to render "Date: dd/mm/yyyy" next to each signature on the execution page.
+     *
+     * @param  array<array{text: string, page: int, x: float, y: float}>  $dateEntries
+     */
+    public function stampDateTexts(
+        string $sourcePdfPath,
+        array $dateEntries,
+        string $outputPath,
+    ): string {
+        if (empty($dateEntries)) {
+            // Nothing to stamp — copy source to output and return
+            copy($sourcePdfPath, $outputPath);
+
+            return $outputPath;
+        }
+
+        $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false);
+        $pageCount = $pdf->setSourceFile($sourcePdfPath);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tpl  = $pdf->importPage($pageNo);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage('P', [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
+
+            foreach ($dateEntries as $entry) {
+                $targetPage = (int) ($entry['page'] ?? 1);
+                if ($targetPage !== $pageNo) {
+                    continue;
+                }
+                $text = $entry['text'] ?? '';
+                if ($text === '') {
+                    continue;
+                }
+                $x = (float) ($entry['x'] ?? 0);
+                $y = (float) ($entry['y'] ?? 0);
+
+                // Small dark text (8pt, dark gray) — distinct from the red field overlay
+                $pdf->SetFont('Helvetica', '', 8);
+                $pdf->SetTextColor(60, 60, 60);
+                $pdf->SetXY($x, $y);
+                $pdf->Cell(50, 4, $text, 0, 0, 'L');
+            }
+        }
+
+        $pdf->Output('F', $outputPath);
+
+        return $outputPath;
+    }
+
+    /**
      * Stamp all signing-page fields (text + images) in a single FPDI pass.
      *
      * Handles both text fields and image fields from the coordinate map in one pass,
@@ -337,6 +390,7 @@ class PdfOverlayService
                 $isImage = isset($config['width']) && ! isset($config['size']);
 
                 if ($isImage) {
+                    // Image field — look up path
                     $imgPath = $imagePaths[$fieldKey] ?? null;
                     if ($imgPath === null || $imgPath === '' || ! file_exists($imgPath)) {
                         continue;
@@ -355,6 +409,7 @@ class PdfOverlayService
                         // Bad image — skip silently to avoid aborting the whole pass
                     }
                 } else {
+                    // Text field
                     $value = $textFields[$fieldKey] ?? '';
                     if ($value === '') {
                         continue;
@@ -412,51 +467,6 @@ class PdfOverlayService
                 $pdf->SetTextColor(80, 80, 80);
                 $pdf->SetXY(120, $size['height'] - 20);
                 $pdf->MultiCell(80, 4, $block, 0, 'R');
-            }
-        }
-
-        $pdf->Output('F', $outputPath);
-
-        return $outputPath;
-    }
-
-    /**
-     * Stamp small date labels (e.g. "Date: 13/03/2026") below each signature image.
-     * Single FPDI pass; 8pt Helvetica, dark gray (80,80,80).
-     *
-     * @param array<int, array{text: string, page: int, x: float, y: float}> $dateEntries
-     */
-    public function stampDateTexts(
-        string $sourcePdfPath,
-        array $dateEntries,
-        string $outputPath,
-    ): string {
-        if (empty($dateEntries)) {
-            if ($sourcePdfPath !== $outputPath) {
-                copy($sourcePdfPath, $outputPath);
-            }
-
-            return $outputPath;
-        }
-
-        $pdf = new Fpdi();
-        $pdf->SetAutoPageBreak(false);
-        $pageCount = $pdf->setSourceFile($sourcePdfPath);
-
-        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-            $tpl  = $pdf->importPage($pageNo);
-            $size = $pdf->getTemplateSize($tpl);
-            $pdf->AddPage('P', [$size['width'], $size['height']]);
-            $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height']);
-
-            foreach ($dateEntries as $entry) {
-                if ((int) ($entry['page'] ?? 1) !== $pageNo) {
-                    continue;
-                }
-                $pdf->SetFont('Helvetica', '', 8);
-                $pdf->SetTextColor(80, 80, 80);
-                $pdf->SetXY((float) $entry['x'], (float) $entry['y']);
-                $pdf->Cell(60, 4, (string) $entry['text'], 0, 0, 'L');
             }
         }
 

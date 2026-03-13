@@ -78,36 +78,21 @@ class LawyerPortalController extends Controller
         }
 
         $lease = $tracking->lease;
-        $lawyer = $tracking->lawyer;
+        $phone = $tracking->lawyer?->phone;
 
-        // Resolve advocate contact (priority: own-advocate phone on tracking → linked lawyer phone
-        // → own-advocate email on tracking → linked lawyer email → legacy lease field)
-        $contact = $tracking->advocate_phone
-            ?? $lawyer?->phone
-            ?? $tracking->advocate_email
-            ?? $lawyer?->email
-            ?? ($tracking->side === 'lessor' ? $lease->lessor_advocate_email : $lease->tenant_advocate_email);
-
-        if (empty($contact)) {
+        if (empty($phone)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Advocate contact information is missing from the system.',
+                'message' => 'Advocate phone number is missing from the system.',
             ], 400);
         }
 
-        Log::info('Lawyer portal OTP: resolved contact', [
-            'lease_id' => $lease->id,
-            'tracking_id' => $tracking->id,
-            'contact_masked' => substr($contact, 0, 3) . '***',
-            'source' => $lawyer ? 'linked_lawyer' : 'guest_advocate',
-        ]);
-
         try {
-            OTPService::generateAndSend($lease, $contact);
+            OTPService::generateAndSend($lease, $phone);
 
             return response()->json([
                 'success' => true,
-                'message' => 'A verification code has been sent.',
+                'message' => 'A verification code has been sent to your phone.',
                 'expires_in_minutes' => config('lease.otp.expiry_minutes', 10),
             ]);
         } catch (\Throwable $e) {
@@ -172,48 +157,6 @@ class LawyerPortalController extends Controller
                 'message' => 'Verification failed. Please try again.',
             ], 400);
         }
-    }
-
-    /**
-     * Save advocate's own details (name, firm, LSK No.) entered via the portal.
-     * Called after OTP verification, before signing, for own-advocate flows.
-     * Chabrin advocates skip this step — their details are pre-filled from the Lawyer record.
-     */
-    public function saveDetails(Request $request, string $token): \Illuminate\Http\JsonResponse
-    {
-        $tracking = LeaseLawyerTracking::findByToken($token);
-
-        if (! $tracking) {
-            return response()->json(['success' => false, 'message' => 'Invalid or expired link.'], 404);
-        }
-
-        if (! session("otp_verified_{$token}")) {
-            return response()->json(['success' => false, 'message' => 'Identity not verified. Please verify your OTP first.'], 403);
-        }
-
-        $data = $request->validate([
-            'advocate_name' => ['required', 'string', 'max:255'],
-            'advocate_firm' => ['nullable', 'string', 'max:255'],
-            'lsk_number'    => ['required', 'string', 'max:50'],
-        ]);
-
-        $tracking->update([
-            'advocate_name'       => $data['advocate_name'],
-            'advocate_firm'       => $data['advocate_firm'] ?? null,
-            'advocate_lsk_number' => $data['lsk_number'],
-        ]);
-
-        Log::info('Lawyer portal: advocate details saved', [
-            'lease_id'    => $tracking->lease_id,
-            'tracking_id' => $tracking->id,
-            'side'        => $tracking->side,
-            'lsk_number'  => $data['lsk_number'],
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Details saved. You can now sign the document.',
-        ]);
     }
 
     /**
@@ -482,24 +425,25 @@ class LawyerPortalController extends Controller
                 ? $request->input('signature_data')
                 : 'data:image/png;base64,' . base64_encode(file_get_contents($signaturePath));
 
+            // Store as 'lessor_advocate' or 'lessee_advocate' when side is set;
+            // fall back to legacy 'advocate' for old records without a side value.
             $signerType = match ($tracking->side) {
                 'lessor' => 'lessor_advocate',
                 'lessee' => 'lessee_advocate',
                 default  => 'advocate',
             };
-
             DigitalSignature::createFromData([
-                'lease_id' => $lease->id,
-                'tenant_id' => null,
-                'signer_type' => $signerType,
+                'lease_id'          => $lease->id,
+                'tenant_id'         => null,
+                'signer_type'       => $signerType,
                 'signed_by_user_id' => null,
-                'signed_by_name' => $tracking->advocate_name ?? $tracking->lawyer?->name ?? 'Advocate',
-                'signature_data' => $signatureDataUri,
-                'signature_type' => 'drawn',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'signed_at' => now(),
-                'metadata' => ['source' => 'lawyer_portal', 'tracking_id' => $tracking->id, 'side' => $tracking->side],
+                'signed_by_name'    => $tracking->advocate_name ?? $tracking->lawyer?->name ?? 'Advocate',
+                'signature_data'    => $signatureDataUri,
+                'signature_type'    => 'drawn',
+                'ip_address'        => $request->ip(),
+                'user_agent'        => $request->userAgent(),
+                'signed_at'         => now(),
+                'metadata'          => ['source' => 'lawyer_portal', 'tracking_id' => $tracking->id, 'side' => $tracking->side],
             ]);
 
             $tracking->markAsReturned('email', null, 'Returned via lawyer portal (signature and/or stamp applied).');

@@ -10,7 +10,6 @@ use App\Models\LeaseTemplate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class LeasePdfService
 {
@@ -30,8 +29,14 @@ class LeasePdfService
     public function generateForPreview(LeaseTemplate $template, array $sampleData, ?string $resolvedSourcePath = null): string
     {
         $sourcePath = $resolvedSourcePath;
-        if (! $sourcePath) {
-            $sourcePath = $this->resolveTemplateSourcePdfPath($template);
+        if (! $sourcePath && $template->source_pdf_path) {
+            $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
+            if (! file_exists($sourcePath)) {
+                $sourcePath = storage_path('app/' . $template->source_pdf_path);
+            }
+            if (! file_exists($sourcePath)) {
+                $sourcePath = storage_path('app/private/' . $template->source_pdf_path);
+            }
         }
         if ($sourcePath && file_exists($sourcePath)) {
                 $fields = $this->overlayFieldsFromSample($sampleData);
@@ -64,21 +69,21 @@ class LeasePdfService
      *
      * @throws Exception If all strategies fail
      */
-    public function generate(Lease $lease, bool $forceNoDraft = false, bool $strictTemplate = false): string
+    public function generate(Lease $lease): string
     {
         $lease->load(['tenant', 'unit', 'property', 'landlord', 'leaseTemplate', 'digitalSignatures', 'witnesses', 'guarantors', 'lawyerTrackings.lawyer', 'zoneManager']);
-        $needsDraft = $forceNoDraft ? false : $this->needsDraftWatermark($lease);
+        $needsDraft = $this->needsDraftWatermark($lease);
 
-        // Tenant signature — the drawn canvas signature from the signing portal
+        // Tenant / Lessee signature — drawn canvas from signing portal
         $tenantSignature = $lease->digitalSignatures->where('signer_type', 'tenant')->sortByDesc('created_at')->first()
-            ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: any signature (legacy rows have no signer_type)
+            ?? $lease->digitalSignatures->sortByDesc('created_at')->first(); // fallback: legacy rows with no signer_type
         $tenantSigPath = $tenantSignature ? $this->writeSignatureTempFile($tenantSignature) : null;
 
-        // Manager/Lessor countersignature — drawn by the property manager on countersign
+        // Manager / Lessor countersignature
         $managerSignature = $lease->digitalSignatures->where('signer_type', 'manager')->sortByDesc('created_at')->first();
         $managerSigPath = $managerSignature ? $this->writeSignatureTempFile($managerSignature) : null;
 
-        // Witness & Advocate — witness may come from DigitalSignature OR LeaseWitness model
+        // Lessee witness — may come from DigitalSignature OR LeaseWitness model
         $witnessTempSigPath = null;
         $witnessSigPath = null;
         $witnessSignature = $lease->digitalSignatures->where('signer_type', 'witness')->sortByDesc('created_at')->first();
@@ -97,6 +102,8 @@ class LeasePdfService
                 }
             }
         }
+
+        // Legacy advocate signature — signer_type='advocate' (old single-advocate workflow)
         $advocateSignature = $lease->digitalSignatures->where('signer_type', 'advocate')->sortByDesc('created_at')->first();
         $advocateSigPath = $advocateSignature ? $this->writeSignatureTempFile($advocateSignature) : null;
 
@@ -137,7 +144,6 @@ class LeasePdfService
 
         try {
             $template = $lease->leaseTemplate;
-            $hasAssignedTemplate = (bool) $lease->lease_template_id;
             $coordinates = $template?->pdf_coordinate_map ?? [];
             $hasCoordinates = is_array($coordinates) && count($coordinates) > 0;
 
@@ -273,223 +279,203 @@ class LeasePdfService
                 }
             }
 
-            // Strategy 0: Landlord-provided PDF — always use uploaded PDF as base when available.
-            // If coordinates exist, stamp fields + signatures. If not, serve the raw uploaded PDF
-            // without falling back to HTML-based templates.
-            if ($template) {
-                $sourcePath = $this->resolveTemplateSourcePdfPath($template);
-                if ($sourcePath && file_exists($sourcePath)) {
-                    // When we have a coordinate map, perform full overlay (fields + signatures)
-                    if ($hasCoordinates) {
-                        try {
-                            $outDir = storage_path('app/lease-pdf-overlay');
-                            if (! is_dir($outDir)) {
-                                mkdir($outDir, 0755, true);
-                            }
-                            $baseName = 'lease-' . $lease->id . '-' . uniqid();
-                            $step1 = $outDir . '/' . $baseName . '-fields.pdf';
-                            $step2 = $outDir . '/' . $baseName . '-sig.pdf';
-                            $step3 = $outDir . '/' . $baseName . '-final.pdf';
-
-                            $fields = $this->overlayFieldsFromLease($lease);
-                            $coordinates = $template->pdf_coordinate_map ?? [];
-                            $sigKeys = ['tenant_signature', 'manager_signature', 'witness_signature', 'advocate_signature', 'guarantor_signature'];
-                            $textCoordinates = is_array($coordinates)
-                                ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, $sigKeys, true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
-                                : [];
-
-                            $this->pdfOverlay->stampFields($sourcePath, $fields, $textCoordinates, $step1);
-
-                            $current = $step1;
-                            if ($tenantSigPath && file_exists($tenantSigPath) && is_array($coordinates) && isset($coordinates['tenant_signature'])) {
-                                $coord = $coordinates['tenant_signature'];
-                                $this->pdfOverlay->stampSignature(
-                                    $current,
-                                    $tenantSigPath,
-                                    (int) ($coord['page'] ?? 1),
-                                    (float) ($coord['x'] ?? 140),
-                                    (float) ($coord['y'] ?? 240),
-                                    (float) ($coord['width'] ?? 50),
-                                    (float) ($coord['height'] ?? 20),
-                                    $step2,
-                                );
-                                @unlink($current);
-                                $current = $step2;
-                            }
-                            if ($managerSigPath && file_exists($managerSigPath) && $managerSignature && is_array($coordinates) && isset($coordinates['manager_signature'])) {
-                                $coord = $coordinates['manager_signature'];
-                                $next = $current === $step2 ? $step3 : $step2;
-                                $this->pdfOverlay->stampSignature(
-                                    $current,
-                                    $managerSigPath,
-                                    (int) ($coord['page'] ?? 1),
-                                    (float) ($coord['x'] ?? 140),
-                                    (float) ($coord['y'] ?? 260),
-                                    (float) ($coord['width'] ?? 50),
-                                    (float) ($coord['height'] ?? 20),
-                                    $next,
-                                    (string) ($coord['anchor'] ?? 'above'),
-                                );
-                                if ($current !== $step1) {
-                                    @unlink($current);
-                                }
-                                $current = $next;
-                            }
-                            $step4 = $outDir . '/' . $baseName . '-sig4.pdf';
-                            if ($advocateSigPath && file_exists($advocateSigPath) && is_array($coordinates) && isset($coordinates['advocate_signature'])) {
-                                $coord = $coordinates['advocate_signature'];
-                                $this->pdfOverlay->stampSignature(
-                                    $current,
-                                    $advocateSigPath,
-                                    (int) ($coord['page'] ?? 1),
-                                    (float) ($coord['x'] ?? 160),
-                                    (float) ($coord['y'] ?? 250),
-                                    (float) ($coord['width'] ?? 45),
-                                    (float) ($coord['height'] ?? 18),
-                                    $step4,
-                                    (string) ($coord['anchor'] ?? 'beside'),
-                                );
-                                if ($current !== $step1) {
-                                    @unlink($current);
-                                }
-                                $current = $step4;
-                            }
-                            // Witness signature — use coordinate map or defaults
-                            if ($witnessSigPath && file_exists($witnessSigPath)) {
-                                $coord = is_array($coordinates) && isset($coordinates['witness_signature'])
-                                    ? $coordinates['witness_signature']
-                                    : ['page' => 2, 'x' => 20, 'y' => 260, 'width' => 50, 'height' => 20];
-                                $next = $outDir . '/' . $baseName . '-witness.pdf';
-                                $this->pdfOverlay->stampSignature(
-                                    $current,
-                                    $witnessSigPath,
-                                    (int) ($coord['page'] ?? 1),
-                                    (float) ($coord['x'] ?? 20),
-                                    (float) ($coord['y'] ?? 260),
-                                    (float) ($coord['width'] ?? 50),
-                                    (float) ($coord['height'] ?? 20),
-                                    $next,
-                                    'default',
-                                );
-                                if ($current !== $step1 && $current !== $step2 && $current !== $step3 && file_exists($current)) {
-                                    @unlink($current);
-                                }
-                                $current = $next;
-                            }
-                            $guarantorSigPath = $guarantorSigPaths[0] ?? null;
-                            if ($guarantorSigPath && file_exists($guarantorSigPath) && is_array($coordinates) && isset($coordinates['guarantor_signature'])) {
-                                $coord = $coordinates['guarantor_signature'];
-                                $next = $outDir . '/' . $baseName . '-guarantor.pdf';
-                                $this->pdfOverlay->stampSignature(
-                                    $current,
-                                    $guarantorSigPath,
-                                    (int) ($coord['page'] ?? 1),
-                                    (float) ($coord['x'] ?? 140),
-                                    (float) ($coord['y'] ?? 220),
-                                    (float) ($coord['width'] ?? 50),
-                                    (float) ($coord['height'] ?? 20),
-                                    $next,
-                                    'default',
-                                );
-                                if ($current !== $step1 && $current !== $step2 && $current !== $step3 && file_exists($current)) {
-                                    @unlink($current);
-                                }
-                                $current = $next;
-                            }
-
-                            // ── Date texts next to each signature ──────────────────
-                            $dateEntries = $this->buildSignatureDateEntries(
-                                $lease, $coordinates,
-                                $tenantSignature, $managerSignature,
-                                $witnessSignature ?? null,
-                                $advocateSignature ?? null,
-                            );
-                            if (! empty($dateEntries)) {
-                                $next = $outDir . '/' . $baseName . '-dates.pdf';
-                                $this->pdfOverlay->stampDateTexts($current, $dateEntries, $next);
-                                if ($current !== $step1 && file_exists($current)) {
-                                    @unlink($current);
-                                }
-                                $current = $next;
-                            }
-
-                            // ── New-style 6-box signing-page overlay (text + additional sigs) ──
-                            $newStyleCoords = $this->filterNewStyleSigningCoords(is_array($coordinates) ? $coordinates : []);
-                            if (! empty($newStyleCoords)) {
-                                $next = $outDir . '/' . $baseName . '-signing.pdf';
-                                $this->pdfOverlay->stampAllSigningFields(
-                                    $current,
-                                    $this->signingPageTextFields($lease),
-                                    array_filter([
-                                        'lessor_signature'          => $managerSigPath,
-                                        'lessor_witness_signature'  => $lessorWitnessSigPath,
-                                        'lessor_advocate_signature' => $lessorAdvSigPath,
-                                        'lessee_signature'          => $tenantSigPath,
-                                        'lessee_witness_signature'  => $witnessSigPath,
-                                        'lessee_advocate_signature' => $lesseeAdvSigPath,
-                                    ]),
-                                    $newStyleCoords,
-                                    $next,
-                                );
-                                if ($current !== $step1 && file_exists($current)) {
-                                    @unlink($current);
-                                }
-                                $current = $next;
-                            }
-
-                            $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
-                            if ($tenantSignature && $managerSignature) {
-                                $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
-                                if ($current !== $step1) {
-                                    @unlink($current);
-                                }
-                                $current = $auditPath;
-                            }
-
-                            $binary = file_get_contents($current);
-                            foreach (glob($outDir . '/' . $baseName . '*.pdf') ?: [] as $f) {
-                                if (file_exists($f)) {
-                                    @unlink($f);
-                                }
-                            }
-
-                            if ($binary !== false) {
-                                Log::info('LeasePdfService: Strategy 0 (uploaded PDF with coordinates) succeeded', ['lease_id' => $lease->id]);
-
-                                return $binary;
-                            }
-                        } catch (Exception $e) {
-                            Log::warning('LeasePdfService: PDF overlay strategy failed, falling back to raw uploaded PDF', [
-                                'lease_id' => $lease->id,
-                                'error' => $e->getMessage(),
-                            ]);
+            // Strategy 0: Landlord-provided PDF — use uploaded PDF as base, stamp fields + signatures.
+            // Only used when a coordinate map has been configured; without coordinates the stamping
+            // produces a blank template with no lease data, so we fall through to Strategy 1 instead.
+            if ($template && $template->source_pdf_path && $hasCoordinates) {
+                $sourcePath = storage_path('app/' . $template->source_pdf_path);
+                if (! file_exists($sourcePath)) {
+                    $sourcePath = storage_path('app/public/' . $template->source_pdf_path);
+                }
+                if (file_exists($sourcePath)) {
+                    try {
+                        $outDir = storage_path('app/lease-pdf-overlay');
+                        if (! is_dir($outDir)) {
+                            mkdir($outDir, 0755, true);
                         }
+                        $baseName = 'lease-' . $lease->id . '-' . uniqid();
+                        $step1 = $outDir . '/' . $baseName . '-fields.pdf';
+                        $step2 = $outDir . '/' . $baseName . '-sig.pdf';
+                        $step3 = $outDir . '/' . $baseName . '-final.pdf';
+
+                        $fields = $this->overlayFieldsFromLease($lease);
+                        $coordinates = $template->pdf_coordinate_map ?? [];
+                        $sigKeys = ['tenant_signature', 'manager_signature', 'witness_signature', 'advocate_signature', 'guarantor_signature'];
+                        $textCoordinates = is_array($coordinates)
+                            ? array_filter($coordinates, fn ($c, $k) => ! in_array((string) $k, $sigKeys, true) && isset($c['x'], $c['y']), ARRAY_FILTER_USE_BOTH)
+                            : [];
+
+                        $this->pdfOverlay->stampFields($sourcePath, $fields, $textCoordinates, $step1);
+
+                        $current = $step1;
+                        if ($tenantSigPath && file_exists($tenantSigPath) && is_array($coordinates) && isset($coordinates['tenant_signature'])) {
+                            $coord = $coordinates['tenant_signature'];
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $tenantSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 240),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $step2,
+                            );
+                            @unlink($current);
+                            $current = $step2;
+                        }
+                        if ($managerSigPath && file_exists($managerSigPath) && $managerSignature && is_array($coordinates) && isset($coordinates['manager_signature'])) {
+                            $coord = $coordinates['manager_signature'];
+                            $next = $current === $step2 ? $step3 : $step2;
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $managerSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 260),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                (string) ($coord['anchor'] ?? 'above'),
+                            );
+                            if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+                        $step4 = $outDir . '/' . $baseName . '-sig4.pdf';
+                        if ($advocateSigPath && file_exists($advocateSigPath) && is_array($coordinates) && isset($coordinates['advocate_signature'])) {
+                            $coord = $coordinates['advocate_signature'];
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $advocateSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 160),
+                                (float) ($coord['y'] ?? 250),
+                                (float) ($coord['width'] ?? 45),
+                                (float) ($coord['height'] ?? 18),
+                                $step4,
+                                (string) ($coord['anchor'] ?? 'beside'),
+                            );
+                            if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $step4;
+                        }
+                        // Witness signature — use coordinate map or defaults
+                        if ($witnessSigPath && file_exists($witnessSigPath)) {
+                            $coord = is_array($coordinates) && isset($coordinates['witness_signature'])
+                                ? $coordinates['witness_signature']
+                                : ['page' => 2, 'x' => 20, 'y' => 260, 'width' => 50, 'height' => 20];
+                            $next = $outDir . '/' . $baseName . '-witness.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $witnessSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 20),
+                                (float) ($coord['y'] ?? 260),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                'default',
+                            );
+                            if ($current !== $step1 && $current !== $step2 && $current !== $step3 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+                        $guarantorSigPath = $guarantorSigPaths[0] ?? null;
+                        if ($guarantorSigPath && file_exists($guarantorSigPath) && is_array($coordinates) && isset($coordinates['guarantor_signature'])) {
+                            $coord = $coordinates['guarantor_signature'];
+                            $next = $outDir . '/' . $baseName . '-guarantor.pdf';
+                            $this->pdfOverlay->stampSignature(
+                                $current,
+                                $guarantorSigPath,
+                                (int) ($coord['page'] ?? 1),
+                                (float) ($coord['x'] ?? 140),
+                                (float) ($coord['y'] ?? 220),
+                                (float) ($coord['width'] ?? 50),
+                                (float) ($coord['height'] ?? 20),
+                                $next,
+                                'default',
+                            );
+                            if ($current !== $step1 && $current !== $step2 && $current !== $step3 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        // ── Date texts next to each signature ──────────────────
+                        $dateEntries = $this->buildSignatureDateEntries(
+                            $lease, $coordinates,
+                            $tenantSignature, $managerSignature,
+                            $witnessSignature ?? null,
+                            $advocateSignature ?? null,
+                        );
+                        if (! empty($dateEntries)) {
+                            $next = $outDir . '/' . $baseName . '-dates.pdf';
+                            $this->pdfOverlay->stampDateTexts($current, $dateEntries, $next);
+                            if ($current !== $step1 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        // ── New-style 6-box signing-page overlay (text + additional sigs) ──
+                        $newStyleCoords = $this->filterNewStyleSigningCoords(is_array($coordinates) ? $coordinates : []);
+                        if (! empty($newStyleCoords)) {
+                            $next = $outDir . '/' . $baseName . '-signing.pdf';
+                            $this->pdfOverlay->stampAllSigningFields(
+                                $current,
+                                $this->signingPageTextFields($lease),
+                                array_filter([
+                                    'lessor_signature'          => $managerSigPath,
+                                    'lessor_witness_signature'  => $lessorWitnessSigPath,
+                                    'lessor_advocate_signature' => $lessorAdvSigPath,
+                                    'lessee_signature'          => $tenantSigPath,
+                                    'lessee_witness_signature'  => $witnessSigPath,
+                                    'lessee_advocate_signature' => $lesseeAdvSigPath,
+                                ]),
+                                $newStyleCoords,
+                                $next,
+                            );
+                            if ($current !== $step1 && file_exists($current)) {
+                                @unlink($current);
+                            }
+                            $current = $next;
+                        }
+
+                        $auditPath = $outDir . '/' . $baseName . '-audit.pdf';
+                        if ($tenantSignature && $managerSignature) {
+                            $this->pdfOverlay->stampAuditBlock($current, $lease, $tenantSignature, $managerSignature, $auditPath);
+                            if ($current !== $step1) {
+                                @unlink($current);
+                            }
+                            $current = $auditPath;
+                        }
+
+                        $binary = file_get_contents($current);
+                        foreach (glob($outDir . '/' . $baseName . '*.pdf') ?: [] as $f) {
+                            if (file_exists($f)) {
+                                @unlink($f);
+                            }
+                        }
+
+                        if ($binary !== false) {
+                            Log::info('LeasePdfService: Strategy 0 (uploaded PDF) succeeded', ['lease_id' => $lease->id]);
+
+                            return $binary;
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('LeasePdfService: PDF overlay strategy failed, falling back to template', [
+                            'lease_id' => $lease->id,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
-
-                    // Either we have no coordinates, or overlay failed — serve raw uploaded PDF
-                    $binary = file_get_contents($sourcePath);
-                    if ($binary !== false) {
-                        Log::info('LeasePdfService: Strategy 0 (raw uploaded PDF) succeeded', ['lease_id' => $lease->id]);
-
-                        return $binary;
-                    }
-                } else {
-                    // Template expects a PDF upload but nothing is present on disk — do NOT fall back
-                    // to HTML strategies, as that would show an incorrect "ghost" template.
-                    $dbPath = $template->source_pdf_path
-                        ?? $template->getAttribute('file_path')
-                        ?? $template->getAttribute('pdf_path');
-
-                    throw new Exception(
-                        'Base PDF template file not found on server for lease template '
-                        . $template->id
-                        . ' at DB path: ' . (string) $dbPath
-                    );
                 }
             }
 
             // Strategy 1: Assigned custom template
-            if ($hasAssignedTemplate && $lease->leaseTemplate) {
+            if ($lease->lease_template_id && $lease->leaseTemplate) {
                 try {
                     $html = $this->renderTemplate(
                         $lease->leaseTemplate, $lease,
@@ -506,49 +492,34 @@ class LeasePdfService
 
                     return $pdf->output();
                 } catch (Exception $e) {
-                    if ($strictTemplate) {
-                        throw new Exception(
-                            "Failed to render assigned template for lease {$lease->reference_number}: {$e->getMessage()}",
-                            previous: $e,
-                        );
-                    }
-
                     Log::warning('LeasePdfService: custom template failed, trying default', [
                         'lease_id' => $lease->id,
                         'error' => $e->getMessage(),
                     ]);
                 }
-            } elseif ($hasAssignedTemplate && $strictTemplate) {
-                // Lease has an assigned template ID but relation is missing — treat as hard failure in strict mode.
-                throw new Exception(
-                    "Assigned lease template {$lease->lease_template_id} could not be loaded for lease {$lease->reference_number}."
-                );
             }
 
-            // Strategy 2: Default template for lease type (fallback when assigned template fails).
-            // In strict mode, this is only used when NO template is assigned at all.
-            if (! $hasAssignedTemplate || ! $strictTemplate) {
-                $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
-                    ->where('is_active', true)
-                    ->where('is_default', true)
-                    ->first();
+            // Strategy 2: Default template for lease type (fallback when assigned template fails)
+            $defaultTemplate = LeaseTemplate::where('template_type', $lease->lease_type)
+                ->where('is_active', true)
+                ->where('is_default', true)
+                ->first();
 
-                if ($defaultTemplate) {
-                    $html = $this->renderTemplate(
-                        $defaultTemplate, $lease,
-                        $tenantSignature, $tenantSigPath,
-                        $managerSignature, $managerSigPath,
-                        $witnessSignature ?? null, $witnessSigPath,
-                        $advocateSignature ?? null, $advocateSigPath,
-                    );
-                    if ($needsDraft) {
-                        $html = $this->injectDraftWatermark($html);
-                    }
-                    $pdf = Pdf::loadHTML($html);
-                    $this->setPdfMetadata($pdf, $lease);
-
-                    return $pdf->output();
+            if ($defaultTemplate) {
+                $html = $this->renderTemplate(
+                    $defaultTemplate, $lease,
+                    $tenantSignature, $tenantSigPath,
+                    $managerSignature, $managerSigPath,
+                    $witnessSignature ?? null, $witnessSigPath,
+                    $advocateSignature ?? null, $advocateSigPath,
+                );
+                if ($needsDraft) {
+                    $html = $this->injectDraftWatermark($html);
                 }
+                $pdf = Pdf::loadHTML($html);
+                $this->setPdfMetadata($pdf, $lease);
+
+                return $pdf->output();
             }
 
             throw new Exception(
@@ -766,110 +737,6 @@ class LeasePdfService
         }
 
         return $html;
-    }
-
-    /**
-     * Resolve the base PDF filesystem path for a template.
-     *
-     * Supports the current schema (`source_pdf_path`, `source_type=uploaded_pdf`) and legacy schemas
-     * where templates may have been stored as (`file_path`, `source=pdf_upload`) or similar.
-     */
-    private function resolveTemplateSourcePdfPath(LeaseTemplate $template): ?string
-    {
-        $candidates = [];
-
-        // Current schema
-        $sourcePdfPath = (string) ($template->source_pdf_path ?? '');
-        if ($sourcePdfPath !== '') {
-            $candidates[] = $sourcePdfPath;
-        }
-
-        // Legacy schema compatibility (DB may still contain these columns)
-        $legacyFilePath = (string) ($template->getAttribute('file_path') ?? '');
-        if ($legacyFilePath !== '') {
-            $candidates[] = $legacyFilePath;
-        }
-        $legacyPdfPath = (string) ($template->getAttribute('pdf_path') ?? '');
-        if ($legacyPdfPath !== '') {
-            $candidates[] = $legacyPdfPath;
-        }
-
-        foreach ($candidates as $path) {
-            $original = $path;
-            $path = str_replace('\\', '/', $path);
-
-            // If already absolute and exists, use it
-            if (str_starts_with($path, '/') || preg_match('/^[A-Za-z]:\\//', $path) === 1) {
-                $exists = file_exists($path);
-                Log::warning('LeasePdfService.resolveTemplateSourcePdfPath absolute candidate', [
-                    'template_id' => $template->id,
-                    'db_path' => $original,
-                    'absolute' => $path,
-                    'exists' => $exists,
-                ]);
-
-                if ($exists) {
-                    return $path;
-                }
-                continue;
-            }
-
-            // Resolve via Storage disks first (Filament uploads usually use disks)
-            foreach (['public', 'local'] as $disk) {
-                try {
-                    if (Storage::disk($disk)->exists($path)) {
-                        $full = Storage::disk($disk)->path($path);
-                        $exists = file_exists($full);
-                        Log::warning('LeasePdfService.resolveTemplateSourcePdfPath disk candidate', [
-                            'template_id' => $template->id,
-                            'db_path' => $original,
-                            'disk' => $disk,
-                            'absolute' => $full,
-                            'exists' => $exists,
-                        ]);
-
-                        if ($exists) {
-                            return $full;
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning('LeasePdfService.resolveTemplateSourcePdfPath disk error', [
-                        'template_id' => $template->id,
-                        'disk' => $disk,
-                        'db_path' => $original,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // Fallback: typical storage locations relative to storage_path
-            $localCandidates = [
-                storage_path('app/' . $path),
-                storage_path('app/public/' . $path),
-                storage_path('app/private/' . $path),
-            ];
-
-            foreach ($localCandidates as $full) {
-                $exists = file_exists($full);
-                Log::warning('LeasePdfService.resolveTemplateSourcePdfPath storage-path candidate', [
-                    'template_id' => $template->id,
-                    'db_path' => $original,
-                    'absolute' => $full,
-                    'exists' => $exists,
-                ]);
-
-                if ($exists) {
-                    return $full;
-                }
-            }
-        }
-
-        Log::warning('LeasePdfService.resolveTemplateSourcePdfPath failed to resolve PDF', [
-            'template_id' => $template->id,
-            'candidates' => $candidates,
-        ]);
-
-        return null;
     }
 
     private function needsDraftWatermark(Lease $lease): bool
@@ -1229,7 +1096,7 @@ class LeasePdfService
         // Manager date
         if ($managerSig) {
             $coord = $coordinates['manager_signature'] ?? ['page' => 2, 'x' => 140, 'y' => 280, 'height' => 30];
-            $sigY   = (float) ($coord['y'] ?? 280);
+            $sigY = (float) ($coord['y'] ?? 280);
             $anchor = (string) ($coord['anchor'] ?? 'above');
             $height = (float) ($coord['height'] ?? 30);
             // When anchor is 'above', the image is placed above the y — date goes at y + 2
