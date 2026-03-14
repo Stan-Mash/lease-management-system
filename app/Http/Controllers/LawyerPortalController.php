@@ -78,7 +78,8 @@ class LawyerPortalController extends Controller
         }
 
         $lease = $tracking->lease;
-        $phone = $tracking->lawyer?->phone
+        $phone = $tracking->advocate_phone
+            ?: $tracking->lawyer?->phone
             ?: config('services.sms_redirect_to');
 
         if (empty($phone)) {
